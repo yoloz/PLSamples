@@ -21,17 +21,17 @@ do
    CLASSPATH=${CLASSPATH}:$f;  
 done  
 
-jar_file="$basepath"/MetricTool.jar
+jar_file="$basepath"/flume-kafka-monitor.jar
 
 if [ ! -f "$jar_file" ]; then
    echo "Compile source file........"
    $JAVAC -classpath ${CLASSPATH} -sourcepath "$basepath"/sources "$basepath"/sources/*.java -d "$basepath"
 
    echo "Create KafkaUtils jar.........."
-   $JAR -cf MetricTool.jar  com/ethan/flume_kafka_metric/
-   rm -rf "$basepath"/com
+   $JAR -cf flume-kafka-monitor.jar  src/
+   rm -rf "$basepath"/src
 fi
 
 CLASSPATH=${CLASSPATH}:$jar_file
 
-$JAVA -cp $CLASSPATH com.ethan.flume_kafka_metric.Command "$@"
+$JAVA -cp $CLASSPATH Command "$@"
