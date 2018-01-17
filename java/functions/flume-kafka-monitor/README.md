@@ -1,4 +1,4 @@
->通过循环访问flume的http请求和kafka的jmx请求获取监控数据
+>通过循环访问flume的http请求和kafka的jmx请求获取运行数据
 
 flume-http.properties,kafka-jmx.properties文件是默认的模板,详细信息里面有说明。
 
