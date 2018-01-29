@@ -148,7 +148,13 @@ public class Gather {
         public void run() {
             logger.debug("once gather start...");
             List<Future<Record>> results = new ArrayList<>(paths.size());
-            for (Path path : paths) results.add(executor.submit(new FileWatcher(path)));
+            for (Path path : paths) {
+                if (path.toFile().exists()) results.add(executor.submit(new FileWatcher(path)));
+                else {
+                    logger.warn(path + " does not exit...");
+                    cache.remove(path.toString());
+                }
+            }
             for (Future<Record> r : results) {
                 try {
                     Record record = r.get();

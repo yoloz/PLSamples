@@ -23,18 +23,22 @@ public class Registry {
 
     public static Map<String, String> get() {
         logger.debug(Thread.currentThread().getName() + "-registry: get-" + System.currentTimeMillis());
+        Map<String, String> result = new HashMap<>();
         File file = path.toFile();
         if (file.exists()) {
             Properties properties = new Properties();
             try (InputStreamReader reader = new InputStreamReader(
                     new FileInputStream(file), Charset.forName("UTF-8"))) {
                 properties.load(reader);
-                return toMap(properties);
+                Map<String, String> tmp = toMap(properties);
+                tmp.forEach((k, v) -> {
+                    if (Paths.get(k).toFile().exists()) result.put(k, v);
+                });
             } catch (IOException e) {
                 logger.error(e.getMessage(), e);
             }
         }
-        return Collections.emptyMap();
+        return result;
     }
 
     public static void write(Map<String, String> content) {
