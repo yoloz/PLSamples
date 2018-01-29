@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-gaName=$(dirname $0)/../config/gather
-PID=$(ps ax | grep -i ${gaName}'\.properties' | grep java | grep -v grep | awk '{print $1}')
+PID=$(ps ax | grep -i 'gatherdata' | grep java | grep -v grep | awk '{print $1}')
 if [ -z ${PID} ]; then
    echo "no gather to stop..."
    exit 0
@@ -9,7 +8,7 @@ else
 fi
 #wait for 5 second
 for((i=1;i<=5;i++)); do
-   PID=$(ps ax | grep -i ${gaName}'\.properties' | grep java | grep -v grep | awk '{print $1}')
+   PID=$(ps ax | grep -i 'gatherdata' | grep java | grep -v grep | awk '{print $1}')
    if [ -n "$PID" ]; then
       echo "stopping......"
       sleep 1s
@@ -17,7 +16,7 @@ for((i=1;i<=5;i++)); do
       break
    fi
 done
-PID=$(ps ax | grep -i ${gaName}'\.properties' | grep java | grep -v grep | awk '{print $1}')
+PID=$(ps ax | grep -i 'gatherdata' | grep java | grep -v grep | awk '{print $1}')
 #direct kill -9
 if [ -n "$PID" ]; then
    kill -9 ${PID}
