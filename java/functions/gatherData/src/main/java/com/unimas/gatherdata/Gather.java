@@ -51,6 +51,7 @@ public class Gather {
         this.resolvePaths(pathList);
         if (pathList.isEmpty()) {
             logger.error(" gather path is null or empty...");
+            this.close();
             return;
         }
         cache = new ConcurrentHashMap<>(pathList.size());
@@ -162,10 +163,10 @@ public class Gather {
                     if (!value.isEmpty()) {
                         String key = record.getPath().toString();
                         if (!cache.containsKey(key) || !value.equals(cache.get(key))) {
-                            cache.put(key, value);
                             try {
                                 output.apply(key, Files.readAllBytes(Paths.get(key)));
-                            } catch (IOException e) {
+                                cache.put(key, value);
+                            } catch (Throwable e) {
                                 logger.error(e.getMessage(), e);
                             }
                         }

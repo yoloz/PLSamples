@@ -4,7 +4,7 @@ import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.kafka.common.serialization.BytesSerializer;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +19,7 @@ public class Kafka extends Output {
 
     private final String topic;
     private final String address;
-    private KafkaProducer<String, byte[]> producer;
+    private KafkaProducer<String, byte[]> producer = null;
 
 
     Kafka(String address, String topic) {
@@ -33,7 +33,7 @@ public class Kafka extends Output {
             Properties props = new Properties();
             props.put("bootstrap.servers", address);
             props.put("key.serializer", StringSerializer.class.getName());
-            props.put("value.serializer", BytesSerializer.class.getName());
+            props.put("value.serializer", ByteArraySerializer.class.getName());
             producer = new KafkaProducer<>(props);
         }
     }
@@ -41,8 +41,11 @@ public class Kafka extends Output {
     @Override
     public void apply(String key, byte[] value) {
         if (producer == null) this.createProducer();
-        producer.send(new ProducerRecord<>(topic, key, value), new DefaultCallBack(key, value, logger));
-
+        try {
+            producer.send(new ProducerRecord<>(topic, key, value), new DefaultCallBack(key, value, logger));
+        } catch (RuntimeException e) {
+            logger.error(e.getMessage(), e);
+        }
     }
 
     private class DefaultCallBack implements Callback {
