@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <!-- The Basics -->
     <groupId>com.unimas</groupId>
-    <artifactId>gatherData</artifactId>
+    <artifactId>gatherdata</artifactId>
     <version>0.1</version>
     <packaging>jar</packaging>
     <dependencies>
