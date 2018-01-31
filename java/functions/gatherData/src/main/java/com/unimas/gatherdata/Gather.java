@@ -28,7 +28,8 @@ public class Gather {
 
     private final int threads;
     private final long interval;
-    private final String paths_;
+    private final String _paths;
+    private final String pathMode;
     private final Output output;
 
     private ScheduledExecutorService scheduledService;
@@ -39,33 +40,28 @@ public class Gather {
 
     private ConcurrentHashMap<String, String> cache;
 
-    Gather(int threads, int interval, String path, String... outMsg) {
+    Gather(int threads, int interval, String path, String pathMode, String... outMsg) {
         this.threads = threads;
         this.interval = interval;
-        this.paths_ = path;
+        this._paths = path;
+        this.pathMode = pathMode;
         this.output = Output.getOutput(outMsg);
     }
 
     public void gather() {
-        List<Path> pathList = new ArrayList<>();
-        this.resolvePaths(pathList);
-        if (pathList.isEmpty()) {
-            logger.error(" gather path is null or empty...");
-            this.close();
-            return;
-        }
-        cache = new ConcurrentHashMap<>(pathList.size());
+        cache = new ConcurrentHashMap<>(0);
+        logger.debug("threads:" + threads + "-interval:" + interval);
         logger.info("=================gather start=================");
-        logger.debug("threads:" + threads + "-interval:" + interval + "-path:" +
-                Arrays.toString(pathList.toArray()));
         Map<String, String> initCache = Registry.get();
         if (!initCache.isEmpty()) cache.putAll(initCache);
         logger.debug("init cache size:" + cache.size());
         scheduledService = Executors.newScheduledThreadPool(1);
         registryService = Executors.newScheduledThreadPool(1);
         executor = Executors.newFixedThreadPool(threads);
-        scheduledFuture = scheduledService.scheduleWithFixedDelay(
-                new GatherImpl(executor, pathList), 1, interval, TimeUnit.SECONDS);
+        if ("lazy".equals(pathMode)) scheduledFuture = scheduledService.scheduleWithFixedDelay(
+                new GatherImpl(executor, resolvePaths(_paths).toArray()), 1, interval, TimeUnit.SECONDS);
+        else scheduledFuture = scheduledService.scheduleWithFixedDelay(
+                new GatherImpl(executor, _paths), 1, interval, TimeUnit.SECONDS);
         registryFuture = registryService.scheduleWithFixedDelay(() -> Registry.write(cache),
                 1, 60, TimeUnit.SECONDS);
     }
@@ -101,35 +97,41 @@ public class Gather {
         logger.info("=================gather stop=================");
     }
 
-    private void resolvePaths(List<Path> pathList) {
-        String[] s_paths = paths_.split(",");
+    private List<Path> resolvePaths(String paths) {
+        List<Path> pathList = new ArrayList<>();
+        String[] s_paths = paths.split(",");
         for (String s_path : s_paths) {
-            Path path = Paths.get(s_path);
-            File file = path.toFile();
+            File file = Paths.get(s_path).toFile();
+            String filter = "*";
+            if (file.getName().contains("*")) {
+                filter = file.getName();
+                file = file.getParentFile();
+            }
             if (!file.exists()) {
-                logger.warn(path + " does not exit...");
+                logger.warn(file + " does not exit...");
                 continue;
             }
             if (file.isFile()) {
-                pathList.add(path);
+                pathList.add(file.toPath());
                 continue;
             }
             if (file.isDirectory()) {
-                try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(file.toPath(), filter)) {
                     for (Path p : stream) if (p.toFile().isFile()) pathList.add(p);
                 } catch (IOException e) {
                     logger.error(e.getMessage(), e);
                 }
             }
         }
+        return pathList;
     }
 
     private class GatherImpl implements Runnable {
 
         private ExecutorService executor;
-        private List<Path> paths;
+        private Object[] paths;
 
-        private GatherImpl(ExecutorService executor, List<Path> paths) {
+        private GatherImpl(ExecutorService executor, Object... paths) {
             this.executor = executor;
             this.paths = paths;
         }
@@ -148,6 +150,9 @@ public class Gather {
         @Override
         public void run() {
             logger.debug("once gather start...");
+            List<Path> paths;
+            if ("active".equals(pathMode)) paths = resolvePaths((String) this.paths[0]);
+            else paths = Arrays.asList((Path[]) this.paths);
             List<Future<Record>> results = new ArrayList<>(paths.size());
             for (Path path : paths) {
                 if (path.toFile().exists()) results.add(executor.submit(new FileWatcher(path)));

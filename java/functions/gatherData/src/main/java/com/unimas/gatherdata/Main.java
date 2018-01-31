@@ -50,7 +50,12 @@ public class Main {
             String pathStr = config.getProperty("gather.file.paths");
             if (pathStr == null || pathStr.isEmpty())
                 throw new Exception("gather.file.paths undefined or empty...");
-
+            String pathMode = config.getProperty("gather.file.path.mode", "lazy");
+            pathMode = pathMode.isEmpty() ? "lazy" : pathMode;
+            if (!"lazy,active".contains(pathMode)) {
+                logger.error("gather.file.path.mode: " + pathMode + " unsupported!");
+                pathMode = "lazy";
+            }
             String outType = config.getProperty("gather.output.type", "console");
             outType = outType.isEmpty() ? "console" : outType;
 
@@ -69,7 +74,7 @@ public class Main {
 
 //            levelLog(logger, config.getProperty("gather.logger.level"));
 
-            Gather gather = new Gather(threads, intervalMills, pathStr, outType, kafkaAddress, kafkaTopic);
+            Gather gather = new Gather(threads, intervalMills, pathStr, pathMode, outType, kafkaAddress, kafkaTopic);
             Runtime.getRuntime().addShutdownHook(new Thread(gather::close));
             gather.gather();
         } catch (Throwable e) {
