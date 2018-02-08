@@ -1,8 +1,11 @@
-# 读取修改properties文件
-# 辅助KStream的配置文件修改
+# !/usr/bin/python
+# -*- coding: utf-8 -*-
 import sys
 import os
 
+
+# 读取修改properties文件
+# 辅助KStream的配置文件修改
 
 class Properties:
     def __init__(self, file_name):
@@ -126,6 +129,6 @@ if __name__ == '__main__':
         if outputArgs[0] not in output_types:
             raise Exception('output type not in[kafka,zbus]')
         __update(conf_dir, kafkaArg, zookeeperArg, outputArgs)
-    except KeyboardInterrupt as e:
+    except KeyboardInterrupt as cancel:
         # print('key board interrupt!')
         pass
