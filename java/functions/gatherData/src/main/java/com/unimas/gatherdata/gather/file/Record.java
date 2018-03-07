@@ -1,4 +1,4 @@
-package com.unimas.gatherdata.gather;
+package com.unimas.gatherdata.gather.file;
 
 import java.nio.file.Path;
 

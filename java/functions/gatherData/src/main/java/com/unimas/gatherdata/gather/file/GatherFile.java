@@ -1,8 +1,5 @@
-package com.unimas.gatherdata;
+package com.unimas.gatherdata.gather.file;
 
-import com.unimas.gatherdata.gather.FileWatcher;
-import com.unimas.gatherdata.gather.Record;
-import com.unimas.gatherdata.gather.Registry;
 //import LocalLog;
 
 import java.io.File;
@@ -14,6 +11,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.*;
 //import java.util.logging.Logger;
+import com.unimas.gatherdata.ConfigException;
 import com.unimas.gatherdata.output.Output;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,10 +19,27 @@ import org.slf4j.LoggerFactory;
 /**
  * 文件采集单个文件不可大于(Integer.MAX_VALUE - 8)字节;
  */
-public class Gather {
+public class GatherFile {
 
     //    private final Logger logger = LocalLog.getLogger();
-    private final Logger logger = LoggerFactory.getLogger(Gather.class);
+    private final Logger logger = LoggerFactory.getLogger(GatherFile.class);
+
+    /**
+     * configuration definition
+     */
+    public enum CONFIG {
+        PATHS("gather.file.paths"), MODE("gather.file.path.mode"),
+        THREAD_NUM("gather.file.num.threads"), INTERVAL("gather.file.interval.sec");
+        private String value;
+
+        CONFIG(String value) {
+            this.value = value;
+        }
+
+        public String getValue() {
+            return value;
+        }
+    }
 
     private final int threads;
     private final long interval;
@@ -40,18 +55,23 @@ public class Gather {
 
     private ConcurrentHashMap<String, String> cache;
 
-    Gather(int threads, int interval, String path, String pathMode, String... outMsg) {
-        this.threads = threads;
-        this.interval = interval;
-        this._paths = path;
-        this.pathMode = pathMode;
-        this.output = Output.getOutput(outMsg);
+    public GatherFile(Properties config, Output output) {
+        String _threads = config.getProperty(CONFIG.THREAD_NUM.getValue(), "");
+        this.threads = _threads.isEmpty() ? Runtime.getRuntime().availableProcessors() : Integer.parseInt(_threads);
+        String _interval = config.getProperty(CONFIG.INTERVAL.getValue(), "5");
+        this.interval = _interval.isEmpty() ? 5 : Integer.parseInt(_interval);
+        String mode = config.getProperty(CONFIG.MODE.getValue(), "lazy");
+        this.pathMode = mode.isEmpty() ? "lazy" : mode;
+        String pathStr = config.getProperty(CONFIG.PATHS.getValue(), "");
+        if (pathStr.isEmpty()) throw new ConfigException(CONFIG.PATHS.getValue() + " is empty...");
+        this._paths = pathStr;
+        this.output = output;
     }
 
     public void gather() {
         cache = new ConcurrentHashMap<>(0);
         logger.debug("threads:" + threads + "-interval:" + interval);
-        logger.info("=================gather start=================");
+        logger.info("=================gatherFile start=================");
         Map<String, String> initCache = Registry.get();
         if (!initCache.isEmpty()) cache.putAll(initCache);
         logger.debug("init cache size:" + cache.size());
@@ -93,8 +113,7 @@ public class Gather {
             }
             scheduledService.shutdownNow();
         }
-        output.close();
-        logger.info("=================gather stop=================");
+        logger.info("=================gatherFile stop=================");
     }
 
     private List<Path> resolvePaths(String paths) {
@@ -151,7 +170,7 @@ public class Gather {
         public void run() {
             logger.debug("once gather start...");
             List<Path> paths;
-            if ("active".equals(pathMode)) paths = resolvePaths((String) this.paths[0]);
+            if (!"lazy".equals(pathMode)) paths = resolvePaths((String) this.paths[0]);
             else paths = Arrays.asList((Path[]) this.paths);
             List<Future<Record>> results = new ArrayList<>(paths.size());
             for (Path path : paths) {

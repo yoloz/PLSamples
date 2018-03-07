@@ -3,6 +3,8 @@ package com.unimas.gatherdata;
 
 //import LocalLog;
 
+import com.unimas.gatherdata.gather.file.GatherFile;
+import com.unimas.gatherdata.output.Output;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,32 +35,8 @@ public class Main {
                     Charset.forName("UTF-8"))) {
                 config.load(reader);
             }
-            int threads;
-            try {
-                threads = Integer.parseInt(config.getProperty("gather.num.threads"));
-            } catch (NumberFormatException e) {
-                logger.warn("gather.num.threads: " + e.getMessage());
-                threads = Runtime.getRuntime().availableProcessors();
-            }
-            int intervalMills;
-            try {
-                intervalMills = Integer.parseInt(config.getProperty("gather.interval.sec"));
-            } catch (NumberFormatException e) {
-                logger.warn("gather.interval.sec: " + e.getMessage());
-                intervalMills = 5;
-            }
-            String pathStr = config.getProperty("gather.file.paths");
-            if (pathStr == null || pathStr.isEmpty())
-                throw new Exception("gather.file.paths undefined or empty...");
-            String pathMode = config.getProperty("gather.file.path.mode", "lazy");
-            pathMode = pathMode.isEmpty() ? "lazy" : pathMode;
-            if (!"lazy,active".contains(pathMode)) {
-                logger.error("gather.file.path.mode: " + pathMode + " unsupported!");
-                pathMode = "lazy";
-            }
             String outType = config.getProperty("gather.output.type", "console");
             outType = outType.isEmpty() ? "console" : outType;
-
             String kafkaAddress = null, kafkaTopic = null;
             if ("kafka".equals(outType)) {
                 kafkaAddress = config.getProperty("gather.kafka.address");
@@ -67,16 +45,29 @@ public class Main {
                         kafkaTopic == null || kafkaTopic.isEmpty())
                     throw new Exception("gather.kafka.* undefined or empty...");
             }
-//目录创建脚本中处理
-//            File dataDir = data_dir.toFile(), logDir = log_dir.toFile();
-//            if (!dataDir.exists()) dataDir.mkdirs();
-//            if (!logDir.exists()) dataDir.mkdirs();
+            Output output = Output.getOutput(outType, kafkaAddress, kafkaTopic);
+
+            String _gatherFile = config.getProperty("gather.file.enable", "false");
+            boolean gatherFile = _gatherFile.isEmpty() ? false : Boolean.valueOf(_gatherFile);
+            if(gatherFile){
+                GatherFile gf = new GatherFile(config,output);
+                gf.gather();
+            }
+
+            String _gatherSys = config.getProperty("gather.system.enable","false");
+            boolean gatherSys = _gatherSys.isEmpty()?false: Boolean.valueOf(_gatherSys);
+
+
+
+
+
 
 //            levelLog(logger, config.getProperty("gather.logger.level"));
 
-            Gather gather = new Gather(threads, intervalMills, pathStr, pathMode, outType, kafkaAddress, kafkaTopic);
-            Runtime.getRuntime().addShutdownHook(new Thread(gather::close));
-            gather.gather();
+//            Gather gather = new Gather(threads, intervalMills, pathStr, pathMode, outType, kafkaAddress, kafkaTopic);
+//            Runtime.getRuntime().addShutdownHook(new Thread(gather::close));
+//            gather.gather();
+            output.close();
         } catch (Throwable e) {
             logger.error(e.getMessage(), e);
             System.exit(1);

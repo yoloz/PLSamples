@@ -33,7 +33,9 @@ func CollectCfg(path string) (*Config, error) {
 	if err := cp.Decode(&c); err != nil {
 		return nil, err
 	}
-	if len(c.Paths)==0
+	if len(c.Paths)==0 {
+		return nil,
+	}
 	if len(c.Threads) == 0 {
 		println(runtime.NumCPU)
 		// c.Threads = strconv.FormatInt(runtime.NumCPU, 10)
