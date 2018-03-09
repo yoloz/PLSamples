@@ -27,7 +27,7 @@ public class GatherFile {
     /**
      * configuration definition
      */
-    public enum CONFIG {
+    private enum CONFIG {
         PATHS("gather.file.paths"), MODE("gather.file.path.mode"),
         THREAD_NUM("gather.file.num.threads"), INTERVAL("gather.file.interval.sec");
         private String value;

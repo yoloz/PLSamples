@@ -1,6 +1,7 @@
 package com.unimas.gatherdata.log;
 
-import com.unimas.gatherdata.Main;
+
+import com.unimas.gatherdata.Gather;
 
 import java.io.File;
 import java.io.IOException;
@@ -9,6 +10,7 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.logging.*;
+
 
 /**
  * jdk自带的logger
@@ -38,7 +40,8 @@ public class LocalLog {
 
     private static void addFileHandler(Logger logger) {
         try {
-            File logFile = Paths.get(Main.log_dir.toString(), "gather.log").toFile();
+            Path path = Paths.get(Gather.APP_DIR, "logs", "gather.log");
+            File logFile = path.toFile();
             if (logFile.exists()) {
                 DateTimeFormatter dateTimeFormatter = new DateTimeFormatterBuilder()
                         .appendPattern("uuuu-MM-dd HH")
@@ -71,4 +74,37 @@ public class LocalLog {
             e.printStackTrace();
         }
     }
+
+    private static void levelLog(Logger logger, String level) {
+        if (level == null || level.isEmpty()) return;
+        switch (level) {
+            case "SEVERE":
+                logger.setLevel(Level.SEVERE);
+                break;
+            case "WARNING":
+                logger.setLevel(Level.WARNING);
+                break;
+            case "INFO":
+                logger.setLevel(Level.INFO);
+                break;
+            case "CONFIG":
+                logger.setLevel(Level.CONFIG);
+                break;
+            case "FINE":
+                logger.setLevel(Level.FINE);
+                break;
+            case "FINER":
+                logger.setLevel(Level.FINER);
+                break;
+            case "FINEST":
+                logger.setLevel(Level.FINEST);
+                break;
+            case "ALL":
+                logger.setLevel(Level.ALL);
+                break;
+            default:
+                logger.setLevel(Level.WARNING);
+        }
+    }
+
 }

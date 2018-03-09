@@ -1,6 +1,6 @@
 package com.unimas.gatherdata.gather.file;
 
-import com.unimas.gatherdata.Main;
+import com.unimas.gatherdata.Gather;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 //import LocalLog;
@@ -18,7 +18,7 @@ public class Registry {
 
     //    private static final Logger logger = LocalLog.getLogger();
     private static final Logger logger = LoggerFactory.getLogger(Registry.class);
-    private static final Path path = Paths.get(Main.data_dir.toString(), "registry");
+    private static final Path path = Paths.get(Gather.APP_DIR, "data", "registry");
 
     public static Map<String, String> get() {
         logger.debug(Thread.currentThread().getName() + "-registry: get-" + System.currentTimeMillis());

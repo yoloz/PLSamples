@@ -14,19 +14,19 @@ public class SigarMain {
                 "/java/functions/gatherData/lib/sigar");
         // Sigar信息集合
         List<SigarInfoEntity> sigarInfos = new ArrayList<>();
-        try {
+//        try {
             // 1.获取系统信息和jvm虚拟机信息
-            sigarInfos.addAll(SigarUtils.getJvmInfos());
+//            sigarInfos.addAll(SigarUtils.getJvmInfos());
             // 2.获取cpu信息
-            sigarInfos.addAll(SigarUtils.getCpuInfos());
+//            sigarInfos.addAll(SigarUtils.getCpuInfos());
             // 3.获取内存信息
-            sigarInfos.addAll(SigarUtils.getMemoryInfos());
+//            sigarInfos.addAll(SigarUtils.getMemoryInfos());
             // 4.获取操作系统信息
             sigarInfos.addAll(SigarUtils.getOsInfos());
             // 5.获取文件信息
-            sigarInfos.addAll(SigarUtils.getFileInfos());
+//            sigarInfos.addAll(SigarUtils.getFileInfos());
             // 6.获取网络信息
-            sigarInfos.addAll(SigarUtils.getNetInfos());
+//            sigarInfos.addAll(SigarUtils.getNetInfos());
 
             StringBuilder sigarStringBuffer = new StringBuilder();
             for (SigarInfoEntity sigarInfo : sigarInfos) {
@@ -36,10 +36,10 @@ public class SigarMain {
             System.out.println(sigarStringBuffer.toString());
 
 
-        } catch (SigarException | UnknownHostException se) {
-            // TODO: handle exception
-            se.printStackTrace();
-        }
+//        } catch (SigarException | UnknownHostException se) {
+//            // TODO: handle exception
+//            se.printStackTrace();
+//        }
 
     }
 }
