@@ -34,12 +34,12 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	collCfg, err := collectfile.CollectCfg(execDir)
+	collCfg, err := collectfile.CollectCfg("/home/ylzhang/GoPath/src/ylzhang/golang/gatherdata")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(execDir)
-	log.Println(collCfg.Mode)
+	// log.Println(execDir)
+	log.Println(collCfg.Threads)
 	// log.Println(collCfg.)
 	// propPath := flag.String("conf","/home/manu/sample/","DB data path")
 }

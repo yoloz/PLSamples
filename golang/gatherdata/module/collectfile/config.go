@@ -1,8 +1,10 @@
 package collectfile
 
 import (
+	"errors"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/magiconair/properties"
@@ -33,12 +35,18 @@ func CollectCfg(path string) (*Config, error) {
 	if err := cp.Decode(&c); err != nil {
 		return nil, err
 	}
-	if len(c.Paths)==0 {
-		return nil,
+	if len(c.Paths) == 0 {
+		return nil, errors.New("路径为空")
 	}
+
 	if len(c.Threads) == 0 {
-		println(runtime.NumCPU)
-		// c.Threads = strconv.FormatInt(runtime.NumCPU, 10)
+		c.Threads = strconv.Itoa(runtime.NumCPU())
+	}
+	if len(c.Interval) == 0 {
+		c.Interval = strconv.Itoa(5)
+	}
+	if len(c.Output) == 0 {
+		c.Output = "console"
 	}
 	// strconv.ParseInt
 	return &c, nil
