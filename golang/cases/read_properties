@@ -1,4 +1,4 @@
-package collectfile
+可参考:github.com/magiconair/properties
 
 import (
 	"errors"
