@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"ylzhang/golang/gatherdata/module/collectfile"
 )
 
 func init() {
@@ -34,12 +33,4 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	collCfg, err := collectfile.CollectCfg("/home/ylzhang/GoPath/src/ylzhang/golang/gatherdata")
-	if err != nil {
-		log.Fatal(err)
-	}
-	// log.Println(execDir)
-	log.Println(collCfg.Threads)
-	// log.Println(collCfg.)
-	// propPath := flag.String("conf","/home/manu/sample/","DB data path")
 }
