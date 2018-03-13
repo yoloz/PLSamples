@@ -6,7 +6,7 @@ type Config struct {
 	ToConsole bool       `config:"to_console"`
 	ToFiles   bool       `config:"to_files"`
 	Files     FileConfig `config:"files"`
-	addCaller bool       // Adds package and line number info to messages.
+	// addCaller bool       // Adds package and line number info to messages.
 }
 
 // FileConfig contains the configuration options for the file output.
@@ -26,7 +26,6 @@ var defaultConfig = Config{
 		MaxSize:     10 * 1024 * 1024,
 		Permissions: 0600,
 	},
-	addCaller: true,
 }
 
 // DefaultConfig returns the default config options.

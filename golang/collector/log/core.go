@@ -12,15 +12,17 @@ import (
 )
 
 var baseEncodingConfig = zapcore.EncoderConfig{
+	TimeKey:        "ts",
 	LevelKey:       "level",
 	NameKey:        "logger",
-	MessageKey:     "message",
+	CallerKey:      "caller",
+	MessageKey:     "msg",
 	StacktraceKey:  "stacktrace",
 	LineEnding:     zapcore.DefaultLineEnding,
 	EncodeLevel:    zapcore.LowercaseLevelEncoder,
 	EncodeTime:     zapcore.ISO8601TimeEncoder,
-	EncodeDuration: zapcore.NanosDurationEncoder,
-	EncodeName:     zapcore.FullNameEncoder,
+	EncodeDuration: zapcore.SecondsDurationEncoder,
+	EncodeCaller:   zapcore.ShortCallerEncoder,
 }
 
 var (
@@ -43,14 +45,14 @@ type coreLogger struct {
 func Configure(cfg Config) error {
 	var cores []zapcore.Core
 	if cfg.ToConsole {
-		if c, err := makeStdoutOutput(cfg); err != nil {
+		if c, err := makeStdoutOutput(cfg); err == nil {
 			cores = append(cores, c)
 		} else {
 			return errors.Wrap(err, "failed to build log output")
 		}
 	}
 	if cfg.ToFiles {
-		if c, err := makeFileOutput(cfg); err != nil {
+		if c, err := makeFileOutput(cfg); err == nil {
 			cores = append(cores, c)
 		} else {
 			return errors.Wrap(err, "failed to build log output")
@@ -59,12 +61,23 @@ func Configure(cfg Config) error {
 	if cores == nil {
 		cores = append(cores, zapcore.NewNopCore())
 	}
-	rootL := zap.New(zapcore.NewTee(cores...))
+	rootL := zap.New(zapcore.NewTee(cores...), makeOptions(cfg)...)
 	storeLogger(&coreLogger{
 		rootLogger:   rootL,
 		globalLogger: rootL.WithOptions(zap.AddCallerSkip(1)),
 	})
 	return nil
+}
+
+// add caller and stacktrace
+func makeOptions(cfg Config) []zap.Option {
+	var options []zap.Option
+	options = append(options, zap.AddCaller())
+	options = append(options, zap.AddStacktrace(zapcore.ErrorLevel))
+	// if cfg.development {
+	// 	options = append(options, zap.Development())
+	// }
+	return options
 }
 
 // Sync flushes any buffered log entries. Applications should take care to call Sync before exiting.
