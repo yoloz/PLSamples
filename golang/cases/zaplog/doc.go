@@ -1,4 +1,4 @@
 /*
-Package log 使用go.uber.org/zap
+Package zaplog 使用go.uber.org/zap
 */
-package log
+package zaplog

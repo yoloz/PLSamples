@@ -1,4 +1,4 @@
-package log
+package zaplog
 
 // Config contains the configuration options for the logger.
 type Config struct {
