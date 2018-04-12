@@ -1,5 +1,6 @@
 package qiniulog
 
+// error添加zap的stacktrace
 import (
 	"bytes"
 	"fmt"
@@ -196,6 +197,9 @@ func (l *Logger) Output(reqId string, lvl int, calldepth int, s string) error {
 	l.buf.Reset()
 	l.formatHeader(&l.buf, now, file, line, lvl, reqId)
 	l.buf.WriteString(s)
+	if lvl == Lerror {
+		l.buf.WriteString(TakeStacktrace())
+	}
 	if len(s) > 0 && s[len(s)-1] != '\n' {
 		l.buf.WriteByte('\n')
 	}

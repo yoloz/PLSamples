@@ -1,7 +1,0 @@
-# console,kafka,默认console[区分大小写]
-type:
- -console
-# kafka address
-kafka_addr:
-# kafka topic
-kafka_topic:
