@@ -1,0 +1,8 @@
+# web path
+webpath: ./public
+# gather metric host
+hosts: 
+- 10.68.23.11:12584
+- 10.68.23.12:12585
+#	Ldebug 0 Linfo 1 Lwarn 2 Lerror 3 Lpanic 4 Lfatal 5
+loglevel: 1

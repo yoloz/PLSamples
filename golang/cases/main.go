@@ -1,9 +1,9 @@
 package main
 
 import (
-	"ylzhang/golang/cases/qiniulog"
-	"ylzhang/golang/cases/yamltest"
-	"ylzhang/golang/cases/zaplog"
+	"github.com/Z88897050/emulateSamples/golang/cases/qiniulog"
+	"github.com/Z88897050/emulateSamples/golang/cases/yamltest"
+	"github.com/Z88897050/emulateSamples/golang/cases/zaplog"
 )
 
 func main() {
