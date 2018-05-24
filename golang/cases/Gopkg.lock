@@ -2,6 +2,16 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "github.com/Z88897050/emulateSamples"
+  packages = [
+    "golang/cases/qiniulog",
+    "golang/cases/yamltest",
+    "golang/cases/zaplog"
+  ]
+  revision = "133e1be1bfc6d9920c5550af1d9bfd418abaea0e"
+
+[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
@@ -41,6 +51,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "931c998dd672d6c6b20ec3e990b77684b424ca8f40e96dae1b1f13e360dbec2e"
+  inputs-digest = "c7f9fc1cefc3d64d33fd8d4b1e14738c642ce3dc860e7ac483b18a6a4cf99703"
   solver-name = "gps-cdcl"
   solver-version = 1
