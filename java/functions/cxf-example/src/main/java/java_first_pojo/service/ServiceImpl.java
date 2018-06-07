@@ -26,8 +26,6 @@ public class ServiceImpl implements IService {
 
     @Override
     public NorResponse addService(ServiceInfo serviceInfo) {
-        logger.info(new Gson().toJson(serviceInfo, new TypeToken<ServiceInfo>() {
-        }.getType()));
         return justTest();
     }
 
@@ -78,6 +76,8 @@ public class ServiceImpl implements IService {
 
     @Override
     public NorResponse reportTest(TestInfo testInfo) {
+        logger.info(new Gson().toJson(testInfo, new TypeToken<TestInfo>() {
+        }.getType()));
         return justTest();
     }
 
