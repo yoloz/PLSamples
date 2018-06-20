@@ -26,6 +26,16 @@ public class OtherUpdate {
      * <p/>
      * /C      执行字符串指定的命令然后终断
      * ...................
+     * String[] cmd = {"/bin/sh", "-c", "echo $JAVA_HOME"};
+     * Process pro = Runtime.getRuntime().exec(cmd);
+     * pro.waitFor();
+     * BufferedReader read = new BufferedReader(new InputStreamReader(pro.getInputStream()));
+     * String line;
+     * logger.info("=========================");
+     * while ((line = read.readLine()) != null) {
+     * logger.info(line);
+     * }
+     * logger.info("=========================");
      */
     public void startProcessNormal() throws IOException {
         ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "netstat", "-a");
