@@ -17,31 +17,37 @@ public class GuavaLoadCache {
                             @Override
                             public String load(String id) throws Exception {
                                 //make the expensive call
-                                return getFromDatabase(id);
+                                String result = getFromDatabase(id);
+                                return result == null ? "empty" : result;
                             }
                         });
 
         try {
-            System.out.println("on first invocation, cache will be populated with corresponding record");
-            System.out.println("Invocation #1");
+            System.out.println("##on first invocation, cache will be populated with corresponding record");
             System.out.println(cache.get("100"));
             System.out.println(cache.get("103"));
             System.out.println(cache.get("110"));
-            System.out.println("second invocation, data will be returned from cache");
-            System.out.println("Invocation #2");
+            System.out.println("##second invocation, data will be returned from cache");
             System.out.println(cache.get("100"));
             System.out.println(cache.get("103"));
             System.out.println(cache.get("110"));
-            System.out.println("update cache data");
+            cache.invalidateAll();
+            System.out.println("##third invocation, discard all data from cache");
+            System.out.println(cache.get("100"));
+            System.out.println(cache.get("103"));
+            System.out.println(cache.get("110"));
+            System.out.println("##update cache data");
             cache.put("103", "++++");
             System.out.println(cache.get("100"));
             System.out.println(cache.get("103"));
             System.out.println(cache.get("110"));
-            System.out.println("refresh cache data");
+            System.out.println("##refresh cache data");
             cache.refresh("103");
             System.out.println(cache.get("100"));
             System.out.println(cache.get("103"));
             System.out.println(cache.get("110"));
+            System.out.println("##get not exist data");
+            System.out.println(cache.get("120"));
 
         } catch (ExecutionException e) {
             e.printStackTrace();
