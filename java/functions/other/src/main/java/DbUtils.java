@@ -89,7 +89,7 @@ public class DbUtils {
             DbUtils.initDbSource("com.mysql.jdbc.Driver",
                     "xxxx", "3306", "xxxx"
                     , "xxxx", "sdas", 1, 4);
-            List<Map<String, Object>> l = DbUtils.query("select count(jobid) from multiapp where ip=?", ip);
+            List<Map<String, Object>> l = DbUtils.query("select count(jobid) from multiapp where ip=?", "");
             int total = 0;
 //            if (!l.isEmpty()) total = (int) l.get(0).get("count(jobid)");
 //            取出来的count(jobid)是long,可以通过下面方式转成int
