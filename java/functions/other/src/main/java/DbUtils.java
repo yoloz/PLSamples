@@ -87,8 +87,14 @@ public class DbUtils {
 
         try {
             DbUtils.initDbSource("com.mysql.jdbc.Driver",
-                    "10.68.120.111", "3306", "lsjcj"
-                    , "ciilsjcj", "sdas", 1, 4);
+                    "xxxx", "3306", "xxxx"
+                    , "xxxx", "sdas", 1, 4);
+            List<Map<String, Object>> l = DbUtils.query("select count(jobid) from multiapp where ip=?", ip);
+            int total = 0;
+//            if (!l.isEmpty()) total = (int) l.get(0).get("count(jobid)");
+//            取出来的count(jobid)是long,可以通过下面方式转成int
+            if (!l.isEmpty()) total = ((Number) l.get(0).get("count(jobid)")).intValue();
+            System.out.println("======" + total);
             List<Map<String, Object>> list = DbUtils.query("select ip,amount,status from multinode");
             for (Map<String, Object> map : list) {
                 System.out.println("ip: " + String.valueOf(map.get("ip")));
