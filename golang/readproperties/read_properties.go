@@ -1,4 +1,5 @@
-可参考:github.com/magiconair/properties
+package readproperties
+// 可参考:github.com/magiconair/properties
 
 import (
 	"errors"

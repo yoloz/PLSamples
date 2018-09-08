@@ -1,6 +1,8 @@
 package qiniulog
 
-import "os"
+import (
+	"os"
+)
 
 // LogTest 测试
 func LogTest() {

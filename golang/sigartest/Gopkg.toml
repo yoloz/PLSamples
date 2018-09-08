@@ -1,6 +1,6 @@
 # Gopkg.toml example
 #
-# Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
+# Refer to https://golang.github.io/dep/docs/Gopkg.toml.html
 # for detailed Gopkg.toml documentation.
 #
 # required = ["github.com/user/thing/cmd/thing"]
@@ -26,17 +26,9 @@
 
 
 [[constraint]]
-  name = "github.com/pkg/errors"
-  version = "0.8.0"
-
-[[constraint]]
-  name = "go.uber.org/zap"
-  version = "1.7.1"
+  name = "github.com/cloudfoundry/gosigar"
+  version = "scotty_09012012"
 
 [prune]
   go-tests = true
   unused-packages = true
-
-[[constraint]]
-  name = "gopkg.in/yaml.v2"
-  version = "2.1.1"

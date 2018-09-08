@@ -2,10 +2,6 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/Z88897050/emulateSamples/golang/cases/qiniulog"
-	"github.com/Z88897050/emulateSamples/golang/cases/yamltest"
-	"github.com/Z88897050/emulateSamples/golang/cases/zaplog"
 )
 
 func createPanic() {
@@ -21,9 +17,5 @@ func recoverPanic(f func()) (b bool) {
 	return
 }
 func main() {
-	zaplog.LogTest()
-	qiniulog.LogTest()
-	yamltest.YamlTest()
-
 	recoverPanic(createPanic)
 }

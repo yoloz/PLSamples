@@ -2,16 +2,6 @@
 
 
 [[projects]]
-  branch = "master"
-  name = "github.com/Z88897050/emulateSamples"
-  packages = [
-    "golang/cases/qiniulog",
-    "golang/cases/yamltest",
-    "golang/cases/zaplog"
-  ]
-  revision = "133e1be1bfc6d9920c5550af1d9bfd418abaea0e"
-
-[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
@@ -20,8 +10,8 @@
 [[projects]]
   name = "go.uber.org/atomic"
   packages = ["."]
-  revision = "8474b86a5a6f79c443ce4b2992817ff32cf208b8"
-  version = "v1.3.1"
+  revision = "4e336646b2ef9fc6e47be8e21594178f98e5ebcf"
+  version = "v1.2.0"
 
 [[projects]]
   name = "go.uber.org/multierr"
@@ -39,18 +29,12 @@
     "internal/exit",
     "zapcore"
   ]
-  revision = "35aad584952c3e7020db7b839f6b102de6271f89"
-  version = "v1.7.1"
-
-[[projects]]
-  name = "gopkg.in/yaml.v2"
-  packages = ["."]
-  revision = "7f97868eec74b32b0982dd158a51a446d1da7eb5"
-  version = "v2.1.1"
+  revision = "ff33455a0e382e8a81d14dd7c922020b6b5e7982"
+  version = "v1.9.1"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c7f9fc1cefc3d64d33fd8d4b1e14738c642ce3dc860e7ac483b18a6a4cf99703"
+  inputs-digest = "6fd3c4a88ca7a9f0cd498d7e702dbacd6922c40bd4cd4ebcdca716b118ee5aa5"
   solver-name = "gps-cdcl"
   solver-version = 1

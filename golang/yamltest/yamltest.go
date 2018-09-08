@@ -1,4 +1,4 @@
-package yamltest
+package main
 
 // Marshal serializes the value provided into a YAML document. The structure
 // of the generated document will reflect the structure of the value itself.
@@ -46,7 +46,6 @@ package yamltest
 import (
 	"fmt"
 	"log"
-
 	"gopkg.in/yaml.v2"
 )
 
@@ -95,4 +94,7 @@ func YamlTest() {
 		log.Fatalf("error: %v", err)
 	}
 	fmt.Printf("--- m dump:\n%s\n\n", string(d))
+}
+func main() {
+	YamlTest()
 }
