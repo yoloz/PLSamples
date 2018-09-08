@@ -16,6 +16,7 @@ import (
 var (
 	running = true
 	oldCPU  sigar.Cpu
+	curCPU  sigar.Cpu
 )
 var process = flag.String("p", "", "get information about the specified process")
 
@@ -37,7 +38,7 @@ func WaitForInterrupt(interrupt func()) {
 }
 
 // copyCPU copy cpu
-func copyCPU(target sigar.Cpu, source sigar.Cpu) {
+func copyCPU(target *sigar.Cpu, source *sigar.Cpu) {
 	target.User = source.User
 	target.Nice = source.Nice
 	target.Sys = source.Sys
@@ -77,38 +78,33 @@ func main() {
 		// 	log.Printf("Command finished with error: %v", err)
 		// }
 		mem := sigar.ProcMem{}
-		// cpu := sigar.Cpu{}
-		// oldCPU := sigar.Cpu{}
-		// curCPU := sigar.Cpu{}
+		cpu := sigar.Cpu{}
 		pid, err := strconv.Atoi(*process)
 		if err != nil {
 			log.Fatal(err)
 		}
-
 		go WaitForInterrupt(func() { running = false })
-
+		fmt.Print("  CPU%  RSS\n")
 		for running {
-			// if oldCPU.Total() == 0 {
-			// 	if err := cpu.Get(); err != nil {
-			// 		log.Fatal(err)
-			// 	}
-			// 	copyCPU(oldCPU, cpu)
-			// 	time.Sleep(time.Duration(500) * time.Millisecond)
-			// }
-			// if err := cpu.Get(); err != nil {
-			// 	log.Fatal(err)
-			// }
-			// copyCPU(curCPU, cpu)
-			// fmt.Printf("oldCpu %v\n", oldCPU)
-			// fmt.Printf("curCpu %v\n", curCPU)
-			// cpu := 1 - (curCPU.Idle-oldCPU.Idle)/(curCPU.Total()-oldCPU.Total())
-			// fmt.Printf("cpu usage %v", cpu)
-
+			if oldCPU.Total() == 0 {
+				if err := cpu.Get(); err != nil {
+					log.Fatal(err)
+				}
+				copyCPU(&oldCPU, &cpu)
+				time.Sleep(time.Duration(500) * time.Millisecond)
+			}
+			if err := cpu.Get(); err != nil {
+				log.Fatal(err)
+			}
+			copyCPU(&curCPU, &cpu)
+			cpuUsage := (1 - float32(curCPU.Idle-oldCPU.Idle)/float32(curCPU.Total()-oldCPU.Total()))
+			oldCPU = curCPU
 			if err := mem.Get(pid); err != nil {
 				log.Fatal(err)
 			}
-			fmt.Printf("res mem %v(M)\n", (mem.Resident / (1024 * 1024)))
-			time.Sleep(time.Duration(1) * time.Second)
+			fmt.Printf("%.2f%% %.2fM\n", cpuUsage*100, float32(mem.Resident/(1024*1024)))
+
+			time.Sleep(time.Duration(2) * time.Second)
 		}
 	}
 
