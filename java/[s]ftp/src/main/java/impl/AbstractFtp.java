@@ -1,6 +1,7 @@
 package impl;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Paths;
 
 public abstract class AbstractFtp {
@@ -11,16 +12,29 @@ public abstract class AbstractFtp {
     int port;
     String localpath;
     String remotepath;
+    String order;      //增量下载[fname:文件名;mtime:修改时间];
+
+    BreakPoint breakPoint;
 
 
-    public AbstractFtp(String username, String password, String host,
-                       int port, String localpath, String remotepath) {
+    AbstractFtp(String username, String password, String host,
+                int port, String localpath, String remotepath) throws IOException {
+        this(username, password, host, port, localpath, remotepath, "", "");
+    }
+
+    /**
+     * servieId:记录断点文件
+     */
+    AbstractFtp(String username, String password, String host, int port, String localpath, String remotepath,
+                String order, String servieId) throws IOException {
         this.username = username;
         this.password = password;
         this.host = host;
         this.port = port;
         this.localpath = localpath;
         this.remotepath = remotepath;
+        this.order = order;
+        if (!servieId.isEmpty()) this.breakPoint = new BreakPoint(servieId);
     }
 
     //存在三种模式OVERWRITE,RESUME,APPEND;默认OVERWRITE

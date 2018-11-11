@@ -6,6 +6,7 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -18,10 +19,15 @@ public class Sftp extends AbstractFtp {
     private ChannelSftp sftp;
     private Session session;
 
-    public Sftp(String username, String password, String host, int port,
-                String localpath, String remotepath) {
+    public Sftp(String username, String password, String host, int port, String localpath, String remotepath) throws IOException {
         super(username, password, host, port, localpath, remotepath);
     }
+
+    public Sftp(String username, String password, String host, int port, String localpath, String remotepath,
+                String order, String servieId) throws IOException {
+        super(username, password, host, port, localpath, remotepath, order, servieId);
+    }
+
 
     @Override
     public void login() throws Exception {
@@ -40,7 +46,7 @@ public class Sftp extends AbstractFtp {
     }
 
     @Override
-    public void logout() {
+    public void logout() throws IOException {
         if (sftp != null) {
             if (sftp.isConnected()) {
                 sftp.disconnect();
@@ -51,6 +57,7 @@ public class Sftp extends AbstractFtp {
                 session.disconnect();
             }
         }
+        if (breakPoint != null) breakPoint.store();
     }
 
     @Override
@@ -102,8 +109,13 @@ public class Sftp extends AbstractFtp {
             if (entry.getAttrs().isDir()) {
                 download_r(Paths.get(path, fname).toString());
             } else if (entry.getAttrs().isReg()) {
-                if (path.endsWith(fname)) _download(path);
-                else _download(Paths.get(path, fname).toString());
+                Path filepath = Paths.get(path);
+                if (!path.endsWith(fname)) filepath = Paths.get(path, fname);
+                String fileDir = filepath.getParent().toString();
+                boolean download = true;
+                if ("mtime".equals(order)) download = breakPoint.checkDown(fileDir, entry.getAttrs().getMTime());
+                if ("fname".equals(order)) download = breakPoint.checkDown(fileDir, fname);
+                if (download) _download(filepath.toString());
             }
         }
     }
@@ -125,11 +137,14 @@ public class Sftp extends AbstractFtp {
     }
 
 
-    public static void main(String[] args) {
-//        impl.Sftp sftp = new impl.Sftp("ylz", "ylzhang", "10.68.120.111", 22,
-//                "/home/ylzhang/test", "/home/ylz/test4/");
+    public static void main(String[] args) throws IOException {
+//        Sftp sftp = new Sftp("ylz", "ylzhang", "10.68.120.111", 22,
+//                "/home/ylzhang/test", "/home/ylz/test");
+        System.setProperty("cii.root.dir", "/home/ylzhang");
+//        Sftp sftp = new Sftp("ylz", "ylzhang", "10.68.120.111", 22,
+//                "/home/ylzhang/test1", "/home/ylz/test","mtime","123456789");
         Sftp sftp = new Sftp("ylz", "ylzhang", "10.68.120.111", 22,
-                "/home/ylzhang/test2", "/home/ylz/test4/");
+                "/home/ylzhang/test1", "/home/ylz/test", "fname", "123456789");
         try {
             sftp.login();
 //            sftp.upload();
