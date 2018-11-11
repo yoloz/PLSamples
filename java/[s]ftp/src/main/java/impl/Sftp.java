@@ -133,7 +133,12 @@ public class Sftp extends AbstractFtp {
             targetPath = Paths.get(localpath).resolve(relative);
             Files.createDirectories(Paths.get(localpath).resolve(relative));
         }
-        sftp.get(file, targetPath.resolve(path.getFileName()).toString());
+        Path dstPath = targetPath.resolve(path.getFileName());
+        sftp.get(file, dstPath.toString());
+        if (file.endsWith(".tar.gz")) {
+            Utils.extractTar_Gz(dstPath.toString(), targetPath.toString());
+            Files.delete(dstPath);
+        }
     }
 
 
