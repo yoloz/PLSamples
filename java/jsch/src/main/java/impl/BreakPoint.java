@@ -42,8 +42,8 @@ class BreakPoint {
         }
     }
 
-    private void put(String key, int value) {
-        if (!caches.containsKey(key) || value > Integer.parseInt(caches.get(key))) {
+    private void put(String key, long value) {
+        if (!caches.containsKey(key) || value > Long.parseUnsignedLong(caches.get(key))) {
             caches.put(key, value + "");
         }
     }
@@ -56,8 +56,8 @@ class BreakPoint {
         return false;
     }
 
-    boolean checkDown(String key, int value) {
-        if (!properties.containsKey(key) || value > Integer.parseInt(properties.getProperty(key))) {
+    boolean checkDown(String key, long value) {
+        if (!properties.containsKey(key) || value > Long.parseUnsignedLong(properties.getProperty(key))) {
             put(key, value);
             return true;
         }

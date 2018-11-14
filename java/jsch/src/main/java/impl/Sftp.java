@@ -19,10 +19,6 @@ public class Sftp extends AbstractFtp {
     private ChannelSftp sftp;
     private Session session;
 
-    public Sftp(String username, String password, String host, int port, String localpath, String remotepath) throws IOException {
-        super(username, password, host, port, localpath, remotepath);
-    }
-
     public Sftp(String username, String password, String host, int port, String localpath, String remotepath,
                 String order, String servieId) throws IOException {
         super(username, password, host, port, localpath, remotepath, order, servieId);

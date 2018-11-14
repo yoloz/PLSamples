@@ -16,12 +16,6 @@ public abstract class AbstractFtp {
 
     BreakPoint breakPoint;
 
-
-    AbstractFtp(String username, String password, String host,
-                int port, String localpath, String remotepath) throws IOException {
-        this(username, password, host, port, localpath, remotepath, "", "");
-    }
-
     /**
      * servieId:记录断点文件
      */
@@ -37,7 +31,6 @@ public abstract class AbstractFtp {
         if (!servieId.isEmpty()) this.breakPoint = new BreakPoint(servieId);
     }
 
-    //存在三种模式OVERWRITE,RESUME,APPEND;默认OVERWRITE
     public void upload() throws Exception {
         rmkdir(remotepath, 0);
         upload_r(localpath);

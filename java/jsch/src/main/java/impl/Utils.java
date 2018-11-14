@@ -35,8 +35,9 @@ class Utils {
                 }
                 if (!entry.getName().startsWith(name) &&
                         !targetDir.endsWith(name)) {
-                    targetDir = Paths.get(targetDir, name).toString();
-                    Files.createDirectory(Paths.get(targetDir));
+                    Path _targetDir = Paths.get(targetDir, name);
+                    if (!_targetDir.toFile().exists()) Files.createDirectory(_targetDir);
+                    targetDir = _targetDir.toString();
                 }
                 File f = Paths.get(targetDir, entry.getName()).toFile();
                 if (entry.isDirectory()) {
@@ -44,6 +45,8 @@ class Utils {
                         throw new IOException("failed to create directory " + f);
                     }
                 } else {
+                    File parentFile = f.getParentFile();
+                    if (!parentFile.exists()) Files.createDirectories(parentFile.toPath());
                     try (OutputStream o = Files.newOutputStream(f.toPath())) {
                         IOUtils.copy(archiveInputStream, o);
                     }
