@@ -29,7 +29,7 @@ public class Main {
         options.addOption(Option.builder("pa").longOpt("passive").desc("ftp被动模式,默认主动模式").build());
         options.addOption(Option.builder("epsv").longOpt("useEpsvWithIPv4").desc("ftp连接是否使用epsv,默认不使用").build());
         options.addOption(Option.builder("idt").longOpt("idletime").hasArg().desc(
-                "ftp下载上传时间过长时,控制通道可能超时,默认300(单位秒)").build());
+                "ftp数据传输时发送控制连接keepalive消息之间的等待时间,默认300(单位秒)").build());
 
 
         if (args == null || args.length == 0 || "-h".equals(args[0]) || "-help".equals(args[0])) {
