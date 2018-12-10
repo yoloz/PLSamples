@@ -73,7 +73,7 @@ public class FilesMonitor implements Runnable {
     }
 
     public static void main(String[] args) {
-        FilesMonitor filesMonitor = new FilesMonitor("/home/ethan/projects", "/home/ethan/test");
+        FilesMonitor filesMonitor = new FilesMonitor("/XXX/ethan/projects", "/XXX/ethan/test");
         new Thread(filesMonitor).start();
         while (true) {
             try {
@@ -83,7 +83,7 @@ public class FilesMonitor implements Runnable {
             }
             System.out.println(filesMonitor.isStop());
             if (filesMonitor.isStop()) {
-                filesMonitor = new FilesMonitor("/home/ethan/projects", "/home/ethan/test");
+                filesMonitor = new FilesMonitor("/XXX/ethan/projects", "/XXX/ethan/test");
                 new Thread(filesMonitor).start();
             }
         }

@@ -57,7 +57,7 @@ public class LoadWebPageUseSelector {
                 if (selectionKey.isValid() && selectionKey.isReadable()) {
                     SocketChannel channel = (SocketChannel) selectionKey.channel();
                     String fileName = ((InetSocketAddress) channel.getRemoteAddress()).getHostName() + ".txt";
-                    FileChannel fileChannel = FileChannel.open(Paths.get("/home/jade", fileName), StandardOpenOption.APPEND,
+                    FileChannel fileChannel = FileChannel.open(Paths.get("/XXX/jade", fileName), StandardOpenOption.APPEND,
                             StandardOpenOption.CREATE);
                     buffer.clear();
                     while ((len = channel.read(buffer)) > 0 || buffer.position() != 0) {

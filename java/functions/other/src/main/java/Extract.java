@@ -10,12 +10,15 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.compressors.lz4.FramedLZ4CompressorInputStream;
 import org.apache.commons.compress.compressors.lzma.LZMACompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.FramedSnappyCompressorInputStream;
+import org.apache.commons.compress.compressors.snappy.FramedSnappyCompressorOutputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 import org.apache.commons.compress.utils.IOUtils;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -38,25 +41,27 @@ public class Extract {
     private final String JAR = ".jar";
     private final String ZIP = ".zip";
     private final String TAR = ".tar";
-    private final String GZ = ".gz"; //未测试
-    private final String BZ2 = ".bz2";//未测试
+    private final String GZ = ".gz";
+    private final String TGZ = ".tgz";
+    private final String BZ2 = ".bz2";
     private final String BR = ".br";//未测试
-    private final String LZ4 = ".lz4";//未测试
-    private final String LZMA = ".lzma";//未测试
-    private final String SZ = ".sz";//未测试
-    private final String XZ = ".xz";//未测试
-    private final String Z = ".Z";//未测试
-    private final String ZSTD = ".zstd";//未测试
+    private final String LZ4 = ".lz4";
+    private final String LZMA = ".lzma";
+    private final String SZ = ".sz";
+    private final String XZ = ".xz";
+    private final String Z = ".Z";
+    private final String ZSTD = ".zstd";
 
     private final String TAR_GZ = ".tar.gz";
+
     private final String TAR_BZ2 = ".tar.bz2";
     private final String TAR_BR = ".tar.br";//未测试
-    private final String TAR_LZ4 = ".tar.lz4";//未测试
-    private final String TAR_LZMA = ".tar.lzma";//未测试
-    private final String TAR_SZ = ".tar.sz";//未测试
-    private final String TAR_XZ = ".tar.xz";//未测试
-    private final String TAR_Z = ".tar.Z";//未测试
-    private final String TAR_ZSTD = ".tar.zstd";//未测试
+    private final String TAR_LZ4 = ".tar.lz4";
+    private final String TAR_LZMA = ".tar.lzma";
+    private final String TAR_SZ = ".tar.sz";
+    private final String TAR_XZ = ".tar.xz";
+    private final String TAR_Z = ".tar.Z";
+    private final String TAR_ZSTD = ".tar.zstd";
 
     private String targetDir;
     private boolean first;
@@ -70,22 +75,7 @@ public class Extract {
             throw new IOException("解压文件[" + compressFile + "]为空或不存在...");
         Files.createDirectories(Paths.get(targetDir));
         first = true;
-        if (compressFile.endsWith(SEVENZ)) this.sevenz(Paths.get(compressFile));
-        else if (compressFile.endsWith(JAR)) this.inputStream(Paths.get(compressFile), JAR);
-        else if (compressFile.endsWith(ZIP)) this.inputStream(Paths.get(compressFile), ZIP);
-        else if (compressFile.endsWith(TAR)) this.inputStream(Paths.get(compressFile), TAR);
-
-        else if (compressFile.endsWith(GZ)) this.readBytes(Paths.get(compressFile), GZ);
-        else if (compressFile.endsWith(BZ2)) this.readBytes(Paths.get(compressFile), BZ2);
-        else if (compressFile.endsWith(BR)) this.readBytes(Paths.get(compressFile), BR);
-        else if (compressFile.endsWith(LZ4)) this.readBytes(Paths.get(compressFile), LZ4);
-        else if (compressFile.endsWith(LZMA)) this.readBytes(Paths.get(compressFile), LZMA);
-        else if (compressFile.endsWith(SZ)) this.readBytes(Paths.get(compressFile), SZ);
-        else if (compressFile.endsWith(XZ)) this.readBytes(Paths.get(compressFile), XZ);
-        else if (compressFile.endsWith(Z)) this.readBytes(Paths.get(compressFile), Z);
-        else if (compressFile.endsWith(ZSTD)) this.readBytes(Paths.get(compressFile), ZSTD);
-
-        else if (compressFile.endsWith(TAR_GZ)) this.tar_inputStream(Paths.get(compressFile), TAR_GZ);
+        if (compressFile.endsWith(TAR_GZ)) this.tar_inputStream(Paths.get(compressFile), TAR_GZ);
         else if (compressFile.endsWith(TAR_BR)) this.tar_inputStream(Paths.get(compressFile), TAR_BR);
         else if (compressFile.endsWith(TAR_BZ2)) this.tar_inputStream(Paths.get(compressFile), TAR_BZ2);
         else if (compressFile.endsWith(TAR_LZ4)) this.tar_inputStream(Paths.get(compressFile), TAR_LZ4);
@@ -94,6 +84,21 @@ public class Extract {
         else if (compressFile.endsWith(TAR_XZ)) this.tar_inputStream(Paths.get(compressFile), TAR_XZ);
         else if (compressFile.endsWith(TAR_Z)) this.tar_inputStream(Paths.get(compressFile), TAR_Z);
         else if (compressFile.endsWith(TAR_ZSTD)) this.tar_inputStream(Paths.get(compressFile), TAR_ZSTD);
+
+        else if (compressFile.endsWith(SEVENZ)) this.sevenz(Paths.get(compressFile));
+        else if (compressFile.endsWith(JAR)) this.inputStream(Paths.get(compressFile), JAR);
+        else if (compressFile.endsWith(ZIP)) this.inputStream(Paths.get(compressFile), ZIP);
+        else if (compressFile.endsWith(TAR)) this.inputStream(Paths.get(compressFile), TAR);
+        else if (compressFile.endsWith(GZ)) this.readBytes(Paths.get(compressFile), GZ);
+        else if (compressFile.endsWith(TGZ)) this.tar_inputStream(Paths.get(compressFile), TGZ);
+        else if (compressFile.endsWith(BZ2)) this.readBytes(Paths.get(compressFile), BZ2);
+        else if (compressFile.endsWith(BR)) this.readBytes(Paths.get(compressFile), BR);
+        else if (compressFile.endsWith(LZ4)) this.readBytes(Paths.get(compressFile), LZ4);
+        else if (compressFile.endsWith(LZMA)) this.readBytes(Paths.get(compressFile), LZMA);
+        else if (compressFile.endsWith(SZ)) this.readBytes(Paths.get(compressFile), SZ);
+        else if (compressFile.endsWith(XZ)) this.readBytes(Paths.get(compressFile), XZ);
+        else if (compressFile.endsWith(Z)) this.readBytes(Paths.get(compressFile), Z);
+        else if (compressFile.endsWith(ZSTD)) this.readBytes(Paths.get(compressFile), ZSTD);
     }
 
     private void tar_inputStream(Path compressFile, String suffix) throws IOException {
@@ -103,6 +108,7 @@ public class Extract {
             CompressorInputStream compressorInputStream = null;
             switch (suffix) {
                 case TAR_GZ:
+                case TGZ:
                     compressorInputStream = new GzipCompressorInputStream(bi);
                     break;
                 case TAR_BR:
@@ -256,8 +262,36 @@ public class Extract {
         }
     }
 
-//    public static void main(String[] args) throws IOException {
-//        Extract extract = new Extract("/home/ylzhang/cii_da");
-//        extract.extract("/home/ylzhang/compressFile/cii_da.tar.bz2");
-//    }
+    private void compressSnappy(String file, String target) throws IOException {
+        try (InputStream in = Files.newInputStream(Paths.get(file));
+             OutputStream fout = Files.newOutputStream(Paths.get(target));
+             BufferedOutputStream out = new BufferedOutputStream(fout);
+             FramedSnappyCompressorOutputStream snOut = new FramedSnappyCompressorOutputStream(out)) {
+            final byte[] buffer = new byte[1024 * 1024];
+            int n = 0;
+            while (-1 != (n = in.read(buffer))) {
+                snOut.write(buffer, 0, n);
+            }
+        }
+    }
+
+    private void compressZstd(String file, String target) throws IOException {
+        try (InputStream in = Files.newInputStream(Paths.get(file));
+             OutputStream fout = Files.newOutputStream(Paths.get(target));
+             BufferedOutputStream out = new BufferedOutputStream(fout);
+             ZstdCompressorOutputStream zstdOut = new ZstdCompressorOutputStream(out)) {
+            final byte[] buffer = new byte[1024 * 1024];
+            int n = 0;
+            while (-1 != (n = in.read(buffer))) {
+                zstdOut.write(buffer, 0, n);
+            }
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+        Extract extract = new Extract("/XXX/XXX/cii_da");
+//        extract.compressSnappy("/XXX/XXX/cii_da/bin/params","/XXX/XXX/compressFile/params.sz");
+//        extract.compressZstd("/XXX/XXX/cii_da/params","/XXX/XXX/compressFile/params.zstd");
+        extract.extract("/XXX/XXX/compressFile/params.zstd");
+    }
 }

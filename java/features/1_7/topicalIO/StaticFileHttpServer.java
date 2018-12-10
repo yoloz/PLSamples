@@ -109,7 +109,7 @@ public class StaticFileHttpServer {
     public static void main(String[] args) {
         StaticFileHttpServer server = new StaticFileHttpServer();
         try {
-            server.start(Paths.get("/home/jade"));
+            server.start(Paths.get("/XXX/jade"));
         } catch (IOException e) {
             e.printStackTrace();
         }

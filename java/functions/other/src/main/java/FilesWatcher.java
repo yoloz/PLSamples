@@ -143,7 +143,7 @@ public class FilesWatcher implements Runnable {
     }
 
     public static void main(String[] args) {
-        FilesWatcher filesWatcher = new FilesWatcher("/home/ethan/projects", "/home/ethan/test");
+        FilesWatcher filesWatcher = new FilesWatcher("/XXX/ethan/projects", "/XXX/ethan/test");
         new Thread(filesWatcher).start();
         while (true) {
             try {
@@ -153,7 +153,7 @@ public class FilesWatcher implements Runnable {
             }
             System.out.println(filesWatcher.isStop());
             if (filesWatcher.isStop()) {
-                filesWatcher = new FilesWatcher("/home/ethan/projects", "/home/ethan/test");
+                filesWatcher = new FilesWatcher("/XXX/ethan/projects", "/XXX/ethan/test");
                 new Thread(filesWatcher).start();
             }
         }

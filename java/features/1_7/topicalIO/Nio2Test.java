@@ -39,11 +39,11 @@ public class Nio2Test {
         System.out.println(path1.subpath(0, 1));
         System.out.println(path1.startsWith(path2));
         System.out.println(path1.endsWith(path2));
-        System.out.println(Paths.get("/home").resolve("home/ethan").toString());
-        System.out.println(Paths.get("/home").resolve("/ethan").toString());
-        System.out.println(Paths.get("/home").resolve("root/ethan/test").toString());
+        System.out.println(Paths.get("/XXX").resolve("XXX/ethan").toString());
+        System.out.println(Paths.get("/XXX").resolve("/ethan").toString());
+        System.out.println(Paths.get("/XXX").resolve("root/ethan/test").toString());
 
-        String customDir = "/home/ethan", relativePath = "/home/ethan/test/test.txt";
+        String customDir = "/XXX/ethan", relativePath = "/XXX/ethan/test/test.txt";
 //        relativePath = "/test/test.txt"
         if (relativePath.contains(customDir)) {
             relativePath = relativePath.replaceAll(customDir, "");
@@ -200,7 +200,7 @@ public class Nio2Test {
      */
     public void manipulateFiles() throws IOException {
         //Paths.get("test.txt")==>Paths.get("test.txt").toAbsolutePath()
-        //test.txt====/home/jade/projects/practiceJava/test.txt
+        //test.txt====/XXX/jade/projects/practiceJava/test.txt
         Path newFile = Files.createFile(Paths.get("test.txt").toAbsolutePath());
         List<String> content = new ArrayList<>();
         content.add("Hello");
@@ -326,7 +326,7 @@ public class Nio2Test {
     public static void main(String[] args) throws IOException {
         Nio2Test nio2Test = new Nio2Test();
 //        nio2Test.usePath();
-//        Files.walkFileTree(Paths.get("/home"), nio2Test.new FileVisitorTest());
+//        Files.walkFileTree(Paths.get("/XXX"), nio2Test.new FileVisitorTest());
 //        nio2Test.addFileToZip(new File("E:\\var.zip"), new File("E:\\test.txt"));
 //        nio2Test.addFileToZip2(new File("E:\\var.zip"), new File("E:\\test.txt"));
     }
