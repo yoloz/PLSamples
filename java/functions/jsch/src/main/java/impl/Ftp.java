@@ -24,9 +24,9 @@ public class Ftp extends AbstractFtp {
     private int idleTime;
 
     public Ftp(String username, String password, String host, int port, String localpath, String remotepath,
-               String order, String servieId, boolean passive, boolean useEpsvWithIPv4, int idleTime)
+               String order, String servieId, int soTimeout, boolean passive, boolean useEpsvWithIPv4, int idleTime)
             throws IOException {
-        super(username, password, host, port, localpath, remotepath, order, servieId);
+        super(username, password, host, port, localpath, remotepath, order, servieId, soTimeout);
         this.passive = passive;
         this.useEpsvWithIPv4 = useEpsvWithIPv4;
         this.idleTime = idleTime;
@@ -36,6 +36,7 @@ public class Ftp extends AbstractFtp {
     public void login() throws Exception {
         try {
             ftpClient = new FTPClient();
+            ftpClient.setDefaultTimeout(soTimeout);
             ftpClient.connect(host, port);
             int reply = ftpClient.getReplyCode();
             if (!FTPReply.isPositiveCompletion(reply)) {
@@ -154,21 +155,6 @@ public class Ftp extends AbstractFtp {
         if (file.endsWith(".tar.gz")) {
             Utils.extractTar_Gz(dstPath.toString(), targetPath.toString());
             Files.delete(dstPath);
-        }
-    }
-
-
-    public static void main(String[] args) throws Exception {
-        System.setProperty("cii.root.dir", "/home/ylzhang");
-        Ftp ftp = new Ftp("ylz", "ylzhang", "10.68.120.111", 21, "/home/ylzhang/test",
-                "/home/ylz/test", "mtime", "123456", false, false, 300);
-        try {
-            ftp.login();
-            ftp.download();
-//            ftp.rmkdir("/home/ylz/test1/test2/test3", 0);
-//            ftp.upload();
-        } finally {
-            ftp.logout();
         }
     }
 }

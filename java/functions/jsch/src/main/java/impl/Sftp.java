@@ -20,8 +20,8 @@ public class Sftp extends AbstractFtp {
     private Session session;
 
     public Sftp(String username, String password, String host, int port, String localpath, String remotepath,
-                String order, String servieId) throws IOException {
-        super(username, password, host, port, localpath, remotepath, order, servieId);
+                String order, String servieId,int soTimeout) throws IOException {
+        super(username, password, host, port, localpath, remotepath, order, servieId,soTimeout);
     }
 
 
@@ -35,6 +35,7 @@ public class Sftp extends AbstractFtp {
         Properties config = new Properties();
         config.put("StrictHostKeyChecking", "no");
         session.setConfig(config);
+        session.setTimeout(soTimeout);
         session.connect();
         Channel channel = session.openChannel("sftp");
         channel.connect();
@@ -136,26 +137,4 @@ public class Sftp extends AbstractFtp {
             Files.delete(dstPath);
         }
     }
-
-
-    public static void main(String[] args) throws IOException {
-//        Sftp sftp = new Sftp("ylz", "ylzhang", "10.68.120.111", 22,
-//                "/home/ylzhang/test", "/home/ylz/test");
-        System.setProperty("cii.root.dir", "/home/ylzhang");
-//        Sftp sftp = new Sftp("ylz", "ylzhang", "10.68.120.111", 22,
-//                "/home/ylzhang/test1", "/home/ylz/test","mtime","123456789");
-        Sftp sftp = new Sftp("ylz", "ylzhang", "10.68.120.111", 22,
-                "/home/ylzhang/test1", "/home/ylz/test", "fname", "123456789");
-        try {
-            sftp.login();
-//            sftp.upload();
-            sftp.download();
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            sftp.logout();
-        }
-
-    }
-
 }

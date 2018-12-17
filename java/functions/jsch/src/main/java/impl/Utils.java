@@ -20,9 +20,8 @@ class Utils {
     static void extractTar_Gz(String compressFile, String targetDir) throws IOException {
         Files.createDirectories(Paths.get(targetDir));
         Path sf = Paths.get(compressFile);
-        String name = sf.getFileName().toString();
-        int index = name.indexOf(".tar.gz");
-        if (index > 0) name = name.substring(0, index) + "/";
+        String unSuffix = sf.getFileName().toString().replace(".tar.gz", "/");
+        boolean first = true;
         try (InputStream fi = Files.newInputStream(sf);
              BufferedInputStream bi = new BufferedInputStream(fi);
              GzipCompressorInputStream gzi = new GzipCompressorInputStream(bi);
@@ -30,20 +29,22 @@ class Utils {
             ArchiveEntry entry;
             while ((entry = archiveInputStream.getNextEntry()) != null) {
                 if (!archiveInputStream.canReadEntryData(entry)) {
-//                    System.out.println(entry.getName() + "can not read....");
+                    System.out.println(entry.getName() + "can not read....");
                     continue;
                 }
-                if (!entry.getName().startsWith(name) &&
-                        !targetDir.endsWith(name)) {
-                    Path _targetDir = Paths.get(targetDir, name);
-                    if (!_targetDir.toFile().exists()) Files.createDirectory(_targetDir);
-                    targetDir = _targetDir.toString();
+                if (first) {
+                    if (!targetDir.endsWith("/")) targetDir = targetDir + "/";
+                    if (!targetDir.endsWith(unSuffix))
+                        targetDir = Paths.get(targetDir, unSuffix).toString();
+                    first = false;
                 }
-                File f = Paths.get(targetDir, entry.getName()).toFile();
+                String entryName = entry.getName();
+                File f;
+                if (entryName.startsWith(unSuffix))
+                    f = Paths.get(targetDir, entryName.replaceFirst(unSuffix, "")).toFile();
+                else f = Paths.get(targetDir, entryName).toFile();
                 if (entry.isDirectory()) {
-                    if (!f.isDirectory() && !f.mkdirs()) {
-                        throw new IOException("failed to create directory " + f);
-                    }
+                    if (!f.isDirectory() && !f.mkdirs()) throw new IOException("failed to create directory " + f);
                 } else {
                     File parentFile = f.getParentFile();
                     if (!parentFile.exists()) Files.createDirectories(parentFile.toPath());

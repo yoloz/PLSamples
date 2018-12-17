@@ -13,6 +13,7 @@ public abstract class AbstractFtp {
     String localpath;
     String remotepath;
     String order;      //增量下载[fname:文件名;mtime:修改时间];
+    int soTimeout;  //socket的inputStream.read()会一直阻塞
 
     BreakPoint breakPoint;
 
@@ -20,7 +21,7 @@ public abstract class AbstractFtp {
      * servieId:记录断点文件
      */
     AbstractFtp(String username, String password, String host, int port, String localpath, String remotepath,
-                String order, String servieId) throws IOException {
+                String order, String servieId,int soTimeOut) throws IOException {
         this.username = username;
         this.password = password;
         this.host = host;
@@ -28,6 +29,7 @@ public abstract class AbstractFtp {
         this.localpath = localpath;
         this.remotepath = remotepath;
         this.order = order;
+        this.soTimeout = soTimeOut;
         if (!servieId.isEmpty()) this.breakPoint = new BreakPoint(servieId);
     }
 
