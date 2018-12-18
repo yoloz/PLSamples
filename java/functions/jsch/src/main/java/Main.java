@@ -50,13 +50,13 @@ public class Main {
                         ((Number) cmd.getParsedOptionValue("prt")).intValue(), cmd.getOptionValue("lp"),
                         cmd.getOptionValue("rp"), cmd.getOptionValue("oder", ""),
                         cmd.getOptionValue("sid", ""),
-                        Integer.parseInt(cmd.getOptionValue("sot", "15")));
+                        Integer.parseInt(cmd.getOptionValue("sot", "15")) * 1000);
             } else if ("ftp".equals(cmd.getOptionValue("pro"))) {
                 abstractFtp = new Ftp(cmd.getOptionValue("usr"), cmd.getOptionValue("pwd"), cmd.getOptionValue("hst"),
                         ((Number) cmd.getParsedOptionValue("prt")).intValue(), cmd.getOptionValue("lp"),
                         cmd.getOptionValue("rp"), cmd.getOptionValue("oder", ""),
                         cmd.getOptionValue("sid", ""),
-                        Integer.parseInt(cmd.getOptionValue("sot", "15")),
+                        Integer.parseInt(cmd.getOptionValue("sot", "15")) * 1000,
                         cmd.hasOption("pa"), cmd.hasOption("epsv"),
                         Integer.parseInt(cmd.getOptionValue("idt", "300")));
             } else throw new Exception("协议[" + cmd.getOptionValue("pro") + "]未实现...");
