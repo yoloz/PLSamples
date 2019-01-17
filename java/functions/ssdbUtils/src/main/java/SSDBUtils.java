@@ -228,7 +228,7 @@ public class SSDBUtils {
         private void kv(Object... params) {
             long start = System.currentTimeMillis();
             Response response;
-            if (params.length == 1) response = ssdb.get(params);//get获取的response中[value]
+            if (params.length == 1) response = ssdb.get(params[0]);//get获取的response中[value]
             else response = ssdb.multi_get(params); //multi_get获取的response中[k1,v1,k2,v2...]
             long use_time = (System.currentTimeMillis() - start) / 1000;
             logger.info("[" + type.toString() + " get/multi_get 耗时=>]" + use_time);
