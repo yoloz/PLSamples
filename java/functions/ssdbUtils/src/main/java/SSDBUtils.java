@@ -316,7 +316,7 @@ public class SSDBUtils {
 
         private void list(Object... params) {
             long start = System.currentTimeMillis();
-            Response response = ssdb.qrange(params[0], (int) params[1], (int) params[2]);//qrange获取的response中[k1,v1,k2,v2...]
+            Response response = ssdb.qrange(params[0], (int) params[1], (int) params[2]);//qrange获取的response中[v1,v2,v3...]
             long use_time = (System.currentTimeMillis() - start) / 1000;
             logger.info("[" + type.toString() + " qrange 耗时:]=>" + use_time);
             outputResp(type, response, params[0], params[1]);
