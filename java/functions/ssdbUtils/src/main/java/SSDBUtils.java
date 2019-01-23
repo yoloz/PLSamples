@@ -468,7 +468,7 @@ public class SSDBUtils {
                             int start = random.nextInt(max_s);
                             int end = random.nextInt(max_s);
                             if (start > end) {
-                                int temp = end;
+                                int temp = start;
                                 start = end;
                                 end = temp;
                             }
