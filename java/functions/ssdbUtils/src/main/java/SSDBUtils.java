@@ -311,7 +311,7 @@ public class SSDBUtils {
             Response response = ssdb.scan(params[0], params[1], (int) params[2]);//scan获取的response中[k1,v1,k2,v2...]
             long use_time = (System.currentTimeMillis() - start) / 1000;
             logger.info("[" + type.toString() + " scan 耗时:]=>" + use_time);
-            outputResp(type, response, params[0], params[1]);
+            outputResp(type, response, params);
         }
 
         private void list(Object... params) {
@@ -319,7 +319,7 @@ public class SSDBUtils {
             Response response = ssdb.qrange(params[0], (int) params[1], (int) params[2]);//qrange获取的response中[v1,v2,v3...]
             long use_time = (System.currentTimeMillis() - start) / 1000;
             logger.info("[" + type.toString() + " qrange 耗时:]=>" + use_time);
-            outputResp(type, response, params[0], params[1]);
+            outputResp(type, response, params);
         }
 
         private void set(Object... params) {
@@ -327,7 +327,7 @@ public class SSDBUtils {
             Response response = ssdb.zscan(params[0], params[1], params[2], params[3], (int) params[4]);//zscan获取的response中[k1,v1,k2,v2...]
             long use_time = (System.currentTimeMillis() - start) / 1000;
             logger.info("[" + type.toString() + " zscan 耗时:]=>" + use_time);
-            outputResp(type, response, params[0], params[1]);
+            outputResp(type, response, params);
         }
 
         private void hash(Object... params) {
@@ -335,7 +335,7 @@ public class SSDBUtils {
             Response response = ssdb.hscan(params[0], params[1], params[2], (int) params[3]);//hscan获取的response中[k1,v1,k2,v2...]
             long use_time = (System.currentTimeMillis() - start) / 1000;
             logger.info("[" + type.toString() + " hscan 耗时:]=>" + use_time);
-            outputResp(type, response, params[0], params[1], params[2]);
+            outputResp(type, response, params);
         }
     }
 
