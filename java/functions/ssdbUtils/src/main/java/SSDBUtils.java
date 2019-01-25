@@ -50,7 +50,7 @@ public class SSDBUtils {
         }
     }
 
-    private SSDB ssdb;
+     private SSDB ssdb;
 
     private final NewKey key = new NewKey();
     private final String value;
@@ -374,7 +374,7 @@ public class SSDBUtils {
             Properties properties = new Properties();
             properties.load(in);
             action = properties.getProperty("action");
-            type = properties.getProperty("type");
+            type = properties.getProperty("type", "hash");
             total = Integer.parseInt(properties.getProperty("total", "1000"));
             threads = Integer.parseInt(properties.getProperty("threads", "1"));
             value = properties.getProperty("value", defaultValue);
@@ -382,13 +382,11 @@ public class SSDBUtils {
             port = Integer.parseInt(properties.getProperty("port", "8888"));
             timeout = Integer.parseInt(properties.getProperty("timeout", "10000"));
         } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println(e.getMessage());
+            System.err.println(e.getMessage());
             System.exit(1);
         }
         SSDBUtils ssdbUtils = new SSDBUtils(threads, value);
         ssdbUtils.connectSSDB(ip, port, timeout);
-
 
         Type _type = Type.kv;
         switch (type) {
@@ -408,7 +406,10 @@ public class SSDBUtils {
                 System.out.println("type: " + type + " is not support,exit...");
                 System.exit(1);
         }
-        if ("write".equals(action)) {
+        if ("specificHash".equals(action)) {
+            SpecificHash specificHash = new SpecificHash(ssdbUtils.ssdb, threads, total);
+            specificHash.writeHash(ssdbUtils.jarPath.resolve("specificHash"));
+        } else if ("write".equals(action)) {
             ssdbUtils.clearLogs();
             CountDownLatch downLatch = new CountDownLatch(threads);
             int count = total / threads;
@@ -520,7 +521,6 @@ public class SSDBUtils {
         } else {
             logger.warn(action + " is not support...");
         }
-
         ssdbUtils.close();
         logger.info("*******************finish*******************");
     }
