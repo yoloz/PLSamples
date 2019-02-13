@@ -102,8 +102,8 @@ class SpecificHash {
 
         Random random = new SecureRandom();
         while (days > 0) {
-            logger.info("days=>" + days + ",start=>" + System.currentTimeMillis());
             String name = localDate.format(DateTimeFormatter.BASIC_ISO_DATE);
+            logger.info("days=>" + name + ",start=>" + System.currentTimeMillis());
             CountDownLatch downLatch = new CountDownLatch(threads);
             int num = 50_000_000 / threads;
             localTime = LocalTime.now();
@@ -117,7 +117,7 @@ class SpecificHash {
                 logger.error(e);
                 System.exit(1);
             }
-            logger.info("days=>" + days + ",finish=>" + System.currentTimeMillis());
+            logger.info("days=>" + name + ",finish=>" + System.currentTimeMillis());
             localDate = localDate.plusDays(1);
             counter.set(1);
             days--;
