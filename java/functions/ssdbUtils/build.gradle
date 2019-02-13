@@ -17,6 +17,7 @@ repositories {
 dependencies {
     compile 'log4j:log4j:1.2.17'
     compile group: 'org.nutz', name: 'ssdb4j', version: '10.0'
+    testCompile 'junit:junit:4.12'
 }
 
 jar {
