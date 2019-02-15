@@ -15,28 +15,25 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 
-class SpecificHash {
+class ListData {
 
-    private final Logger logger = Logger.getLogger(SpecificHash.class);
+    private final Logger logger = Logger.getLogger(ListData.class);
 
     private final String[] types = new String[]{"aws", "bind", "bro", "vpn", "firewall",
             "proxy", "httpd", "syslog", "rails", "dev", "nginx", "waf", "ids", "ips", "soc", "siem",
             "vs", "utm", "ddos"};
 
-    private final DateTimeFormatter keyFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS");
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSSSS");
 
-    private AtomicInteger counter = new AtomicInteger(1);
     private LocalDate localDate;
-    private LocalTime localTime;
+//    private LocalTime localTime;
 
     private int threads;
     private int days;
     private SSDB ssdb;
 
-    SpecificHash(SSDB ssdb, int threads, int days) {
+    ListData(SSDB ssdb, int threads, int days) {
         this.threads = threads;
         this.ssdb = ssdb;
         this.days = days;
@@ -48,13 +45,13 @@ class SpecificHash {
 
         private CountDownLatch latch;
         private int num;
-        private String hashName;
+        private String listName;
 
         WriteOneDay(String tn, String hn, CountDownLatch latch, int num) {
             super(tn);
             this.latch = latch;
             this.num = num;
-            this.hashName = hn;
+            this.listName = hn;
         }
 
         @Override
@@ -63,13 +60,27 @@ class SpecificHash {
                 value.put("district", "彭州市");
                 value.put("city", "hangzhou");
                 value.put("icscompany_name", "北京三维力控科技有限公司");
-
-                for (int i = 0; i < num; i++) {
-                    LocalTime _key = localTime.plusNanos(counter.getAndIncrement() * 100_000);
-                    value.put("fakeTime", LocalDateTime.of(localDate, _key).format(dateTimeFormatter));
-                    value.put("actualTime", LocalDateTime.now().format(dateTimeFormatter));
-                    value.put("index", i);
-                    ssdb.hset(hashName, _key.format(keyFormatter), toJson(value));
+                long loop = num / 100;
+                int suffixIndex = (int) (num - loop * 100);
+                Object[] values = new Object[100];
+                for (int i = 0; i < loop; i++) {
+                    for (int j = 0; j < 100; j++) {
+                        value.put("fakeTime", LocalDateTime.of(localDate, LocalTime.now()).format(dateTimeFormatter));
+                        value.put("actualTime", LocalDateTime.now().format(dateTimeFormatter));
+                        value.put("index", i * 100 + j);
+                        values[j] = toJson(value);
+                    }
+                    ssdb.qpush_back(listName, values);
+                }
+                if (suffixIndex > 0) {
+                    values = new Object[suffixIndex];
+                    for (int i = 0; i < suffixIndex; i++) {
+                        value.put("fakeTime", LocalDateTime.of(localDate, LocalTime.now()).format(dateTimeFormatter));
+                        value.put("actualTime", LocalDateTime.now().format(dateTimeFormatter));
+                        value.put("index", loop * 100 + i);
+                        values[i] = toJson(value);
+                    }
+                    ssdb.qpush_back(listName, values);
                 }
             } catch (Exception e) {
                 System.err.println(getName() + "=>" + e);
@@ -78,7 +89,7 @@ class SpecificHash {
         }
     }
 
-    void writeHash(Path datePath) {
+    void writeList(Path datePath) {
         try {
             localDate = LocalDate.parse(Files.readAllLines(datePath).get(0), DateTimeFormatter.BASIC_ISO_DATE);
         } catch (Exception e) {
@@ -103,13 +114,13 @@ class SpecificHash {
         Random random = new SecureRandom();
         while (days > 0) {
             String name = localDate.format(DateTimeFormatter.BASIC_ISO_DATE);
-            logger.info("days=>" + name + ",start=>" + System.currentTimeMillis());
+            long start = System.currentTimeMillis();
+            logger.info("days=>" + name + ",start=>" + start);
             CountDownLatch downLatch = new CountDownLatch(threads);
             int num = 50_000_000 / threads;
-            localTime = LocalTime.now();
             for (int i = 0; i < threads; i++) {
                 int index = random.nextInt(types.length);
-                new WriteOneDay(name + "-" + i, types[index] + "_" + name, downLatch, num).start();
+                new ListData.WriteOneDay(name + "-" + i, types[index] + "_" + name, downLatch, num).start();
             }
             try {
                 downLatch.await();
@@ -117,9 +128,10 @@ class SpecificHash {
                 logger.error(e);
                 System.exit(1);
             }
-            logger.info("days=>" + name + ",finish=>" + System.currentTimeMillis());
+            long end = System.currentTimeMillis();
+            long epms = 50_000_000 / (end - start);
+            logger.info("days=>" + name + ",finish=>" + end + ",eps=~" + epms * 1000);
             localDate = localDate.plusDays(1);
-            counter.set(1);
             days--;
         }
     }

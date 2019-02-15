@@ -50,7 +50,7 @@ public class SSDBUtils {
         }
     }
 
-     private SSDB ssdb;
+    private SSDB ssdb;
 
     private final NewKey key = new NewKey();
     private final String value;
@@ -147,9 +147,13 @@ public class SSDBUtils {
         private void list(String name) {
             long start = System.currentTimeMillis();
             long counter = _total / 100;
+            int suffixIndex = (int) (_total - counter * 100);
             Object[] values = new Object[100];
             for (int i = 0; i < 100; i++) values[i] = value;
-            for (int i = 0; i < counter; i++) {
+            for (int i = 0; i < counter; i++) ssdb.qpush_front(name, values);
+            if (suffixIndex > 0) {
+                values = new Object[suffixIndex];
+                for (int i = 0; i < suffixIndex; i++) values[i] = value;
                 ssdb.qpush_front(name, values);
             }
             long use_time = (System.currentTimeMillis() - start) / 1000;
@@ -406,9 +410,12 @@ public class SSDBUtils {
                 System.out.println("type: " + type + " is not support,exit...");
                 System.exit(1);
         }
-        if ("specificHash".equals(action)) {
-            SpecificHash specificHash = new SpecificHash(ssdbUtils.ssdb, threads, total);
-            specificHash.writeHash(ssdbUtils.jarPath.resolve("specificHash"));
+        if ("hashData".equals(action)) {
+            HashData hashData = new HashData(ssdbUtils.ssdb, threads, total);
+            hashData.writeHash(ssdbUtils.jarPath.resolve("hashData"));
+        } else if ("listData".equals(action)) {
+            ListData listData = new ListData(ssdbUtils.ssdb, threads, total);
+            listData.writeList(ssdbUtils.jarPath.resolve("listData"));
         } else if ("write".equals(action)) {
             ssdbUtils.clearLogs();
             CountDownLatch downLatch = new CountDownLatch(threads);
