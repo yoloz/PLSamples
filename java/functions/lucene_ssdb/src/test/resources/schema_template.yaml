@@ -11,7 +11,9 @@ fields:
     # INT,LONG,STRING,TEXT,DATE
     type: STRING
     formatter: 时间值格式
-from:
-  # SSDB
-  type: SSDB
-  addr: ip:port
+# 暂仅SSDB
+ssdb:
+    # LIST,HASH
+    type: LIST
+    addr: ip:port
+    name: listName

@@ -48,7 +48,7 @@ public class WriteIndex {
     }
 
     private void initSchema() throws LSException {
-        try (InputStream inputStream = Files.newInputStream(Paths.get(Constants.schemaDir,
+        try (InputStream inputStream = Files.newInputStream(Paths.get(Constants.appDir,
                 indexName + ".yaml"))) {
             schema = new Yaml().loadAs(inputStream, Schema.class);
         } catch (Exception e) {

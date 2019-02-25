@@ -28,6 +28,7 @@ import java.nio.file.Paths;
 
 public class LuceneSsdb {
 
+
   private void testOneSearch(Path indexPath, String query, int expectedHitCount) throws Exception {
     PrintStream outSave = System.out;
     String output = "";

@@ -13,7 +13,6 @@ public class Constants {
 
     public static final String appDir;
     public static final String indexDir;
-    public static final String schemaDir;
 
     static {
         String root_dir = System.getProperty("LSDir");
@@ -30,6 +29,5 @@ public class Constants {
         }
         appDir = root_dir;
         indexDir = properties.getProperty("indexDir");
-        schemaDir = Paths.get(appDir, "schema").toString();
     }
 }

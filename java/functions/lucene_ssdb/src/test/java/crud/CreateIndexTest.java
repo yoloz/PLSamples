@@ -26,12 +26,12 @@ public class CreateIndexTest {
     public void create() throws JSQLParserException {
         String sql = "CREATE TABLE test" +
                 "(col1 int, col2 string, col3 date('yyyy-MM-dd HH:mm:ss.SSS'))" +
-                "type=ssdb addr='127.0.0.1:8888'";
+                " analyser='org.apache.lucene.analysis.standard.StandardAnalyzer' source=ssdb.test1 addr='127.0.0.1:8888' type=list";
         try {
             CreateTable table = (CreateTable) new CCJSqlParserManager().parse(new StringReader(sql));
             assertEquals("test", table.getTable().getName());
-            assertEquals("ssdb", table.getTableOptionsStrings().get(2));
-            assertEquals("'127.0.0.1:8888'", table.getTableOptionsStrings().get(5));
+            assertEquals("ssdb.test1", table.getTableOptionsStrings().get(5));
+            assertEquals("'127.0.0.1:8888'", table.getTableOptionsStrings().get(8));
             assertEquals(3, table.getColumnDefinitions().size());
             assertEquals("int", table.getColumnDefinitions().get(0).getColDataType().getDataType());
             ColumnDefinition date = table.getColumnDefinitions().get(2);

@@ -7,7 +7,7 @@ public class Schema {
     private String index;
     private String analyser;
     private List<Field> fields;
-    private From from;
+    private Ssdb ssdb;
 
     public Schema() {
     }
@@ -36,14 +36,12 @@ public class Schema {
         this.fields = fields;
     }
 
-    public From getFrom() {
-        return from;
+    public Ssdb getSsdb() {
+        return ssdb;
     }
 
-    public void setFrom(From from) {
-        this.from = from;
+    public void setSsdb(Ssdb ssdb) {
+        this.ssdb = ssdb;
     }
-
-
 }
 
