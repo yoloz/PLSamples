@@ -18,7 +18,7 @@ import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.yaml.snakeyaml.Yaml;
+import org.nutz.ssdb4j.spi.SSDB;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -34,71 +34,59 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Date;
 
 
-public class WriteIndex {
+class WriteIndex {
 
     private Logger logger = Logger.getLogger(WriteIndex.class);
 
-    private String indexName;
     private Schema schema;
+    private String indexPath = Constants.indexDir;
+
+    private SSDB ssdb;
 
 
-    public WriteIndex(String indexName) throws LSException {
-        this.indexName = indexName;
-        initSchema();
+    WriteIndex(Schema schema) throws LSException {
+        this.schema = schema;
     }
 
-    private void initSchema() throws LSException {
-        try (InputStream inputStream = Files.newInputStream(Paths.get(Constants.appDir,
-                indexName + ".yaml"))) {
-            schema = new Yaml().loadAs(inputStream, Schema.class);
-        } catch (Exception e) {
-            throw new LSException("初始化index[" + indexName + "]错误", e);
-        }
-    }
+//    private void initSchema() throws LSException {
+//        try (InputStream inputStream = Files.newInputStream(Paths.get(Constants.appDir,
+//                indexName + ".yaml"))) {
+//            schema = new Yaml().loadAs(inputStream, Schema.class);
+//        } catch (Exception e) {
+//            throw new LSException("初始化index[" + indexName + "]错误", e);
+//        }
+//    }
 
-    public static void main(String[] args) {
+    void write() throws LSException {
         String usage = "java org.apache.lucene.demo.crud.WriteIndex"
                 + " [-index INDEX_PATH] [-docs DOCS_PATH] [-update]\n\n"
                 + "This indexes the documents in DOCS_PATH, creating a Lucene index"
                 + "in INDEX_PATH that can be searched with crud.SearchFiles";
-        String indexPath = "index";
         String docsPath = null;
         boolean create = true;
 
-
         Date start = new Date();
         try {
-            System.out.println("Indexing to directory '" + indexPath + "'...");
+            logger.debug("indexing[" + schema.getIndex() + "] to '" + indexPath + "'");
 
             Directory dir = FSDirectory.open(Paths.get(indexPath));
-            Analyzer analyzer = new StandardAnalyzer();
+            Analyzer analyzer = Class.forName(schema.getAnalyser());
             IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
-
-            if (create) {
-                // Create a new index in the directory, removing any
-                // previously indexed documents:
-                iwc.setOpenMode(OpenMode.CREATE);
-            } else {
-                // Add new documents to an existing index:
-                iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
-            }
-
-            // Optional: for better indexing performance, if you
-            // are indexing many documents, increase the RAM
-            // buffer.  But if you do this, increase the max heap
-            // size to the JVM (eg add -Xmx512m or -Xmx1g):
-            //
+            iwc.setOpenMode(OpenMode.CREATE);
+           /*  Optional: for better indexing performance, if you
+             are indexing many documents, increase the RAM
+             buffer.  But if you do this, increase the max heap
+             size to the JVM (eg add -Xmx512m or -Xmx1g):*/
             // iwc.setRAMBufferSizeMB(256.0);
 
             IndexWriter writer = new IndexWriter(dir, iwc);
-//            indexDocs(writer, docDir);
+            this.indexSsdb(writer, docDir);
 
-            // NOTE: if you want to maximize search performance,
-            // you can optionally call forceMerge here.  This can be
-            // a terribly costly operation, so generally it's only
-            // worth it when your index is relatively static (ie
-            // you're done adding documents to it):
-            //
+           /*  NOTE: if you want to maximize search performance,
+             you can optionally call forceMerge here.  This can be
+             a terribly costly operation, so generally it's only
+             worth it when your index is relatively static (ie
+             you're done adding documents to it):*/
             // writer.forceMerge(1);
 
             writer.close();
@@ -106,49 +94,12 @@ public class WriteIndex {
             Date end = new Date();
             System.out.println(end.getTime() - start.getTime() + " total milliseconds");
 
-        } catch (IOException e) {
-            System.out.println(" caught a " + e.getClass() +
-                    "\n with message: " + e.getMessage());
+        } catch (IOException | ClassNotFoundException e) {
+            throw new LSException("写索引出错", e);
         }
     }
 
-    /**
-     * Indexes the given file using the given writer, or if a directory is given,
-     * recurses over files and directories found under the given directory.
-     * <p>
-     * NOTE: This method indexes one document per input file.  This is slow.  For good
-     * throughput, put multiple documents into your input file(s).  An example of this is
-     * in the benchmark module, which can create "line doc" files, one document per line,
-     * using the
-     * <a href="../../../../../contrib-benchmark/org/apache/lucene/benchmark/byTask/tasks/WriteLineDocTask.html"
-     * >WriteLineDocTask</a>.
-     *
-     * @param writer Writer to the index where the given file/dir info will be stored
-     * @param path   The file to index, or the directory to recurse into to find files to index
-     * @throws IOException If there is a low-level I/O error
-     */
-    static void indexDocs(final IndexWriter writer, Path path) throws IOException {
-        if (Files.isDirectory(path)) {
-            Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    try {
-                        indexDoc(writer, file, attrs.lastModifiedTime().toMillis());
-                    } catch (IOException ignore) {
-                        // don't index files that can't be read.
-                    }
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        } else {
-            indexDoc(writer, path, Files.getLastModifiedTime(path).toMillis());
-        }
-    }
-
-    /**
-     * Indexes a single document
-     */
-    static void indexDoc(IndexWriter writer, Path file, long lastModified) throws IOException {
+    private void indexSsdb(IndexWriter writer, Path file, long lastModified) throws IOException {
         try (InputStream stream = Files.newInputStream(file)) {
             // make a new, empty document
             Document doc = new Document();

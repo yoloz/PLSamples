@@ -1,5 +1,6 @@
 package crud;
 
+import bean.LSException;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
@@ -7,8 +8,13 @@ import net.sf.jsqlparser.statement.create.table.CreateTable;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import util.SqlliteUtil;
 
 import java.io.StringReader;
+import java.nio.file.Paths;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.*;
 
@@ -23,7 +29,7 @@ public class CreateIndexTest {
     }
 
     @Test
-    public void create() throws JSQLParserException {
+    public void parseSQL() throws JSQLParserException {
         String sql = "CREATE TABLE test" +
                 "(col1 int, col2 string, col3 date('yyyy-MM-dd HH:mm:ss.SSS'))" +
                 " analyser='org.apache.lucene.analysis.standard.StandardAnalyzer' source=ssdb.test1 addr='127.0.0.1:8888' type=list";
@@ -40,5 +46,23 @@ public class CreateIndexTest {
         } catch (JSQLParserException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 测试前需要创建文件${LSDir}/conf/server.properties,否则Constants解析失败直接退出
+     */
+    @Test
+    public void createSchema() throws LSException, SQLException {
+        System.setProperty("LSDir",
+                Paths.get(this.getClass().getResource("/schema_template.yaml").getPath())
+                        .getParent().toString());
+        String sql = "CREATE TABLE test" +
+                "(col1 int, col2 string, col3 date('yyyy-MM-dd HH:mm:ss.SSS'))" +
+                " analyser='org.apache.lucene.analysis.standard.StandardAnalyzer' source=ssdb.test1 addr='127.0.0.1:8888' type=list";
+        CreateIndex createIndex = new CreateIndex(sql);
+        createIndex.create();
+        String checkSql = "select name from schema";
+        List<Map<String, Object>> result = SqlliteUtil.query(checkSql);
+        assertEquals("test", result.get(0).get("name"));
     }
 }

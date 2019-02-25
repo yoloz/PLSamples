@@ -10,8 +10,10 @@ import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import org.apache.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
+import util.SqlliteUtil;
 
 import java.io.StringReader;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -30,18 +32,22 @@ public class CreateIndex {
 
     private Logger logger = Logger.getLogger(CreateIndex.class);
 
-    private final String sql;
+    private final String createSql;
     private final Yaml yaml = new Yaml();
 
     public CreateIndex(String sql) {
-        this.sql = sql;
+        this.createSql = sql;
     }
 
-    public void create() throws LSException {
+    public void create(){
+
+    }
+
+    private Schema createSchema() throws LSException {
         CreateTable table;
         try {
             table = (CreateTable) new CCJSqlParserManager().
-                    parse(new StringReader(sql));
+                    parse(new StringReader(createSql));
         } catch (JSQLParserException e) {
             throw new LSException("构建语句解析错误", e);
         }
@@ -52,7 +58,7 @@ public class CreateIndex {
         schema.setAnalyser(indexOptions.getOrDefault("analyser",
                 "org.apache.lucene.analysis.standard.StandardAnalyzer"));
         String from = indexOptions.get("from");
-        if("ssdb".equals(from)){
+        if ("ssdb".equals(from)) {
             Ssdb ssdb = new Ssdb();
             ssdb.setAddr(indexOptions.get("addr"));
             ssdb.setName(indexOptions.get("name"));
@@ -73,7 +79,17 @@ public class CreateIndex {
             fields.add(field);
         }
         schema.setFields(fields);
-        yaml.dump("");
+        try {
+            String insertSql = "INSERT INTO schema(name,value)VALUES (?,?)";
+            SqlliteUtil.insert(insertSql, schema.getIndex(), yaml.dump(schema));
+        } catch (SQLException e) {
+            throw new LSException("创建语句解析后保存出错", e);
+        }
+        return schema;
+    }
+
+    private void writeIndex(){
+
     }
 
     private void checkIndexOptions(Map<String, String> options) throws LSException {
@@ -99,7 +115,6 @@ public class CreateIndex {
                 params.put("name", value.substring(index + 1));
             } else params.put(key, value);
         }
-
         return Collections.unmodifiableMap(params);
     }
 

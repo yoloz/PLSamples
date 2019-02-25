@@ -7,6 +7,7 @@ import org.apache.commons.dbutils.ResultSetHandler;
 import org.apache.commons.dbutils.handlers.ArrayHandler;
 import org.apache.commons.dbutils.handlers.ArrayListHandler;
 import org.apache.commons.dbutils.handlers.MapListHandler;
+import org.apache.log4j.Logger;
 
 import java.nio.file.Paths;
 import java.sql.Connection;
@@ -15,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 public class SqlliteUtil {
+
+    private static final Logger logger = Logger.getLogger(SqlliteUtil.class);
 
     private static final BasicDataSource dataSource = new BasicDataSource();
     private static final String dbPath = Paths.get(Constants.appDir, "index.db").toString();
@@ -31,16 +34,50 @@ public class SqlliteUtil {
         dataSource.setMaxIdle(20);
         dataSource.setMinIdle(1);
         dataSource.setMaxWaitMillis(1800000);
+        checkSchema();
+        checkSsdb();
     }
 
-    public static void checkTable() throws SQLException {
-        final String createSql = "CREATE TABLE schema(" +
-                "name TEXT PRIMARY KEY NOT NULL, " +
-                "value TEXT NOT NULL" +
-                ")";
+    /**
+     * 创建索引的schema信息
+     */
+    private static void checkSchema() {
         String checkSql = "select count(*) from sqlite_master where type=? and name=?";
-        List<Map<String, Object>> result = query(checkSql, "table", "schema");
+        try {
+            List<Map<String, Object>> result = query(checkSql, "table", "schema");
+            if ((int) result.get(0).get("count(*)") == 0) {
+                String createSql = "CREATE TABLE schema(" +
+                        "name TEXT PRIMARY KEY NOT NULL, " +
+                        "value TEXT NOT NULL" +
+                        ")";
+                SqlliteUtil.update(createSql);
+            }
+        } catch (SQLException e) {
+            logger.error("初始化schema错误,系统退出", e);
+            System.exit(1);
+        }
+    }
 
+    /**
+     * ssdb数据源的增量信息
+     * list:offset
+     * hash:key_end
+     */
+    private static void checkSsdb() {
+        String checkSql = "select count(*) from sqlite_master where type=? and name=?";
+        try {
+            List<Map<String, Object>> result = query(checkSql, "table", "ssdb");
+            if ((int) result.get(0).get("count(*)") == 0) {
+                String createSql = "CREATE TABLE ssdb(" +
+                        "name TEXT PRIMARY KEY NOT NULL, " +
+                        "point TEXT NOT NULL" +
+                        ")";
+                SqlliteUtil.update(createSql);
+            }
+        } catch (SQLException e) {
+            logger.error("初始化ssdb错误,系统退出", e);
+            System.exit(1);
+        }
     }
 
     public static void close() throws SQLException {
@@ -79,11 +116,6 @@ public class SqlliteUtil {
         QueryRunner runner = new QueryRunner();
         ResultSetHandler<List<Object[]>> h = new ArrayListHandler();
         return runner.insertBatch(conn, sql, h, params);
-    }
-
-    public static int execute(String sql, Object... params) throws SQLException {
-        QueryRunner runner = new QueryRunner();
-        return runner.execute(sql,params);
     }
 
     public static int update(String sql, Object... params) throws SQLException {

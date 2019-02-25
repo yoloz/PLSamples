@@ -34,21 +34,22 @@ public class SqlliteUtilTest {
 
     @Test
     public void checkTable() throws SQLException {
-        String dropTable = "DROP TABLE schema";
-
         String checkSql = "select count(*) from sqlite_master where type=? and name=?";
         List<Map<String, Object>> result = SqlliteUtil.query(checkSql, "table", "schema");
         assertEquals(1, result.size());
-        assertEquals(0,result.get(0).get("count(*)"));
+        if ((int) result.get(0).get("count(*)") > 0) {
+            String dropTable = "DROP TABLE schema";
+            System.out.println(SqlliteUtil.update(dropTable));
+        }
         final String createSql = "CREATE TABLE schema(" +
                 "name TEXT PRIMARY KEY NOT NULL, " +
                 "value TEXT NOT NULL" +
                 ")";
         int update = SqlliteUtil.update(createSql);
-        assertEquals(0,update);
+        assertEquals(0, update);
         result = SqlliteUtil.query(checkSql, "table", "schema");
         assertEquals(1, result.size());
-        assertEquals(1,result.get(0).get("count(*)"));
+        assertEquals(1, result.get(0).get("count(*)"));
     }
 
     @After
