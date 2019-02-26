@@ -8,7 +8,6 @@ import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
-import org.apache.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 import util.SqlliteUtil;
 
@@ -30,8 +29,6 @@ import java.util.Map;
  */
 public class CreateIndex {
 
-    private Logger logger = Logger.getLogger(CreateIndex.class);
-
     private final String createSql;
     private final Yaml yaml = new Yaml();
 
@@ -39,8 +36,10 @@ public class CreateIndex {
         this.createSql = sql;
     }
 
-    public void create(){
-
+    public void create() throws LSException {
+        Schema schema = createSchema();
+        WriteIndex writeIndex = new WriteIndex(schema);
+        writeIndex.write();
     }
 
     private Schema createSchema() throws LSException {
@@ -64,6 +63,8 @@ public class CreateIndex {
             ssdb.setName(indexOptions.get("name"));
             ssdb.setType(indexOptions.get("type"));
             schema.setSsdb(ssdb);
+        } else {
+            throw new LSException("类型[" + from + "]暂未支持");
         }
         List<Field> fields = new ArrayList<>(table.getColumnDefinitions().size());
         for (ColumnDefinition column : table.getColumnDefinitions()) {
@@ -86,10 +87,6 @@ public class CreateIndex {
             throw new LSException("创建语句解析后保存出错", e);
         }
         return schema;
-    }
-
-    private void writeIndex(){
-
     }
 
     private void checkIndexOptions(Map<String, String> options) throws LSException {

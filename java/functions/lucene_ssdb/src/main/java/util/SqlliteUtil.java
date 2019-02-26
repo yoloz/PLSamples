@@ -61,7 +61,7 @@ public class SqlliteUtil {
     /**
      * ssdb数据源的增量信息
      * list:offset
-     * hash:key_end
+     * hash:key_start
      */
     private static void checkSsdb() {
         String checkSql = "select count(*) from sqlite_master where type=? and name=?";

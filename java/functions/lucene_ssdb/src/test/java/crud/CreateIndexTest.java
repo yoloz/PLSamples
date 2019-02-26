@@ -11,6 +11,8 @@ import org.junit.Test;
 import util.SqlliteUtil;
 
 import java.io.StringReader;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.List;
@@ -19,6 +21,7 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 public class CreateIndexTest {
+
 
     @Before
     public void setUp() throws Exception {
@@ -52,7 +55,7 @@ public class CreateIndexTest {
      * 测试前需要创建文件${LSDir}/conf/server.properties,否则Constants解析失败直接退出
      */
     @Test
-    public void createSchema() throws LSException, SQLException {
+    public void createSchema() throws SQLException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         System.setProperty("LSDir",
                 Paths.get(this.getClass().getResource("/schema_template.yaml").getPath())
                         .getParent().toString());
@@ -60,7 +63,9 @@ public class CreateIndexTest {
                 "(col1 int, col2 string, col3 date('yyyy-MM-dd HH:mm:ss.SSS'))" +
                 " analyser='org.apache.lucene.analysis.standard.StandardAnalyzer' source=ssdb.test1 addr='127.0.0.1:8888' type=list";
         CreateIndex createIndex = new CreateIndex(sql);
-        createIndex.create();
+        Method createSchema = createIndex.getClass().getDeclaredMethod("createSchema");
+        createSchema.setAccessible(true);
+        createSchema.invoke(createIndex);
         String checkSql = "select name from schema";
         List<Map<String, Object>> result = SqlliteUtil.query(checkSql);
         assertEquals("test", result.get(0).get("name"));

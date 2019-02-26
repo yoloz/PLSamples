@@ -13,6 +13,7 @@ public class Constants {
 
     public static final String appDir;
     public static final String indexDir;
+    public static final int httpPort;
 
     static {
         String root_dir = System.getProperty("LSDir");
@@ -29,5 +30,6 @@ public class Constants {
         }
         appDir = root_dir;
         indexDir = properties.getProperty("indexDir");
+        httpPort = Integer.parseInt(properties.getProperty("httpPort"));
     }
 }
