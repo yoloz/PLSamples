@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-if [ $# -lt 1 ]; then
+if [[ $# -lt 1 ]]; then
     echo "USAGE: $0 ssdbUtils.properties"
     exit 1
 fi
 dir=$(cd `dirname $0`;pwd)
 #如果环境中未配置JAVA_HOME,可在下面单引号里添加jdk的路径
 #export JAVA_HOME=$dir'/jdk1.8.0_151'
-if [ "x$JAVA_HOME" = "x" ]; then
+if [[ "x$JAVA_HOME" = "x" ]]; then
     echo "JAVA_HOME is not configured, please configure and then execute again!"
     exit 1
 else
@@ -14,11 +14,11 @@ else
 fi
 java_version=`${JAVA} -version 2>&1 |awk 'NR==1{gsub(/"/,""); print $3}'`
 java_version=${java_version:0:3}
-if [ ${java_version//[_|.]/} -lt 18 ]; then
+if [[ ${java_version//[_|.]/} -lt 18 ]]; then
     echo "java version need 1.8+"
     exit 1;
 fi
-if [ ! -x ${JAVA:=''} ]; then
+if [[ ! -x ${JAVA:=''} ]]; then
     echo "java command error..."
     exit 1
 fi
@@ -30,7 +30,7 @@ case $1 in
     *)
     ;;
 esac
-if [ ! -f $1 ]; then
+if [[ ! -f $1 ]]; then
     echo "$1 does not exit or empty..."
     echo "USAGE: $0 ssdbUtils.properties"
     exit 1

@@ -19,7 +19,7 @@ import java.util.concurrent.ArrayBlockingQueue;
  * 非线程安全
  * 在取完这批次数据后,将对应类型的数据key保存,增量取数据
  */
-public class SsdbUtil {
+public class SsdbUtil extends Thread {
 
     private final Logger logger = Logger.getLogger(SsdbUtil.class);
 
@@ -60,8 +60,8 @@ public class SsdbUtil {
         return SSDBs.simple(ip, port, timeout);
     }
 
-    public void poll() throws LSException {
-        logger.debug("polling ssdb." + name + "] data to index");
+    private void poll() throws LSException {
+        logger.debug("polling ssdb." + name + " data to index");
         initPoint();
         try (SSDB ssdb = this.connect()) {
             int remaining;
@@ -151,6 +151,26 @@ public class SsdbUtil {
                 list.add(pair);
             }
             return list;
+        }
+    }
+
+    /**
+     * When an object implementing interface <code>Runnable</code> is used
+     * to create a thread, starting the thread causes the object's
+     * <code>run</code> method to be called in that separately executing
+     * thread.
+     * <p>
+     * The general contract of the method <code>run</code> is that it may
+     * take any action whatsoever.
+     *
+     * @see Thread#run()
+     */
+    @Override
+    public void run() {
+        try {
+            this.poll();
+        } catch (LSException e) {
+            logger.error("polling ssdb." + name + " data interrupted by error", e);
         }
     }
 }

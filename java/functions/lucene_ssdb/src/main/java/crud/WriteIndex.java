@@ -25,6 +25,8 @@ import util.Utils;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
@@ -46,7 +48,7 @@ import java.util.concurrent.TimeUnit;
  * worth it when your index is relatively static (ie
  * you're done adding documents to it).
  */
-class WriteIndex {
+class WriteIndex extends Thread {
 
     private Logger logger = Logger.getLogger(WriteIndex.class);
 
@@ -57,7 +59,7 @@ class WriteIndex {
         this.schema = schema;
     }
 
-    void write() throws LSException {
+    private void write() throws LSException {
         try {
             Directory dir = FSDirectory.open(Paths.get(indexPath));
             Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
@@ -85,7 +87,7 @@ class WriteIndex {
         SsdbUtil ssdbUtil = new SsdbUtil(addr.substring(0, idex),
                 Integer.parseInt(addr.substring(idex + 1)),
                 ssdb.getName(), ssdb.getType(), schema.getIndex());
-        ssdbUtil.poll();
+        ssdbUtil.start();
         logger.debug("indexing[" + schema.getIndex() + "] to '" + indexPath + "'");
         long start = System.currentTimeMillis();
         long count = 0;
@@ -106,28 +108,25 @@ class WriteIndex {
                 for (bean.Field field : schema.getFields()) {
                     String name = field.getName();
                     if (data.containsKey(name)) {
-                        String _name = name;
-                        if (name.charAt(0) == '_') {
-                            name = String.join("_", name);
-                            logger.warn("'_' used by internal field, convert[" + _name + "]to[" + name + "]");
-                        }
                         switch (field.getType()) {
                             case INT:
-                                doc.add(new IntPoint(name, (int) data.get(_name)));
+                                doc.add(new IntPoint(name, (int) data.get(name)));
                                 break;
                             case DATE:
                                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern(field.getFormatter());
-                                ZonedDateTime dateTime = ZonedDateTime.parse((String) data.get(_name), formatter);
-                                doc.add(new LongPoint(name, dateTime.toInstant().toEpochMilli()));
+                                LocalDateTime localDateTime = LocalDateTime.parse((String) data.get(name), formatter);
+//                                ZonedDateTime dateTime = ZonedDateTime.parse((String) data.get(name), formatter);
+//                                doc.add(new LongPoint(name, dateTime.toInstant().toEpochMilli()));
+                                doc.add(new LongPoint(name, localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli()));
                                 break;
                             case LONG:
-                                doc.add(new LongPoint(name, (long) data.get(_name)));
+                                doc.add(new LongPoint(name, (long) data.get(name)));
                                 break;
                             case STRING:
-                                doc.add(new StringField(name, (String) data.get(_name), Field.Store.YES));
+                                doc.add(new StringField(name, (String) data.get(name), Field.Store.YES));
                                 break;
                             case TEXT:
-                                doc.add(new TextField(name, (String) data.get(_name), Field.Store.YES));
+                                doc.add(new TextField(name, (String) data.get(name), Field.Store.YES));
                                 break;
                         }
                     }
@@ -147,5 +146,25 @@ class WriteIndex {
         }
         long end = System.currentTimeMillis();
         logger.debug("index [" + schema.getIndex() + "]finished,count[" + count + "],cost time[" + (end - start) + "] mills");
+    }
+
+    /**
+     * When an object implementing interface <code>Runnable</code> is used
+     * to create a thread, starting the thread causes the object's
+     * <code>run</code> method to be called in that separately executing
+     * thread.
+     * <p>
+     * The general contract of the method <code>run</code> is that it may
+     * take any action whatsoever.
+     *
+     * @see Thread#run()
+     */
+    @Override
+    public void run() {
+        try {
+            this.write();
+        } catch (LSException e) {
+            logger.error("write index[" + schema.getIndex() + "] failure.", e);
+        }
     }
 }

@@ -8,6 +8,7 @@ import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
+import org.apache.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 import util.SqlliteUtil;
 
@@ -28,6 +29,7 @@ import java.util.Map;
  * analyser如果没定义则使用默认的分析器{@link org.apache.lucene.analysis.standard.StandardAnalyzer}
  */
 public class CreateIndex {
+    private Logger logger = Logger.getLogger(CreateIndex.class);
 
     private final String createSql;
     private final Yaml yaml = new Yaml();
@@ -39,7 +41,7 @@ public class CreateIndex {
     public void create() throws LSException {
         Schema schema = createSchema();
         WriteIndex writeIndex = new WriteIndex(schema);
-        writeIndex.write();
+        writeIndex.start();
     }
 
     private Schema createSchema() throws LSException {
@@ -71,11 +73,21 @@ public class CreateIndex {
             Field field = new Field();
             String type = column.getColDataType().getDataType().toLowerCase();
             if ("date".equals(type)) {
-                String formatter = column.getColDataType().getArgumentsStringList().get(0);
-                if (formatter.charAt(0) == '\'') formatter = formatter.substring(1, formatter.length() - 1);
-                field.setFormatter(formatter);
+                List<String> formatters = column.getColDataType().getArgumentsStringList();
+                StringBuilder formatter = new StringBuilder();
+                for (String s : formatters) {
+                    if (s.charAt(0) == '\'') s = s.substring(1, s.length() - 1);
+                    if (s.equalsIgnoreCase("T")) s = "'T'"; //'uuuu-MM-dd'T'HH:mm:ss.SSSSSS'
+                    formatter.append(s);
+                }
+                field.setFormatter(formatter.toString());
             }
-            field.setName(column.getColumnName());
+            String name = column.getColumnName();
+            if (name.charAt(0) == '_') {
+                name = String.join("_", name);
+                logger.warn("'_' used by internal field, convert[" + column.getColumnName() + "]to[" + name + "]");
+            }
+            field.setName(name);
             field.setType(type);
             fields.add(field);
         }
@@ -114,5 +126,4 @@ public class CreateIndex {
         }
         return Collections.unmodifiableMap(params);
     }
-
 }
