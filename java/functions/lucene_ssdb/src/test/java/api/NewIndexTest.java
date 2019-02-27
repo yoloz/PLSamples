@@ -14,14 +14,16 @@ import java.util.Map;
 
 import static org.junit.Assert.*;
 
-public class CreateIndexTest {
+public class NewIndexTest {
 
     @Before
     public void setUp() throws Exception {
     }
 
     /**
-     * curl localhost:12580/createIndex -X POST -d "CREATE TABLE test(index int,city string,company text, time date('uuuu-MM-dd'T'HH:mm:ss.SSSSSS')) source=ssdb.listTest addr='127.0.0.1:8888' type=list"
+     * curl localhost:12580/newIndex -X POST -d "CREATE TABLE test(index int,city string,company text, time date('uuuu-MM-dd'T'HH:mm:ss.SSSSSS')) source=ssdb.listTest addr='127.0.0.1:8888' type=list"
+     * curl localhost:12580/addIndex -X POST -d "test"
+     * 测试前需要目录${LSDir}下满足bin/java,conf/*,lib/
      *
      * @throws IOException error
      */

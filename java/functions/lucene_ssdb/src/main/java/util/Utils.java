@@ -6,6 +6,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Utils {
 
@@ -42,5 +47,30 @@ public class Utils {
             result.write(buffer, 0, length);
         }
         return result.toString(StandardCharsets.UTF_8.name());
+    }
+
+    /**
+     * 拼装appServer命令行
+     *
+     * @return list {@link List<String>}
+     * @throws IOException file is not exit
+     */
+    public static List<String> getCommand(String indexName) throws IOException {
+        List<String> commands = new ArrayList<>();
+        Path jars = Constants.appDir.resolve("lib");
+        if (Files.isDirectory(jars, LinkOption.NOFOLLOW_LINKS)) {
+            Path log4j = Constants.appDir.resolve("conf").resolve("log4j.properties");
+            if (Files.notExists(log4j, LinkOption.NOFOLLOW_LINKS)) throw new IOException(log4j + " is not exit");
+            commands.add(Constants.appDir.resolve("bin").resolve("java").toString());
+            commands.add("-Xmx1G");
+            commands.add("-Xms512M");
+            commands.add("-DLSDir=" + Constants.appDir);
+            commands.add("-DINDEX=" + indexName);
+            commands.add("-Dlog4j.configuration=file:" + log4j);
+            commands.add("-cp");
+            commands.add(jars.resolve("*").toString());
+            commands.add("app.AppServer");
+        } else throw new IOException(jars + " is not directory");
+        return commands;
     }
 }

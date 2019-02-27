@@ -1,4 +1,4 @@
-package util;
+package app.source;
 
 import bean.ImmutablePair;
 import bean.Ssdb;
@@ -7,6 +7,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.nutz.ssdb4j.SSDBs;
 import org.nutz.ssdb4j.spi.SSDB;
+import util.SqlliteUtil;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -19,14 +20,14 @@ import java.util.Map;
 
 import static org.junit.Assert.*;
 
-public class SsdbUtilTest {
+public class SsdbPullTest {
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
     }
 
     /**
@@ -63,42 +64,45 @@ public class SsdbUtilTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void listScan() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException, IOException, NoSuchFieldException {
         System.setProperty("LSDir",
                 Paths.get(this.getClass().getResource("/schema_template.yaml").getPath())
                         .getParent().toString());
-//        createData(Ssdb.Type.LIST);
-        SsdbUtil ssdbUtil = new SsdbUtil("127.0.1", 8888, "listTest", Ssdb.Type.LIST, "list");
-        Method connect = ssdbUtil.getClass().getDeclaredMethod("connect");
+        createData(Ssdb.Type.LIST);
+        SsdbPull ssdbPull = new SsdbPull("127.0.1", 8888, "listTest", Ssdb.Type.LIST, "list");
+        Method connect = ssdbPull.getClass().getDeclaredMethod("connect");
         connect.setAccessible(true);
-        SSDB ssdb = (SSDB) connect.invoke(ssdbUtil);
-        Method listScan = ssdbUtil.getClass().getDeclaredMethod("listScan",SSDB.class,int.class);
+        SSDB ssdb = (SSDB) connect.invoke(ssdbPull);
+        Method listScan = ssdbPull.getClass().getDeclaredMethod("listScan", SSDB.class, int.class);
         listScan.setAccessible(true);
-        Field point = ssdbUtil.getClass().getDeclaredField("point");
+        Field point = ssdbPull.getClass().getDeclaredField("point");
         point.setAccessible(true);
-        List<ImmutablePair<Object, String>> result = (List<ImmutablePair<Object, String>>) listScan.invoke(ssdbUtil, ssdb, 0);
-        assertEquals(ImmutablePair.of(0,"listTest_0"), result.get(0));
-        assertEquals(100, point.get(ssdbUtil));
+        List<ImmutablePair<Object, String>> result = (List<ImmutablePair<Object, String>>) listScan.invoke(ssdbPull, ssdb, 0);
+        assertEquals(ImmutablePair.of(0, "listTest_0"), result.get(0));
+        assertEquals(100, point.get(ssdbPull));
         ssdb.close();
     }
 
+
     @Test
+    @SuppressWarnings("unchecked")
     public void hashScan() throws IOException, NoSuchMethodException, InvocationTargetException, IllegalAccessException, NoSuchFieldException {
         System.setProperty("LSDir",
                 Paths.get(this.getClass().getResource("/schema_template.yaml").getPath())
                         .getParent().toString());
         createData(Ssdb.Type.HASH);
-        SsdbUtil ssdbUtil = new SsdbUtil("127.0.1", 8888, "hashTest", Ssdb.Type.LIST, "hash");
-        Method connect = ssdbUtil.getClass().getDeclaredMethod("connect");
+        SsdbPull ssdbPull = new SsdbPull("127.0.1", 8888, "hashTest", Ssdb.Type.LIST, "hash");
+        Method connect = ssdbPull.getClass().getDeclaredMethod("connect");
         connect.setAccessible(true);
-        SSDB ssdb = (SSDB) connect.invoke(ssdbUtil);
-        Method hashScan = ssdbUtil.getClass().getDeclaredMethod("hashScan",SSDB.class,String.class);
+        SSDB ssdb = (SSDB) connect.invoke(ssdbPull);
+        Method hashScan = ssdbPull.getClass().getDeclaredMethod("hashScan", SSDB.class, String.class);
         hashScan.setAccessible(true);
-        Field point = ssdbUtil.getClass().getDeclaredField("point");
+        Field point = ssdbPull.getClass().getDeclaredField("point");
         point.setAccessible(true);
-        List<ImmutablePair<Object, String>> result = (List<ImmutablePair<Object, String>>) hashScan.invoke(ssdbUtil, ssdb, "");
-        assertEquals(ImmutablePair.of("key_0","hashTest_0"), result.get(0));
-        assertEquals("key_99", point.get(ssdbUtil));
+        List<ImmutablePair<Object, String>> result = (List<ImmutablePair<Object, String>>) hashScan.invoke(ssdbPull, ssdb, "");
+        assertEquals(ImmutablePair.of("key_0", "hashTest_0"), result.get(0));
+        assertEquals("key_99", point.get(ssdbPull));
         ssdb.close();
     }
 }

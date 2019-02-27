@@ -4,13 +4,13 @@ import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.StringReader;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -22,16 +22,17 @@ import java.util.Map;
  */
 public class JsonUtil {
 
-    private static final Gson kJson = new Gson();
+    private static final Gson gson = new Gson();
 
     @SuppressWarnings("unchecked")
     public static Map<String, Object> toMap(String value) throws IOException {
         return (Map<String, Object>) customParse(value);
     }
 
-    public static <T> T toObject(String value, Type typeOfT) throws IOException {
+    public static String toString(Map<String, Object> map) throws IOException {
         try {
-            return kJson.fromJson(value, typeOfT);
+            return gson.toJson(map, new TypeToken<Map<String, Object>>() {
+            }.getType());
         } catch (JsonParseException e) {
             throw new IOException(e);
         }

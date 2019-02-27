@@ -1,4 +1,4 @@
-package util;
+package app.source;
 
 import bean.ImmutablePair;
 import bean.LSException;
@@ -7,6 +7,7 @@ import org.apache.log4j.Logger;
 import org.nutz.ssdb4j.SSDBs;
 import org.nutz.ssdb4j.spi.Response;
 import org.nutz.ssdb4j.spi.SSDB;
+import util.SqlliteUtil;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -19,9 +20,9 @@ import java.util.concurrent.ArrayBlockingQueue;
  * 非线程安全
  * 在取完这批次数据后,将对应类型的数据key保存,增量取数据
  */
-public class SsdbUtil extends Thread {
+public class SsdbPull extends Thread {
 
-    private final Logger logger = Logger.getLogger(SsdbUtil.class);
+    private final Logger logger = Logger.getLogger(SsdbPull.class);
 
     private final int limit = 500;
     private Object point;
@@ -37,11 +38,11 @@ public class SsdbUtil extends Thread {
     public final ArrayBlockingQueue<ImmutablePair<Object, String>> queue =
             new ArrayBlockingQueue<>(limit + 1);
 
-    public SsdbUtil(String ip, int port, String name, Ssdb.Type type, String indexName) {
+    public SsdbPull(String ip, int port, String name, Ssdb.Type type, String indexName) {
         this(ip, port, name, type, indexName, 60000);
     }
 
-    private SsdbUtil(String ip, int port, String name, Ssdb.Type type, String indexName, int timeout) {
+    private SsdbPull(String ip, int port, String name, Ssdb.Type type, String indexName, int timeout) {
         this.ip = ip;
         this.port = port;
         this.name = name;
@@ -73,10 +74,10 @@ public class SsdbUtil extends Thread {
                 }
                 remaining = pairs.size();
                 long end = System.currentTimeMillis();
-                logger.debug("pollOnce[" + limit + "] cost time[" + (end - start) + "] mills");
+                logger.debug("pollOnce[" + pairs.size() + "] cost time[" + (end - start) + "] mills");
             } while (remaining > 0);
             try {
-                SqlliteUtil.update("update ssdb set point=? where name=?", name, point);
+                SqlliteUtil.update("update ssdb set point=? where name=?", point, indexName);
             } catch (SQLException e) {
                 throw new LSException("更新ssdb.[" + name + "]的point信息失败", e);
             }
@@ -103,7 +104,8 @@ public class SsdbUtil extends Thread {
                 default:
                     throw new LSException("ssdb type [" + type + "] is not support...");
             }
-            SqlliteUtil.insert("INSERT INTO ssdb(name,point)VALUES (?,?)", name, point);
+            if (points.size() == 0)
+                SqlliteUtil.insert("INSERT INTO ssdb(name,point)VALUES (?,?)", indexName, point);
         } catch (Exception e) {
             throw new LSException("初始化ssdb." + name + "的point信息出错", e);
         }
@@ -170,7 +172,7 @@ public class SsdbUtil extends Thread {
         try {
             this.poll();
         } catch (LSException e) {
-            logger.error("polling ssdb." + name + " data interrupted by error", e);
+            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
         }
     }
 }

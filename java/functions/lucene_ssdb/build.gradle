@@ -33,7 +33,7 @@ dependencies {
 jar {
     baseName 'luceneSsdb'
     manifest {
-        attributes 'Main-Class': 'LuceneSsdb'
+        attributes 'Main-Class': 'HttpServer'
     }
 }
 

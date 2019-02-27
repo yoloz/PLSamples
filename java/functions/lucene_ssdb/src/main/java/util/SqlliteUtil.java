@@ -1,6 +1,5 @@
 package util;
 
-import bean.Constants;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.ResultSetHandler;
@@ -9,7 +8,6 @@ import org.apache.commons.dbutils.handlers.ArrayListHandler;
 import org.apache.commons.dbutils.handlers.MapListHandler;
 import org.apache.log4j.Logger;
 
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -20,7 +18,7 @@ public class SqlliteUtil {
     private static final Logger logger = Logger.getLogger(SqlliteUtil.class);
 
     private static final BasicDataSource dataSource = new BasicDataSource();
-    private static final String dbPath = Paths.get(Constants.appDir, "index.db").toString();
+    private static final String dbPath = Constants.appDir.resolve("index.db").toString();
 
     private SqlliteUtil() {
 
@@ -53,7 +51,7 @@ public class SqlliteUtil {
                 SqlliteUtil.update(createSql);
             }
         } catch (SQLException e) {
-            logger.error("初始化schema错误,系统退出", e);
+            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
             System.exit(1);
         }
     }
@@ -75,7 +73,7 @@ public class SqlliteUtil {
                 SqlliteUtil.update(createSql);
             }
         } catch (SQLException e) {
-            logger.error("初始化ssdb错误,系统退出", e);
+            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
             System.exit(1);
         }
     }
