@@ -1,6 +1,7 @@
 package app.index;
 
 
+import org.apache.lucene.document.*;
 import util.Constants;
 import bean.ImmutablePair;
 import bean.LSException;
@@ -8,12 +9,6 @@ import bean.Schema;
 import bean.Ssdb;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.IntPoint;
-import org.apache.lucene.document.LongPoint;
-import org.apache.lucene.document.StringField;
-import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
@@ -115,15 +110,24 @@ public class WriteIndex extends Thread {
                     if (data.containsKey(name)) {
                         switch (field.getType()) {
                             case INT:
-                                doc.add(new IntPoint(name, (int) data.get(name)));
+                                int i = (int) data.get(name);
+                                doc.add(new IntPoint(name, i));
+                                doc.add(new NumericDocValuesField(name, i));
+                                doc.add(new StoredField(name, i));
                                 break;
                             case DATE:
                                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern(field.getFormatter());
                                 LocalDateTime localDateTime = LocalDateTime.parse((String) data.get(name), formatter);
-                                doc.add(new LongPoint(name, localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli()));
+                                long mills = localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
+                                doc.add(new LongPoint(name, mills));
+                                doc.add(new NumericDocValuesField(name, mills));
+                                doc.add(new StoredField(name, mills));
                                 break;
                             case LONG:
-                                doc.add(new LongPoint(name, (long) data.get(name)));
+                                long l = (long) data.get(name);
+                                doc.add(new LongPoint(name, l));
+                                doc.add(new NumericDocValuesField(name, l));
+                                doc.add(new StoredField(name, l));
                                 break;
                             case STRING:
                                 doc.add(new StringField(name, (String) data.get(name), Field.Store.YES));
