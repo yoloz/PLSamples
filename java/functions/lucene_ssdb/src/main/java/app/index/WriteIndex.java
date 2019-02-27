@@ -1,7 +1,7 @@
-package crud;
+package app.index;
 
 
-import bean.Constants;
+import util.Constants;
 import bean.ImmutablePair;
 import bean.LSException;
 import bean.Schema;
@@ -20,16 +20,17 @@ import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import util.JsonUtil;
-import util.SsdbUtil;
+import app.source.SsdbPull;
 import util.Utils;
 
 import java.io.IOException;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -48,20 +49,24 @@ import java.util.concurrent.TimeUnit;
  * worth it when your index is relatively static (ie
  * you're done adding documents to it).
  */
-class WriteIndex extends Thread {
+public class WriteIndex extends Thread {
 
     private Logger logger = Logger.getLogger(WriteIndex.class);
 
-    private Schema schema;
-    private String indexPath = Constants.indexDir;
+    private final Schema schema;
+    private final CountDownLatch countDownLatch;
 
-    WriteIndex(Schema schema) {
+    private final Path indexPath;
+
+    public WriteIndex(Schema schema, CountDownLatch countDownLatch) {
         this.schema = schema;
+        this.countDownLatch = countDownLatch;
+        this.indexPath = Constants.indexDir.resolve(schema.getIndex());
     }
 
     private void write() throws LSException {
         try {
-            Directory dir = FSDirectory.open(Paths.get(indexPath));
+            Directory dir = FSDirectory.open(indexPath);
             Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
             IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
             iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
@@ -69,7 +74,7 @@ class WriteIndex extends Thread {
             IndexWriter writer = new IndexWriter(dir, iwc);
             if (schema.getSsdb() != null) this.indexSsdb(writer);
 //             writer.forceMerge(1);
-            logger.debug("committing index[" + schema.getIndex() + "] to '" + indexPath + "'");
+            logger.debug("committing index[" + schema.getIndex() + "]");
             long start = System.currentTimeMillis();
             writer.commit();
             writer.close();
@@ -84,16 +89,16 @@ class WriteIndex extends Thread {
         Ssdb ssdb = schema.getSsdb();
         String addr = ssdb.getAddr();
         int idex = addr.indexOf(":");
-        SsdbUtil ssdbUtil = new SsdbUtil(addr.substring(0, idex),
+        SsdbPull ssdbPull = new SsdbPull(addr.substring(0, idex),
                 Integer.parseInt(addr.substring(idex + 1)),
                 ssdb.getName(), ssdb.getType(), schema.getIndex());
-        ssdbUtil.start();
-        logger.debug("indexing[" + schema.getIndex() + "] to '" + indexPath + "'");
+        ssdbPull.start();
+        logger.debug("indexing[" + schema.getIndex() + "]");
         long start = System.currentTimeMillis();
         long count = 0;
         while (true) {
             try {
-                ImmutablePair<Object, String> pair = ssdbUtil.queue.poll(ssdbUtil.timeout, TimeUnit.MILLISECONDS);
+                ImmutablePair<Object, String> pair = ssdbPull.queue.poll(ssdbPull.timeout, TimeUnit.MILLISECONDS);
                 if (pair == null) break;
                 Map<String, Object> data;
                 try {
@@ -115,8 +120,6 @@ class WriteIndex extends Thread {
                             case DATE:
                                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern(field.getFormatter());
                                 LocalDateTime localDateTime = LocalDateTime.parse((String) data.get(name), formatter);
-//                                ZonedDateTime dateTime = ZonedDateTime.parse((String) data.get(name), formatter);
-//                                doc.add(new LongPoint(name, dateTime.toInstant().toEpochMilli()));
                                 doc.add(new LongPoint(name, localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli()));
                                 break;
                             case LONG:
@@ -140,7 +143,7 @@ class WriteIndex extends Thread {
                 count++;
             } catch (InterruptedException e) {
                 logger.warn("队列中断", e);
-            } catch (IOException e) {
+            } catch (DateTimeParseException | IOException e) {
                 throw new LSException("索引[" + schema.getIndex() + "]创建document出错", e);
             }
         }
@@ -163,8 +166,10 @@ class WriteIndex extends Thread {
     public void run() {
         try {
             this.write();
-        } catch (LSException e) {
-            logger.error("write index[" + schema.getIndex() + "] failure.", e);
+        } catch (Exception e) {
+            countDownLatch.countDown();
+            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
         }
+        countDownLatch.countDown();
     }
 }
