@@ -16,11 +16,12 @@ import static org.junit.Assert.*;
 public class CreateSqlTest {
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
     }
 
     @Test
-    public void parseSQL() throws JSQLParserException {
+    public void parseSQL() {
+        //uuuu-MM-dd'T'HH:mm:ss.SSSSSS
         String sql = "CREATE TABLE test" +
                 "(col1 int, col2 string, col3 date('yyyy-MM-dd HH:mm:ss.SSS'),col4 date('uuuu-MM-dd\'T\'HH:mm:ss.SSSSSS'))" +
                 " analyser='org.apache.lucene.analysis.standard.StandardAnalyzer' source=ssdb.test1 addr='127.0.0.1:8888' type=list";
@@ -35,13 +36,13 @@ public class CreateSqlTest {
             assertEquals("col3", date.getColumnName());
             assertEquals("'yyyy-MM-dd HH:mm:ss.SSS'", date.getColDataType().getArgumentsStringList().get(0));
             ColumnDefinition date1 = table.getColumnDefinitions().get(3);
-            assertEquals(3,date1.getColDataType().getArgumentsStringList().size());
+            assertEquals(3, date1.getColDataType().getArgumentsStringList().size());
         } catch (JSQLParserException e) {
             e.printStackTrace();
         }
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
     }
 }

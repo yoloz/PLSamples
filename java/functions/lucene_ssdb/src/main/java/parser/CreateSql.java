@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * date('uuuu-MM-dd\'T\'HH:mm:ss.SSSSSS')
+ * <p>
  * CREATE TABLE test
  * (col1 int, col2 string, col3 date('yyyy-MM-dd HH:mm:ss.SSS'))
  * source=ssdb.test1 addr='127.0.0.1:8888' type=list

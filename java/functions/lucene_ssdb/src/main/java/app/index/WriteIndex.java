@@ -119,9 +119,10 @@ public class WriteIndex extends Thread {
                                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern(field.getFormatter());
                                 LocalDateTime localDateTime = LocalDateTime.parse((String) data.get(name), formatter);
                                 long mills = localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
-                                doc.add(new LongPoint(name, mills));
-                                doc.add(new NumericDocValuesField(name, mills));
-                                doc.add(new StoredField(name, mills));
+                                doc.add(new StringField(name, String.valueOf(mills), Field.Store.YES));
+//                                doc.add(new LongPoint(name, mills));
+//                                doc.add(new NumericDocValuesField(name, mills));
+//                                doc.add(new StoredField(name, mills));
                                 break;
                             case LONG:
                                 long l = (long) data.get(name);
@@ -139,9 +140,9 @@ public class WriteIndex extends Thread {
                     }
                 }
                 if (Ssdb.Type.LIST == ssdb.getType()) {
-                    doc.add(new IntPoint("_index", (int) pair.getLeft()));
+                    doc.add(new StoredField("_index", (int) pair.getLeft()));
                 } else if (Ssdb.Type.HASH == ssdb.getType()) {
-                    doc.add(new StringField("_key", (String) pair.getLeft(), Field.Store.YES));
+                    doc.add(new StoredField("_key", (String) pair.getLeft()));
                 }
                 writer.addDocument(doc);
                 count++;

@@ -36,10 +36,10 @@ public class SsdbPull extends Thread {
     private String indexName;
 
     public final ArrayBlockingQueue<ImmutablePair<Object, String>> queue =
-            new ArrayBlockingQueue<>(limit + 1);
+            new ArrayBlockingQueue<>(limit * 2);
 
     public SsdbPull(String ip, int port, String name, Ssdb.Type type, String indexName) {
-        this(ip, port, name, type, indexName, 60000);
+        this(ip, port, name, type, indexName, 15000);
     }
 
     private SsdbPull(String ip, int port, String name, Ssdb.Type type, String indexName, int timeout) {

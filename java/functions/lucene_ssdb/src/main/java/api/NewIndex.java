@@ -34,7 +34,7 @@ public class NewIndex extends HttpServlet {
             process.redirectErrorStream(true);
             process.redirectOutput(Constants.logDir.resolve(indexName + ".out").toFile());
             process.start();
-        } catch (LSException | IOException e) {
+        } catch (Exception e) {
             logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
             error = "{\"success\":false,\"error\":\"" + e.getMessage() + "\"}";
         }
