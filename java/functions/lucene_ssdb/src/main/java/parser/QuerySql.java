@@ -152,76 +152,75 @@ public class QuerySql {
         if (Parenthesis.class.equals(where.getClass())) {
             builder.append("(");
             Parenthesis parenthesis = (Parenthesis) where;
-            net.sf.jsqlparser.expression.Expression pe = parenthesis.getExpression();
+            Expression pe = parenthesis.getExpression();
             parseWhere(builder, pe);
             builder.append(")");
         } else if (AndExpression.class.equals(where.getClass())) {
             AndExpression and = (AndExpression) where;
-            net.sf.jsqlparser.expression.Expression left = and.getLeftExpression();
+            Expression left = and.getLeftExpression();
             parseWhere(builder, left);
             if (builder.length() != 0) builder.append(" AND ");
-            net.sf.jsqlparser.expression.Expression right = and.getRightExpression();
+            Expression right = and.getRightExpression();
             parseWhere(builder, right);
         } else if (OrExpression.class.equals(where.getClass())) {
             OrExpression or = (OrExpression) where;
-            net.sf.jsqlparser.expression.Expression left = or.getLeftExpression();
+            Expression left = or.getLeftExpression();
             parseWhere(builder, left);
             if (builder.length() != 0) builder.append(" OR ");
-            net.sf.jsqlparser.expression.Expression right = or.getRightExpression();
+            Expression right = or.getRightExpression();
             parseWhere(builder, right);
         } else if (EqualsTo.class.equals(where.getClass())) {
             EqualsTo equal = (EqualsTo) where;
             String operator = equal.getStringExpression();
-            net.sf.jsqlparser.expression.Expression left = equal.getLeftExpression();
+            Expression left = equal.getLeftExpression();
             String ln = getLeft(operator, left, builder);
-            builder.append(ln);
-            net.sf.jsqlparser.expression.Expression right = equal.getRightExpression();
+            Expression right = equal.getRightExpression();
             Object or = checkValue(operator, ln, getItem(operator, right), false);
             builder.append(":").append(or);
         } else if (GreaterThan.class.equals(where.getClass())) {
             GreaterThan greater = (GreaterThan) where;
             String operator = greater.getStringExpression();
-            net.sf.jsqlparser.expression.Expression left = greater.getLeftExpression();
+            Expression left = greater.getLeftExpression();
             String ln = getLeft(operator, left, builder);
-            net.sf.jsqlparser.expression.Expression right = greater.getRightExpression();
+            Expression right = greater.getRightExpression();
             Object or = checkValue(operator, ln, getItem(operator, right), true);
             builder.append(":{").append(or).append(" TO ").append(addNum(or)).append("]");
         } else if (GreaterThanEquals.class.equals(where.getClass())) {
             GreaterThanEquals greaterThanEquals = (GreaterThanEquals) where;
             String operator = greaterThanEquals.getStringExpression();
-            net.sf.jsqlparser.expression.Expression left = greaterThanEquals.getLeftExpression();
+            Expression left = greaterThanEquals.getLeftExpression();
             String ln = getLeft(operator, left, builder);
-            net.sf.jsqlparser.expression.Expression right = greaterThanEquals.getRightExpression();
+            Expression right = greaterThanEquals.getRightExpression();
             Object or = checkValue(operator, ln, getItem(operator, right), true);
             builder.append(":[").append(or).append(" TO ").append(addNum(or)).append("]");
         } else if (MinorThan.class.equals(where.getClass())) {
             MinorThan minorThan = (MinorThan) where;
             String operator = minorThan.getStringExpression();
-            net.sf.jsqlparser.expression.Expression left = minorThan.getLeftExpression();
+            Expression left = minorThan.getLeftExpression();
             String ln = getLeft(operator, left, builder);
-            net.sf.jsqlparser.expression.Expression right = minorThan.getRightExpression();
+            Expression right = minorThan.getRightExpression();
             Object or = checkValue(operator, ln, getItem(operator, right), true);
             builder.append(":[").append(minusNum(or)).append(" TO ").append(or).append("}");
         } else if (MinorThanEquals.class.equals(where.getClass())) {
             MinorThanEquals minorThanEquals = (MinorThanEquals) where;
             String operator = minorThanEquals.getStringExpression();
-            net.sf.jsqlparser.expression.Expression left = minorThanEquals.getLeftExpression();
+            Expression left = minorThanEquals.getLeftExpression();
             String ln = getLeft(operator, left, builder);
-            net.sf.jsqlparser.expression.Expression right = minorThanEquals.getRightExpression();
+            Expression right = minorThanEquals.getRightExpression();
             Object or = checkValue(operator, ln, getItem(operator, right), true);
             builder.append(":[").append(minusNum(or)).append(" TO ").append(or).append("]");
         } else if (Between.class.equals(where.getClass())) {
             Between between = (Between) where;
             if (between.isNot()) throw new LSException(" not between is not support");
             String operator = "between";
-            net.sf.jsqlparser.expression.Expression left = between.getLeftExpression();
+            Expression left = between.getLeftExpression();
             String ln = getLeft(operator, left, builder);
-            net.sf.jsqlparser.expression.Expression bstart = between.getBetweenExpressionStart();
+            Expression bstart = between.getBetweenExpressionStart();
             Object start = getItem(operator, bstart);
             if (Column.class.equals(start.getClass()))
                 throw new LSException("operator[between] start is column");
             start = checkValue(operator, ln, start, false);
-            net.sf.jsqlparser.expression.Expression bend = between.getBetweenExpressionEnd();
+            Expression bend = between.getBetweenExpressionEnd();
             Object end = getItem(operator, bend);
             if (Column.class.equals(end.getClass()))
                 throw new LSException("operator[between] end is column");
@@ -230,9 +229,9 @@ public class QuerySql {
         } else if (LikeExpression.class.equals(where.getClass())) {
             LikeExpression like = (LikeExpression) where;
             String operator = "like";
-            net.sf.jsqlparser.expression.Expression left = like.getLeftExpression();
+            Expression left = like.getLeftExpression();
             getLeft(operator, left, builder);
-            net.sf.jsqlparser.expression.Expression right = like.getRightExpression();
+            Expression right = like.getRightExpression();
             Object or = getItem(operator, right);
             if (Column.class.equals(or.getClass()))
                 throw new LSException("operator[like] right is column");

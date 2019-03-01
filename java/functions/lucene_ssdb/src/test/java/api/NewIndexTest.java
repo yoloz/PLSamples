@@ -21,7 +21,8 @@ public class NewIndexTest {
     }
 
     /**
-     * curl localhost:12580/newIndex -X POST -d "CREATE TABLE test(index int,city string,company text, time date('uuuu-MM-dd'T'HH:mm:ss.SSSSSS')) source=ssdb.listTest addr='127.0.0.1:8888' type=list"
+     * curl localhost:12580/newIndex -X POST -d "CREATE TABLE test(index int,city string,company text,
+     * time date('uuuu-MM-dd'T'HH:mm:ss.SSSSSS')) source=ssdb.listTest addr='127.0.0.1:8888' type=list"
      * curl localhost:12580/addIndex -X POST -d "test"
      * 测试前需要目录${LSDir}下满足bin/java,conf/*,lib/
      * 启动HttpServerTest.startHttpServer监听http请求
