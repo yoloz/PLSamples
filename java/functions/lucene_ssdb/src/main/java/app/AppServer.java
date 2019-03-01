@@ -7,7 +7,6 @@ import org.apache.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 import util.SqlliteUtil;
 
-import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +17,7 @@ public class AppServer {
     private static final Logger logger = Logger.getLogger(AppServer.class);
 
     /**
-     * app.AppServer.main(indexName,create_append|delete|query)
+     * app.AppServer.main(indexName,create_append|delete)
      *
      * @param args {@link String[]}
      */
@@ -41,9 +40,8 @@ public class AppServer {
                 writeIndex.start();
                 countDownLatch.await();
             } else if ("delete".equals(args[1])) {
-            } else if ("query".equals(args[1])) {
             } else System.err.println("启动失败,命令[" + args[1] + "]未定义");
-        } catch (LSException | SQLException | InterruptedException e) {
+        } catch (Exception e) {
             logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
             System.err.println(e.getMessage());
             System.exit(1);

@@ -131,10 +131,10 @@ public class WriteIndex extends Thread {
                                 doc.add(new StoredField(name, l));
                                 break;
                             case STRING:
-                                doc.add(new StringField(name, (String) data.get(name), Field.Store.YES));
+                                doc.add(new StringField(name, String.valueOf(data.get(name)), Field.Store.YES));
                                 break;
                             case TEXT:
-                                doc.add(new TextField(name, (String) data.get(name), Field.Store.YES));
+                                doc.add(new TextField(name, String.valueOf(data.get(name)), Field.Store.YES));
                                 break;
                         }
                     }

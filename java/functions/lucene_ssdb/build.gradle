@@ -4,14 +4,20 @@ plugins {
 
 group 'functions'
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-
 repositories {
     mavenLocal()
     maven {
         url = 'http://repo.maven.apache.org/maven2'
     }
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+}
+
+tasks.withType(JavaCompile) {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 dependencies {
@@ -46,8 +52,9 @@ task copyJar(type: Copy) {
     }
     into 'build/lib'
 }
+
 task copyOtherFile(type: Copy) {
-    from('bin')
+    from "bin/**", "conf/**"
     into 'build'
 }
 copyJar.mustRunAfter(build)
