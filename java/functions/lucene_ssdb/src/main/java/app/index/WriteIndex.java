@@ -21,7 +21,6 @@ import util.Utils;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
@@ -117,9 +116,8 @@ public class WriteIndex extends Thread {
                                 break;
                             case DATE:
                                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern(field.getFormatter());
-                                LocalDateTime localDateTime = LocalDateTime.parse((String) data.get(name), formatter);
-                                long mills = localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
-                                doc.add(new StringField(name, String.valueOf(mills), Field.Store.YES));
+                                LocalDateTime localDateTime = LocalDateTime.parse(String.valueOf(data.get(name)), formatter);
+                                doc.add(new StringField(name, Utils.toNanos(localDateTime), Field.Store.YES));
 //                                doc.add(new LongPoint(name, mills));
 //                                doc.add(new NumericDocValuesField(name, mills));
 //                                doc.add(new StoredField(name, mills));

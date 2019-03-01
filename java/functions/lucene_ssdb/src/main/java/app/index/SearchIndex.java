@@ -21,9 +21,7 @@ import util.Utils;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -95,11 +93,8 @@ public class SearchIndex {
                             m.put(name, doc.get(name));
                             break;
                         case DATE:
-                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(f.getFormatter());
-                            long mills = Long.valueOf(doc.get(name));
-                            LocalDateTime time = LocalDateTime.ofInstant(Instant.ofEpochMilli(mills),
-                                    ZoneOffset.UTC);
-                            m.put(name, time.format(formatter));
+                            LocalDateTime time = Utils.ofNanos(doc.get(name));
+                            m.put(name, time.format(DateTimeFormatter.ofPattern(f.getFormatter())));
                             break;
                     }
                 }

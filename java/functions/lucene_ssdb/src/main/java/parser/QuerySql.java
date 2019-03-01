@@ -53,6 +53,8 @@ import java.util.Map;
  * <p>
  * 查询语句中字符值需加单引号
  * <p>
+ * 需添加where条件,即select * from table错误
+ * <p>
  * select col1,test.col2 from test
  * <p>
  * select * from test where (col3='test' and col1 like 'a?b') or

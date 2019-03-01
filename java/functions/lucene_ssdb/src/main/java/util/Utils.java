@@ -9,6 +9,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -72,5 +74,24 @@ public class Utils {
             commands.add("app.AppServer");
         } else throw new IOException(jars + " is not directory");
         return commands;
+    }
+
+    /**
+     * 时间类型转换到纳秒
+     * <p>
+     * nano-of-second, from 0 to 999,999,999
+     * ZoneOffset.UTC
+     */
+    public static String toNanos(LocalDateTime dateTime) {
+        long second = dateTime.toEpochSecond(ZoneOffset.UTC);
+        int nano = dateTime.getNano();
+        return Long.toString(second) + nano;
+    }
+
+    public static LocalDateTime ofNanos(String longValue) {
+        int index = longValue.length() - 9;
+        String nano = longValue.substring(index);
+        String second = longValue.substring(0, index);
+        return LocalDateTime.ofEpochSecond(Long.valueOf(second), Integer.valueOf(nano), ZoneOffset.UTC);
     }
 }
