@@ -28,6 +28,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 持续取数据,无数据即阻塞,定量提交实现近实时搜索
+ * <p>
  * setRAMBufferSizeMB:
  * <p>
  * Optional: for better indexing performance, if you
@@ -70,6 +72,7 @@ public class WriteIndex extends Thread {
 //             writer.forceMerge(1);
             logger.debug("committing index[" + schema.getIndex() + "]");
             long start = System.currentTimeMillis();
+            writer.prepareCommit();
             writer.commit();
             writer.close();
             long end = System.currentTimeMillis();

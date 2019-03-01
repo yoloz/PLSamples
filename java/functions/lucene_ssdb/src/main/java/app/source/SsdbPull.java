@@ -18,7 +18,9 @@ import java.util.concurrent.ArrayBlockingQueue;
 
 /**
  * 非线程安全
- * 在取完这批次数据后,将对应类型的数据key保存,增量取数据
+ * <p>
+ * 连接后不断开持续取数据,无数据即阻塞;
+ * 定量更新point点,在异常断开后重启可以继续[异常断连会造成丢失数据]
  */
 public class SsdbPull extends Thread {
 

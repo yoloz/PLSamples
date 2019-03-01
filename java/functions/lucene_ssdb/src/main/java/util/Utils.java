@@ -94,4 +94,20 @@ public class Utils {
         String second = longValue.substring(0, index);
         return LocalDateTime.ofEpochSecond(Long.valueOf(second), Integer.valueOf(nano), ZoneOffset.UTC);
     }
+
+    /**
+     * stop by pid
+     */
+    public static void stopPid(Path path) throws IOException {
+        String pid = Files.readAllLines(path, StandardCharsets.UTF_8).get(0);
+        ProcessBuilder process = new ProcessBuilder();
+        List<String> commands = new ArrayList<>(5);
+        commands.add("/bin/sh");
+        commands.add("-c");
+        commands.add("kill");
+        commands.add("-15");
+        commands.add(pid);
+        process.command(commands);
+        process.start();
+    }
 }

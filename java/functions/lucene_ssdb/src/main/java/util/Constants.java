@@ -15,6 +15,7 @@ public class Constants {
     static final Path appDir;
     public static final Path indexDir;
     public static final Path logDir;
+    public static final Path varDir;
     public static final int httpPort;
 
     static {
@@ -31,7 +32,10 @@ public class Constants {
         }
         appDir = Paths.get(root_dir);
         logDir = appDir.resolve("logs");
-        indexDir = Paths.get(properties.getProperty("indexDir"));
+        varDir = appDir.resolve("var");
+        String _indexDir = properties.getProperty("indexDir");
+        if (_indexDir == null || _indexDir.isEmpty()) indexDir = varDir.resolve("index");
+        else indexDir = Paths.get(_indexDir);
         httpPort = Integer.parseInt(properties.getProperty("httpPort"));
     }
 }
