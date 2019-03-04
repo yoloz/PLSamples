@@ -20,7 +20,8 @@ import java.util.concurrent.ArrayBlockingQueue;
  * 非线程安全
  * <p>
  * 连接后不断开持续取数据,无数据即阻塞;
- * 定量更新point点,在异常断开后重启可以继续[异常断连会造成丢失数据]
+ * 暂时在关闭时更新point信息
+ * todo 定量更新point点,在异常断开后重启可以继续[异常断连会造成丢失数据]
  */
 public class SsdbPull extends Thread {
 
@@ -36,6 +37,8 @@ public class SsdbPull extends Thread {
     public final int timeout;
 
     private String indexName;
+
+    private boolean stop = false;
 
     public final ArrayBlockingQueue<ImmutablePair<Object, String>> queue =
             new ArrayBlockingQueue<>(limit * 2);
@@ -67,17 +70,28 @@ public class SsdbPull extends Thread {
         logger.debug("polling ssdb." + name + " data to index");
         initPoint();
         try (SSDB ssdb = this.connect()) {
-            int remaining;
-            do {
+//            int remaining;
+//            do {
+//                long start = System.currentTimeMillis();
+//                List<ImmutablePair<Object, String>> pairs = pollOnce(ssdb);
+//                if (!pairs.isEmpty()) for (ImmutablePair<Object, String> pair : pairs) {
+//                    queue.put(pair);
+//                }
+//                remaining = pairs.size();
+//                long end = System.currentTimeMillis();
+//                logger.debug("pollOnce[" + pairs.size() + "] cost time[" + (end - start) + "] mills");
+//            } while (remaining > 0);
+            while (!stop) {
                 long start = System.currentTimeMillis();
                 List<ImmutablePair<Object, String>> pairs = pollOnce(ssdb);
                 if (!pairs.isEmpty()) for (ImmutablePair<Object, String> pair : pairs) {
                     queue.put(pair);
                 }
-                remaining = pairs.size();
+                int count = pairs.size();
                 long end = System.currentTimeMillis();
                 logger.debug("pollOnce[" + pairs.size() + "] cost time[" + (end - start) + "] mills");
-            } while (remaining > 0);
+                if (count == 0) Thread.sleep(10000);
+            }
             try {
                 SqlliteUtil.update("update ssdb set point=? where name=?", point, indexName);
             } catch (SQLException e) {
@@ -172,9 +186,13 @@ public class SsdbPull extends Thread {
     @Override
     public void run() {
         try {
-            this.poll();
+            poll();
         } catch (LSException e) {
             logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
         }
+    }
+
+    public void close() {
+        stop = true;
     }
 }

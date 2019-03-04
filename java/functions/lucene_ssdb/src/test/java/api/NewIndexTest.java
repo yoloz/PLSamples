@@ -5,6 +5,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.nutz.ssdb4j.SSDBs;
 import org.nutz.ssdb4j.spi.SSDB;
+import util.Utils;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -30,18 +31,21 @@ public class NewIndexTest {
      * @throws IOException error
      */
     @Test
-    public void createListData() throws IOException {
+    public void createListData() throws IOException, InterruptedException {
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSSSS");
         try (SSDB ssdb = SSDBs.simple()) {
             Object[] values = new Object[100];
             for (int j = 0; j < 10; j++) {
                 for (int i = 0; i < 100; i++) {
-                    Map<String, Object> value = new HashMap<>(6);
+                    Map<String, Object> value = new HashMap<>(5);
+                    LocalDateTime lt = LocalDateTime.now();
                     value.put("city", "hangzhou");
                     value.put("company", "北京三维力控科技有限公司");
-                    value.put("time", LocalDateTime.now().format(dateTimeFormatter));
+                    value.put("time", lt.format(dateTimeFormatter));
                     value.put("index", j * 100 + i);
+                    value.put("timestamp", Utils.toNanos(lt));
                     values[i] = toJson(value);
+                    Thread.sleep(0, 999999);
                 }
                 ssdb.qpush_back("listTest", values);
             }

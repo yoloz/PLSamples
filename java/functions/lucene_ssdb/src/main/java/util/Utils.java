@@ -6,9 +6,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -52,17 +56,19 @@ public class Utils {
     }
 
     /**
-     * 拼装appServer命令行
+     * start index app
      *
-     * @return list {@link List<String>}
-     * @throws IOException file is not exit
+     * @param indexName index name
+     * @throws LSException error {@link LSException}
+     * @throws IOException error {@link IOException}
      */
-    public static List<String> getCommand(String indexName) throws IOException {
-        List<String> commands = new ArrayList<>();
+    public static void starApp(String indexName) throws LSException, IOException {
         Path jars = Constants.appDir.resolve("lib");
         if (Files.isDirectory(jars, LinkOption.NOFOLLOW_LINKS)) {
             Path log4j = Constants.appDir.resolve("conf").resolve("log4j.properties");
-            if (Files.notExists(log4j, LinkOption.NOFOLLOW_LINKS)) throw new IOException(log4j + " is not exit");
+            if (Files.notExists(log4j, LinkOption.NOFOLLOW_LINKS)) throw new LSException(log4j + " is not exit");
+            List<String> commands = new ArrayList<>(11);
+            ProcessBuilder process = new ProcessBuilder();
             commands.add(Constants.appDir.resolve("bin").resolve("java").toString());
             commands.add("-Xmx1G");
             commands.add("-Xms512M");
@@ -72,8 +78,13 @@ public class Utils {
             commands.add("-cp");
             commands.add(jars.resolve("*").toString());
             commands.add("app.AppServer");
-        } else throw new IOException(jars + " is not directory");
-        return commands;
+            commands.add(indexName);
+//            commands.add("create_append");
+            process.command(commands);
+            process.redirectErrorStream(true);
+            process.redirectOutput(Constants.logDir.resolve(indexName + ".out").toFile());
+            process.start();
+        } else throw new LSException(jars + " is not directory");
     }
 
     /**
@@ -95,19 +106,40 @@ public class Utils {
         return LocalDateTime.ofEpochSecond(Long.valueOf(second), Integer.valueOf(nano), ZoneOffset.UTC);
     }
 
+    public static int stopPid(Path path) throws IOException, InterruptedException {
+        String pid = Files.readAllLines(path, StandardCharsets.UTF_8).get(0);
+        int exit = stopPid(pid);
+        if (exit == 0) Files.delete(path);
+        return exit;
+    }
+
     /**
      * stop by pid
+     *
+     * @param pid pid
+     * @return exit code
+     * @throws IOException          io error
+     * @throws InterruptedException process interrupt
      */
-    public static void stopPid(Path path) throws IOException {
-        String pid = Files.readAllLines(path, StandardCharsets.UTF_8).get(0);
+    public static int stopPid(String pid) throws IOException, InterruptedException {
+        if (pid == null || pid.isEmpty()) throw new IOException("pid[" + pid + "] is not exit");
+        List<String> commands = new ArrayList<>(3);
         ProcessBuilder process = new ProcessBuilder();
-        List<String> commands = new ArrayList<>(5);
-        commands.add("/bin/sh");
-        commands.add("-c");
         commands.add("kill");
         commands.add("-15");
         commands.add(pid);
         process.command(commands);
-        process.start();
+        Process p = process.start();
+        return p.waitFor();
+    }
+
+    /**
+     * update app status
+     * @param pid pid
+     * @param indexName index name
+     * @throws SQLException sql error
+     */
+    public static void updateAppStatus(String pid,String indexName) throws SQLException {
+        SqlliteUtil.update("update ssdb set pid=? where name=?", 0, indexName);
     }
 }

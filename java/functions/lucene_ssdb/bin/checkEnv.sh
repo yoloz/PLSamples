@@ -19,8 +19,3 @@ if [[ ! -x ${JAVA:=''} ]]; then
    echo "java command error..."
    exit 1
 fi
-
-if [[ -f `dirname $0`"/java" ]];then
-rm -f `dirname $0`"/java"
-fi
-$(ln -s "$JAVA_HOME/bin/java" `dirname $0`"/java")

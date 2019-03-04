@@ -1,6 +1,6 @@
 package api;
 
-import util.Constants;
+import bean.LSException;
 import org.apache.log4j.Logger;
 import util.SqlliteUtil;
 import util.Utils;
@@ -11,39 +11,32 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
-public class AddIndex extends HttpServlet {
+public class StartIndex extends HttpServlet {
 
-    private Logger logger = Logger.getLogger(AddIndex.class);
+    private final Logger logger = Logger.getLogger(StartIndex.class);
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String indexName = Utils.getInputStream(req.getInputStream());
-        logger.debug("add index=>[" + indexName + "]");
+        logger.debug("start index=>[" + indexName + "]");
         String error = "";
         try {
             List<Map<String, Object>> list = SqlliteUtil
-                    .query("select value from schema where name=?", indexName);
-            if (list.isEmpty()) throw new IOException("index[" + indexName + "] is not exit...");
-            ProcessBuilder process = new ProcessBuilder();
-            List<String> commands = Utils.getCommand(indexName);
-            commands.add(indexName);
-            commands.add("create_append");
-            process.command(commands);
-            process.redirectErrorStream(true);
-            process.redirectOutput(Constants.logDir.resolve(indexName + ".out").toFile());
-            process.start();
+                    .query("select pid from ssdb where name=?", indexName);
+            if (list.isEmpty()) throw new LSException("index[" + indexName + "] is not exit...");
+            String pid = String.valueOf(list.get(0).get("pid"));
+            if ("0".equals(pid)) Utils.starApp(indexName);
+            else error = "index[" + indexName + "] is running";
         } catch (Exception e) {
             logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
             error = "{\"success\":false,\"error\":\"" + e.getMessage() + "\"}";
         }
         resp.setContentType("application/json;charset=UTF-8");
         OutputStream outputStream = resp.getOutputStream();
-        if (error.isEmpty())
-            outputStream.write("{\"success\":true}".getBytes(StandardCharsets.UTF_8));
+        if (error.isEmpty()) outputStream.write("{\"success\":true}".getBytes(StandardCharsets.UTF_8));
         else outputStream.write(error.getBytes(StandardCharsets.UTF_8));
     }
 }

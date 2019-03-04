@@ -57,9 +57,12 @@ public class SqlliteUtil {
     }
 
     /**
-     * ssdb数据源的增量信息
-     * list:offset
-     * hash:key_start
+     * ssdb数据源的运行信息
+     * point:
+     * <br/>list:offset
+     * <br/>hash:key_start
+     * <p>
+     * pid: default 0
      */
     private static void checkSsdb() {
         String checkSql = "select count(*) from sqlite_master where type=? and name=?";
@@ -68,7 +71,8 @@ public class SqlliteUtil {
             if ((int) result.get(0).get("count(*)") == 0) {
                 String createSql = "CREATE TABLE ssdb(" +
                         "name TEXT PRIMARY KEY NOT NULL, " +
-                        "point TEXT NOT NULL" +
+                        "point TEXT NOT NULL," +
+                        "pid INT DEFAULT 0" +
                         ")";
                 SqlliteUtil.update(createSql);
             }

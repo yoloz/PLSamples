@@ -53,6 +53,11 @@ public class WriteIndex extends Thread {
     private final CountDownLatch countDownLatch;
 
     private final Path indexPath;
+    private IndexWriter indexWriter;
+
+    private SsdbPull ssdbPull;
+
+    private boolean stop = false;
 
     public WriteIndex(Schema schema, CountDownLatch countDownLatch) {
         this.schema = schema;
@@ -67,14 +72,13 @@ public class WriteIndex extends Thread {
             IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
             iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
             iwc.setRAMBufferSizeMB(256.0);
-            IndexWriter writer = new IndexWriter(dir, iwc);
-            if (schema.getSsdb() != null) this.indexSsdb(writer);
+            indexWriter = new IndexWriter(dir, iwc);
+            if (schema.getSsdb() != null) this.indexSsdb(indexWriter);
 //             writer.forceMerge(1);
             logger.debug("committing index[" + schema.getIndex() + "]");
             long start = System.currentTimeMillis();
-            writer.prepareCommit();
-            writer.commit();
-            writer.close();
+            indexWriter.commit();
+            indexWriter.close();
             long end = System.currentTimeMillis();
             logger.debug("index[" + schema.getIndex() + "] commit cost time[" + (end - start) + "] mills");
         } catch (IOException e) {
@@ -86,17 +90,18 @@ public class WriteIndex extends Thread {
         Ssdb ssdb = schema.getSsdb();
         String addr = ssdb.getAddr();
         int idex = addr.indexOf(":");
-        SsdbPull ssdbPull = new SsdbPull(addr.substring(0, idex),
+        ssdbPull = new SsdbPull(addr.substring(0, idex),
                 Integer.parseInt(addr.substring(idex + 1)),
                 ssdb.getName(), ssdb.getType(), schema.getIndex());
         ssdbPull.start();
         logger.debug("indexing[" + schema.getIndex() + "]");
-        long start = System.currentTimeMillis();
-        long count = 0;
-        while (true) {
+//        long start = System.currentTimeMillis();
+//        long count = 0;
+        while (!stop) {
             try {
                 ImmutablePair<Object, String> pair = ssdbPull.queue.poll(ssdbPull.timeout, TimeUnit.MILLISECONDS);
-                if (pair == null) break;
+//                if (pair == null) break;
+                if (pair == null) continue;
                 Map<String, Object> data;
                 try {
                     data = JsonUtil.toMap(pair.getRight());
@@ -110,32 +115,37 @@ public class WriteIndex extends Thread {
                 for (bean.Field field : schema.getFields()) {
                     String name = field.getName();
                     if (data.containsKey(name)) {
+                        Object value = data.get(name);
                         switch (field.getType()) {
                             case INT:
-                                int i = (int) data.get(name);
+                                int i;
+                                if (value instanceof Integer) i = (int) value;
+                                else i = Integer.valueOf(String.valueOf(value));
                                 doc.add(new IntPoint(name, i));
-                                doc.add(new NumericDocValuesField(name, i));
-                                doc.add(new StoredField(name, i));
+//                                doc.add(new NumericDocValuesField(name, i));
+//                                doc.add(new StoredField(name, i));
                                 break;
                             case DATE:
                                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern(field.getFormatter());
-                                LocalDateTime localDateTime = LocalDateTime.parse(String.valueOf(data.get(name)), formatter);
-                                doc.add(new StringField(name, Utils.toNanos(localDateTime), Field.Store.YES));
-//                                doc.add(new LongPoint(name, mills));
+                                LocalDateTime localDateTime = LocalDateTime.parse(String.valueOf(value), formatter);
+//                                doc.add(new StringField(name, Utils.toNanos(localDateTime), Field.Store.YES));
+                                doc.add(new LongPoint(name, Long.valueOf(Utils.toNanos(localDateTime))));
 //                                doc.add(new NumericDocValuesField(name, mills));
 //                                doc.add(new StoredField(name, mills));
                                 break;
                             case LONG:
-                                long l = (long) data.get(name);
+                                long l;
+                                if (value instanceof Long) l = (long) value;
+                                else l = Long.valueOf(String.valueOf(value));
                                 doc.add(new LongPoint(name, l));
-                                doc.add(new NumericDocValuesField(name, l));
-                                doc.add(new StoredField(name, l));
+//                                doc.add(new NumericDocValuesField(name, l));
+//                                doc.add(new StoredField(name, l));
                                 break;
                             case STRING:
-                                doc.add(new StringField(name, String.valueOf(data.get(name)), Field.Store.YES));
+                                doc.add(new StringField(name, String.valueOf(value), Field.Store.NO));
                                 break;
                             case TEXT:
-                                doc.add(new TextField(name, String.valueOf(data.get(name)), Field.Store.YES));
+                                doc.add(new TextField(name, String.valueOf(value), Field.Store.NO));
                                 break;
                         }
                     }
@@ -146,15 +156,31 @@ public class WriteIndex extends Thread {
                     doc.add(new StoredField("_key", (String) pair.getLeft()));
                 }
                 writer.addDocument(doc);
-                count++;
+//                count++;
             } catch (InterruptedException e) {
                 logger.warn("队列中断", e);
             } catch (DateTimeParseException | IOException e) {
                 throw new LSException("索引[" + schema.getIndex() + "]创建document出错", e);
             }
         }
-        long end = System.currentTimeMillis();
-        logger.debug("index [" + schema.getIndex() + "]finished,count[" + count + "],cost time[" + (end - start) + "] mills");
+//        long end = System.currentTimeMillis();
+//        logger.debug("index [" + schema.getIndex() + "]finished,count[" + count + "],cost time[" + (end - start) + "] mills");
+    }
+
+    public void close() {
+        logger.warn("进行强制关闭索引[" + schema.getIndex() + "]");
+        if (ssdbPull != null) ssdbPull.close();
+        stop = true;
+        if (indexWriter != null) try {
+            logger.debug("committing index[" + schema.getIndex() + "]");
+            long start = System.currentTimeMillis();
+            indexWriter.commit();
+            indexWriter.close();
+            long end = System.currentTimeMillis();
+            logger.debug("index[" + schema.getIndex() + "] commit cost time[" + (end - start) + "] mills");
+        } catch (IOException e) {
+            logger.error(e);
+        }
     }
 
     /**

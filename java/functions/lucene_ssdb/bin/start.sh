@@ -11,7 +11,14 @@ esac
 
 . `dirname $0`/checkEnv.sh
 
+if [[ -f `dirname $0`"/java" ]];then
+rm -f `dirname $0`"/java"
+fi
+$(ln -s "$JAVA_HOME/bin/java" `dirname $0`"/java")
+
 test -d ${LSDir}"/logs" || mkdir -p ${LSDir}"/logs"
+
+test -d ${LSDir}"/var" || mkdir -p ${LSDir}"/var"
 
 if [[ "x$1" = "xdaemon" ]]; then
   shift
