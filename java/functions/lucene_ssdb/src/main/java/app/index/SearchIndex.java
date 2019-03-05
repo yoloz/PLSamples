@@ -59,7 +59,7 @@ public class SearchIndex {
             IndexSearcher searcher = new IndexSearcher(reader);
             Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
             QueryParser parser = new QueryParser("", analyzer);
-            Query query = parser.parse(qs);
+            Query query = parser.parse(qs.isEmpty() ? "*" : qs);
             logger.debug("Searching for: " + query.toString(""));
             TopDocs topDocs = searcher.search(query, limit);
             ScoreDoc[] hits = topDocs.scoreDocs;
