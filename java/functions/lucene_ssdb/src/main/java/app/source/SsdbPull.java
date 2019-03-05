@@ -20,8 +20,7 @@ import java.util.concurrent.ArrayBlockingQueue;
  * 非线程安全
  * <p>
  * 连接后不断开持续取数据,无数据即阻塞;
- * 暂时在关闭时更新point信息
- * todo 定量更新point点,在异常断开后重启可以继续[异常断连会造成丢失数据]
+ * 定量(10000)更新point点,在异常断开后重启可以继续[异常断连会造成丢失数据]
  */
 public class SsdbPull extends Thread {
 
@@ -35,6 +34,7 @@ public class SsdbPull extends Thread {
     private String name;
     private Ssdb.Type type;
     public final int timeout;
+    private final int waitMills = 10000; //need lower than timeout
 
     private String indexName;
 
@@ -81,27 +81,29 @@ public class SsdbPull extends Thread {
 //                long end = System.currentTimeMillis();
 //                logger.debug("pollOnce[" + pairs.size() + "] cost time[" + (end - start) + "] mills");
 //            } while (remaining > 0);
+            int counter = 0;
             while (!stop) {
                 long start = System.currentTimeMillis();
                 List<ImmutablePair<Object, String>> pairs = pollOnce(ssdb);
                 if (!pairs.isEmpty()) for (ImmutablePair<Object, String> pair : pairs) {
                     queue.put(pair);
                 }
-                int count = pairs.size();
+                counter += pairs.size();
                 long end = System.currentTimeMillis();
                 logger.debug("pollOnce[" + pairs.size() + "] cost time[" + (end - start) + "] mills");
-                if (count == 0) Thread.sleep(10000);
+                if (pairs.size() == 0) Thread.sleep(waitMills);
+                if (counter >= 10000) {
+                    SqlliteUtil.update("update ssdb set point=? where name=?", point, indexName);
+                    counter = 0;
+                }
             }
-            try {
-                SqlliteUtil.update("update ssdb set point=? where name=?", point, indexName);
-            } catch (SQLException e) {
-                throw new LSException("更新ssdb.[" + name + "]的point信息失败", e);
-            }
-        } catch (LSException e) {
-            throw e;
+            SqlliteUtil.update("update ssdb set point=? where name=?", point, indexName);
+        } catch (LSException | SQLException e) {
+            logger.warn(e.getMessage(), e);
         } catch (Exception e) {
             throw new LSException("poll ssdb." + name + " error", e);
         }
+        logger.debug("ssdb pull has stopped...");
     }
 
     private void initPoint() throws LSException {
@@ -110,18 +112,14 @@ public class SsdbPull extends Thread {
                     "select point from ssdb where name=?", indexName);
             switch (type) {
                 case LIST:
-                    if (points.size() == 0) point = 0;
-                    else point = Integer.parseInt((String) points.get(0).get("point"));
+                    point = Integer.parseInt((String) points.get(0).get("point"));
                     break;
                 case HASH:
-                    if (points.size() == 0) point = "";
-                    else point = points.get(0).get("point");
+                    point = points.get(0).get("point");
                     break;
                 default:
                     throw new LSException("ssdb type [" + type + "] is not support...");
             }
-            if (points.size() == 0)
-                SqlliteUtil.insert("INSERT INTO ssdb(name,point)VALUES (?,?)", indexName, point);
         } catch (Exception e) {
             throw new LSException("初始化ssdb." + name + "的point信息出错", e);
         }
@@ -193,6 +191,11 @@ public class SsdbPull extends Thread {
     }
 
     public void close() {
+        logger.debug("stop ssdb pull...");
         stop = true;
+        try {
+            Thread.sleep(waitMills + 10);
+        } catch (InterruptedException ignore) {
+        }
     }
 }

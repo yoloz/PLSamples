@@ -24,7 +24,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -45,12 +44,11 @@ import java.util.concurrent.TimeUnit;
  * worth it when your index is relatively static (ie
  * you're done adding documents to it).
  */
-public class WriteIndex extends Thread {
+public class WriteIndex {
 
     private Logger logger = Logger.getLogger(WriteIndex.class);
 
     private final Schema schema;
-    private final CountDownLatch countDownLatch;
 
     private final Path indexPath;
     private IndexWriter indexWriter;
@@ -59,13 +57,12 @@ public class WriteIndex extends Thread {
 
     private boolean stop = false;
 
-    public WriteIndex(Schema schema, CountDownLatch countDownLatch) {
+    public WriteIndex(Schema schema) {
         this.schema = schema;
-        this.countDownLatch = countDownLatch;
         this.indexPath = Constants.indexDir.resolve(schema.getIndex());
     }
 
-    private void write() throws LSException {
+    public void write() {
         try {
             Directory dir = FSDirectory.open(indexPath);
             Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
@@ -81,8 +78,9 @@ public class WriteIndex extends Thread {
             indexWriter.close();
             long end = System.currentTimeMillis();
             logger.debug("index[" + schema.getIndex() + "] commit cost time[" + (end - start) + "] mills");
-        } catch (IOException e) {
-            throw new LSException("写索引出错", e);
+        } catch (Exception e) {
+            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
+            this.close();
         }
     }
 
@@ -168,40 +166,19 @@ public class WriteIndex extends Thread {
     }
 
     public void close() {
-        logger.warn("进行强制关闭索引[" + schema.getIndex() + "]");
-        if (ssdbPull != null) ssdbPull.close();
+        logger.warn("强制关闭索引[" + schema.getIndex() + "]...");
         stop = true;
-        if (indexWriter != null) try {
-            logger.debug("committing index[" + schema.getIndex() + "]");
-            long start = System.currentTimeMillis();
+        if (ssdbPull != null) {
+            ssdbPull.close();
+            try {
+                Thread.sleep(ssdbPull.timeout + 10);
+            } catch (InterruptedException ignore) {
+            }
+        } else if (indexWriter != null) try {
             indexWriter.commit();
             indexWriter.close();
-            long end = System.currentTimeMillis();
-            logger.debug("index[" + schema.getIndex() + "] commit cost time[" + (end - start) + "] mills");
         } catch (IOException e) {
             logger.error(e);
         }
-    }
-
-    /**
-     * When an object implementing interface <code>Runnable</code> is used
-     * to create a thread, starting the thread causes the object's
-     * <code>run</code> method to be called in that separately executing
-     * thread.
-     * <p>
-     * The general contract of the method <code>run</code> is that it may
-     * take any action whatsoever.
-     *
-     * @see Thread#run()
-     */
-    @Override
-    public void run() {
-        try {
-            this.write();
-        } catch (Exception e) {
-            countDownLatch.countDown();
-            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
-        }
-        countDownLatch.countDown();
     }
 }

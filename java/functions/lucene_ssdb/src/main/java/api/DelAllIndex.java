@@ -25,6 +25,8 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
@@ -39,8 +41,11 @@ public class DelAllIndex extends HttpServlet {
         String error = "";
         try {
             List<Map<String, Object>> list = SqlliteUtil
-                    .query("select value from schema where name=?", indexName);
+                    .query("select sch.value,ssd.pid from schema as sch left join " +
+                            "ssdb as ssd where sch.name=ssd.name and sch.name=?", indexName);
             if (list.isEmpty()) throw new LSException("index[" + indexName + "] is not exit...");
+            if (!"0".equals(String.valueOf(list.get(0).get("pid"))))
+                throw new LSException("index[" + indexName + "] is running...");
             logger.debug("delete all index data...");
             Schema schema = new Yaml().loadAs((String) list.get(0).get("value"), Schema.class);
             Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
@@ -68,8 +73,18 @@ public class DelAllIndex extends HttpServlet {
                 for (Path p : stream) if (Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS)) Files.delete(p);
             }
             logger.debug("delete all db data...");
-            SqlliteUtil.update("delete from schema where name=?", indexName);
-            SqlliteUtil.update("delete from ssdb where name=?", indexName);
+            Connection conn = SqlliteUtil.getConnection();
+            try {
+                conn.setAutoCommit(false);
+                SqlliteUtil.update(conn, "delete from schema where name=?", indexName);
+                SqlliteUtil.update(conn, "delete from ssdb where name=?", indexName);
+                conn.commit();
+            } catch (SQLException e) {
+                logger.error(e);
+                conn.rollback();
+            } finally {
+                conn.close();
+            }
         } catch (Exception e) {
             logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
             error = "{\"success\":false,\"error\":\"" + e.getMessage() + "\"}";

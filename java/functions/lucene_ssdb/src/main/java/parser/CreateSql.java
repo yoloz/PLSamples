@@ -13,6 +13,7 @@ import org.yaml.snakeyaml.Yaml;
 import util.SqlliteUtil;
 
 import java.io.StringReader;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +50,7 @@ public class CreateSql {
      * @return indexName
      * @throws LSException error
      */
-    public String parse() throws LSException {
+    public String parse() throws LSException, SQLException {
         CreateTable table;
         try {
             table = (CreateTable) new CCJSqlParserManager().
@@ -59,6 +60,11 @@ public class CreateSql {
         }
         Schema schema = new Schema();
         schema.setIndex(table.getTable().getName());
+
+        List<Map<String, Object>> list = SqlliteUtil
+                .query("select pid from ssdb where name=?", table.getTable().getName());
+        if (!list.isEmpty()) throw new LSException("index[" + table.getTable().getName() + "] is exit...");
+
         Map<String, String> indexOptions = getIndexOptions(table.getTableOptionsStrings());
         this.checkIndexOptions(indexOptions);
         schema.setAnalyser(indexOptions.getOrDefault("analyser",
@@ -97,12 +103,24 @@ public class CreateSql {
             fields.add(field);
         }
         schema.setFields(fields);
+
+        Connection conn = SqlliteUtil.getConnection();
         try {
+            conn.setAutoCommit(false);
             String insertSql = "INSERT INTO schema(name,value)VALUES (?,?)";
-            SqlliteUtil.insert(insertSql, schema.getIndex(), yaml.dump(schema));
+            SqlliteUtil.insert(conn, insertSql, schema.getIndex(), yaml.dump(schema));
+            Object point;
+            if (Ssdb.Type.LIST == schema.getSsdb().getType()) point = 0;
+            else point = "";
+            SqlliteUtil.insert(conn, "INSERT INTO ssdb(name,point)VALUES (?,?)", schema.getIndex(), point);
+            conn.commit();
         } catch (SQLException e) {
-            throw new LSException("创建语句解析后保存出错", e);
+            conn.rollback();
+            throw e;
+        } finally {
+            conn.close();
         }
+
         return schema.getIndex();
     }
 

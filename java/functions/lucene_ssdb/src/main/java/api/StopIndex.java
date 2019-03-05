@@ -38,9 +38,10 @@ public class StopIndex extends HttpServlet {
                 results.put("exit", pid);
             } else {
                 int exit = Utils.stopPid(pid);
-                Utils.updateAppStatus(String.valueOf(exit), indexName);
+                Utils.updateAppStatus("0", indexName);
                 results.put("exit", exit);
-//                if (exit != 0) results.put("success", false);
+                if (exit != 0) logger.warn("stop index[" + indexName + "] code[" + exit + "]");
+                //results.put("success", false);
             }
         } catch (Exception e) {
             logger.error(e.getCause() == null ? e.getMessage() : e.getCause());

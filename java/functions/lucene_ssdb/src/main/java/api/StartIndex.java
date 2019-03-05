@@ -29,7 +29,7 @@ public class StartIndex extends HttpServlet {
             if (list.isEmpty()) throw new LSException("index[" + indexName + "] is not exit...");
             String pid = String.valueOf(list.get(0).get("pid"));
             if ("0".equals(pid)) Utils.starApp(indexName);
-            else error = "index[" + indexName + "] is running";
+            else throw new LSException("index[" + indexName + "] is running");
         } catch (Exception e) {
             logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
             error = "{\"success\":false,\"error\":\"" + e.getMessage() + "\"}";
