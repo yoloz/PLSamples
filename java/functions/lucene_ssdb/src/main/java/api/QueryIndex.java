@@ -5,6 +5,7 @@ import bean.ImmutablePair;
 import bean.ImmutableTriple;
 import bean.Schema;
 import org.apache.log4j.Logger;
+import org.apache.lucene.search.Query;
 import parser.QuerySql;
 import util.JsonUtil;
 import util.Utils;
@@ -30,7 +31,8 @@ public class QueryIndex extends HttpServlet {
         Map<String, Object> results = null;
         try {
             QuerySql querySql = new QuerySql(sql);
-            ImmutableTriple<ImmutablePair<List<String>, Integer>, String, Schema> triple = querySql.parse();
+//            ImmutableTriple<ImmutablePair<List<String>, Integer>, String, Schema> triple = querySql.parseToString();
+            ImmutableTriple<ImmutablePair<List<String>, Integer>, Query, Schema> triple = querySql.parseToQuery();
             SearchIndex searchIndex = new SearchIndex(triple.getRight());
             results = searchIndex.search(triple.getMiddle(), triple.getLeft().getLeft(), triple.getLeft().getRight());
             results.put("success", true);

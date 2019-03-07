@@ -7,10 +7,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Paths;
 
-public class HttpServerTest {
+public class LuceneSsdbTest {
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
     }
 
 
@@ -20,16 +20,16 @@ public class HttpServerTest {
     @Test
     public void startHttpServer() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         System.setProperty("LSDir",
-                Paths.get(HttpServer.class.getResource("/schema_template.yaml").getPath())
+                Paths.get(LuceneSsdb.class.getResource("/schema_template.yaml").getPath())
                         .getParent().toString());
-        PropertyConfigurator.configure(HttpServer.class.getResource("/log4j.properties").getPath());
-        HttpServer httpServer = new HttpServer();
-        Method startHttpServer = httpServer.getClass().getDeclaredMethod("startHttpServer");
+        PropertyConfigurator.configure(LuceneSsdb.class.getResource("/log4j.properties").getPath());
+        LuceneSsdb luceneSsdb = new LuceneSsdb();
+        Method startHttpServer = luceneSsdb.getClass().getDeclaredMethod("startHttpServer");
         startHttpServer.setAccessible(true);
-        startHttpServer.invoke(httpServer);
+        startHttpServer.invoke(luceneSsdb);
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
     }
 }

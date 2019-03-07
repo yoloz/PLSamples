@@ -39,7 +39,7 @@ dependencies {
 jar {
     baseName 'luceneSsdb'
     manifest {
-        attributes 'Main-Class': 'HttpServer'
+        attributes 'Main-Class': 'LuceneSsdb'
     }
 }
 
@@ -56,16 +56,22 @@ task copyJar(type: Copy) {
     }
     into 'build/lib'
 }
-task copyConf(type: Copy) {
-    from('conf/')
-    into 'build/conf'
+task copyFiles(type: Copy) {
+    from(rootDir) {
+        include 'conf/','bin/'
+    }
+    into 'build'
 }
-task copyBin(type: Copy) {
-    from 'bin/'
-    into 'build/bin'
-}
+//task copyConf(type: Copy) {
+//    from('conf/')
+//    into 'build/conf'
+//}
+//task copyBin(type: Copy) {
+//    from 'bin/'
+//    into 'build/bin'
+//}
 copyJar.mustRunAfter(build)
-task release(dependsOn: [build, copyJar, copyConf, copyBin]) {
+task release(dependsOn: [build, copyJar, copyFiles]) {
     doLast {
         new File(buildDir.getAbsolutePath()).eachFile { f ->
             if (f.isDirectory()) {

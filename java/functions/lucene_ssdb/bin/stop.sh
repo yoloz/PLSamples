@@ -2,4 +2,4 @@
 
 . `dirname $0`/checkEnv.sh
 
-exec ${JAVA} "-DLSDir="${LSDir} -cp ${LSDir}"/lib/*" HttpServer "stop"
+exec ${JAVA} "-DLSDir="${LSDir} -cp ${LSDir}"/lib/*" LuceneSsdb "stop"

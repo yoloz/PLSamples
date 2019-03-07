@@ -42,25 +42,40 @@ public class SearchIndex {
     }
 
     /**
-     * _index:ssdb list index
-     * _key:ssdb hash key
-     * _name:ssdb name
+     * int,long类型数据做搜索条件搜索不到数据
      *
      * @param qs    query string
      * @param limit query count
      * @param cols  return field
      * @return map {@link HashMap} {total:123,results:[{},{}...]}
+     * @throws LSException    ls error
+     */
+    @SuppressWarnings("all")
+    public Map<String, Object> search(String qs, List<String> cols, int limit)
+            throws LSException {
+        Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
+        QueryParser parser = new QueryParser("", analyzer);
+        try {
+            Query query = parser.parse(qs);
+            return search(query, cols, limit);
+        } catch (ParseException e) {
+            throw new LSException("parse[" + qs + "] error", e);
+        }
+    }
+
+    /**
+     * _index:ssdb list index
+     * _key:ssdb hash key
+     * _name:ssdb name
+     * <p>
+     *
      * @throws LSException error
      */
-    public Map<String, Object> search(String qs, List<String> cols, int limit)
+    public Map<String, Object> search(Query query, List<String> cols, int limit)
             throws LSException {
         Map<String, Object> map = new HashMap<>(2);
         try (IndexReader reader = DirectoryReader.open(FSDirectory.open(indexPath))) {
             IndexSearcher searcher = new IndexSearcher(reader);
-            Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
-            QueryParser parser = new QueryParser("", analyzer);
-            Query query = parser.parse(qs.isEmpty() ? "*" : qs);
-            logger.debug("Searching for: " + query.toString(""));
             TopDocs topDocs = searcher.search(query, limit);
             ScoreDoc[] hits = topDocs.scoreDocs;
             int numTotalHits = Math.toIntExact(topDocs.totalHits);
@@ -109,8 +124,8 @@ public class SearchIndex {
                 results.add(m);
             }
             map.put("results", results);
-        } catch (ParseException | IOException e) {
-            throw new LSException("query[" + qs + "] error", e);
+        } catch (IOException e) {
+            throw new LSException("query[" + query.toString() + "] error", e);
         }
         return map;
     }

@@ -33,6 +33,7 @@ import net.sf.jsqlparser.statement.select.SelectExpressionItem;
 import net.sf.jsqlparser.statement.select.SelectItem;
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.DoublePoint;
+import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
@@ -61,7 +62,7 @@ import java.util.Map;
  * <p>
  * 查询语句中字符值需加单引号
  * <p>
- * 需添加where条件,即select * from table错误
+ *
  * <p>
  * select col1,test.col2 from test
  * <p>
@@ -79,7 +80,7 @@ public class QuerySql {
     private final String sql;
     private int limit = 15;
 
-    private Map<String, String> dateMap = new HashMap<>(5);
+    private Map<String, ImmutablePair<Field.Type, String>> columnMap = new HashMap<>(5);
 
     public QuerySql(String sql) {
         this.sql = sql;
@@ -89,7 +90,7 @@ public class QuerySql {
      * @return <selects,limit>, query, schema
      * @throws LSException error
      */
-    public ImmutableTriple<ImmutablePair<List<String>, Integer>, String, Schema> parse() throws LSException {
+    public ImmutableTriple<ImmutablePair<List<String>, Integer>, Query, Schema> parseToQuery() throws LSException {
         try {
             Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
             SelectBody selectBody = select.getSelectBody();
@@ -104,11 +105,39 @@ public class QuerySql {
                     indexName);
             if (list.isEmpty()) throw new LSException("索引[" + indexName + "]不存在");
             Schema schema = new Yaml().loadAs((String) list.get(0).get("value"), Schema.class);
-            for (Field field : schema.getFields()) {
-                if (Field.Type.DATE == field.getType()) {
-                    dateMap.put(field.getName(), field.getFormatter());
-                }
-            }
+            schema.getFields().forEach(f ->
+                    columnMap.put(f.getName(), ImmutablePair.of(f.getType(), f.getFormatter())));
+            Query query = this.parseWhere(ps.getWhere());
+            logger.debug("parsed query[" + query.toString() + "]");
+            return ImmutableTriple.of(ImmutablePair.of(selects, limit), query, schema);
+        } catch (JSQLParserException | SQLException e) {
+            throw new LSException("parse[" + sql + "] error", e);
+        }
+    }
+
+    /**
+     * 需添加where条件,即select * from table不支持
+     *
+     * @return <selects,limit>, queryString, schema
+     * @throws LSException error
+     */
+    public ImmutableTriple<ImmutablePair<List<String>, Integer>, String, Schema> parseToString() throws LSException {
+        try {
+            Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
+            SelectBody selectBody = select.getSelectBody();
+            if (!PlainSelect.class.equals(selectBody.getClass()))
+                throw new LSException(selectBody.getClass() + " is not support");
+            PlainSelect ps = (PlainSelect) selectBody;
+            String indexName = parseTableName(ps.getFromItem());
+            List<String> selects = parseSelectItem(ps.getSelectItems());
+            int _limit = parseLimit(ps.getLimit());
+            if (_limit > 0) limit = _limit;
+            List<Map<String, Object>> list = SqlliteUtil.query("select value from schema where name=?",
+                    indexName);
+            if (list.isEmpty()) throw new LSException("索引[" + indexName + "]不存在");
+            Schema schema = new Yaml().loadAs((String) list.get(0).get("value"), Schema.class);
+            schema.getFields().forEach(f ->
+                    columnMap.put(f.getName(), ImmutablePair.of(f.getType(), f.getFormatter())));
             StringBuilder queryBuilder = new StringBuilder();
             this.parseWhere(queryBuilder, ps.getWhere());
             logger.debug("parsed query[" + queryBuilder.toString() + "]");
@@ -154,30 +183,30 @@ public class QuerySql {
     /**
      * 遍历常见的expression
      *
-     * @param builder result
-     * @param where   {@link Expression}
+     * @param where {@link Expression}
      * @throws LSException error or not support
      */
-    private Query parseWhere(BooleanQuery.Builder builder, Expression where) throws LSException {
+    private Query parseWhere(Expression where) throws LSException {
         if (Parenthesis.class.equals(where.getClass())) {
-            if (builder == null) builder = new BooleanQuery.Builder();
             Parenthesis parenthesis = (Parenthesis) where;
             Expression pe = parenthesis.getExpression();
-            builder.add(parseWhere(builder, pe), BooleanClause.Occur.MUST);
+            return parseWhere(pe);
         } else if (AndExpression.class.equals(where.getClass())) {
-            if (builder == null) builder = new BooleanQuery.Builder();
+            BooleanQuery.Builder ab = new BooleanQuery.Builder();
             AndExpression and = (AndExpression) where;
             Expression left = and.getLeftExpression();
-            builder.add(parseWhere(builder, left), BooleanClause.Occur.MUST);
+            ab.add(parseWhere(left), BooleanClause.Occur.MUST);
             Expression right = and.getRightExpression();
-            builder.add(parseWhere(builder, right), BooleanClause.Occur.MUST);
+            ab.add(parseWhere(right), BooleanClause.Occur.MUST);
+            return ab.build();
         } else if (OrExpression.class.equals(where.getClass())) {
-            if (builder == null) builder = new BooleanQuery.Builder();
+            BooleanQuery.Builder ob = new BooleanQuery.Builder();
             OrExpression or = (OrExpression) where;
             Expression left = or.getLeftExpression();
-            builder.add(parseWhere(builder, left), BooleanClause.Occur.MUST);
+            ob.add(parseWhere(left), BooleanClause.Occur.SHOULD);
             Expression right = or.getRightExpression();
-            builder.add(parseWhere(builder, right), BooleanClause.Occur.SHOULD);
+            ob.add(parseWhere(right), BooleanClause.Occur.SHOULD);
+            return ob.build();
         } else if (EqualsTo.class.equals(where.getClass())) {
             EqualsTo equal = (EqualsTo) where;
             String operator = equal.getStringExpression();
@@ -185,8 +214,11 @@ public class QuerySql {
             String ln = getLeft(operator, left);
             Expression right = equal.getRightExpression();
             Object or = checkValue(operator, ln, getItem(operator, right), false);
-            if (or.getClass().equals(Long.class)) return LongPoint.newExactQuery(ln, (long) or);
-            else if (or.getClass().equals(Double.class)) return DoublePoint.newExactQuery(ln, (double) or);
+            if (or.getClass().equals(Long.class)) {
+                if (Field.Type.INT == columnMap.get(ln).getLeft())
+                    return IntPoint.newExactQuery(ln, Integer.valueOf(String.valueOf(or)));
+                else return LongPoint.newExactQuery(ln, (long) or);
+            } else if (or.getClass().equals(Double.class)) return DoublePoint.newExactQuery(ln, (double) or);
             else return new TermQuery(new Term(ln, String.valueOf(or)));
         } else if (GreaterThan.class.equals(where.getClass())) {
             GreaterThan greater = (GreaterThan) where;
@@ -195,10 +227,16 @@ public class QuerySql {
             String ln = getLeft(operator, left);
             Expression right = greater.getRightExpression();
             Object or = checkValue(operator, ln, getItem(operator, right), true);
-            if (or.getClass().equals(Long.class))
-                return LongPoint.newRangeQuery(ln, ((long) or + 1), (long) addNum(or));
-            else if (or.getClass().equals(Double.class))
-                return DoublePoint.newRangeQuery(ln, ((double) or + 1), (double) addNum(or));
+            if (or.getClass().equals(Long.class)) {
+                or = (long) or + 1;
+                if (Field.Type.INT == columnMap.get(ln).getLeft())
+                    return IntPoint.newRangeQuery(ln,
+                            Integer.valueOf(String.valueOf(or)),
+                            Integer.valueOf(String.valueOf(addNum(or))));
+                else return LongPoint.newRangeQuery(ln, (long) or, (long) addNum(or));
+            } else if (or.getClass().equals(Double.class))
+                return DoublePoint.newRangeQuery(ln, ((double) or + 0.1), (double) addNum(or));
+            else throw new LSException(or.getClass() + " [" + operator + "] is not support");
         } else if (GreaterThanEquals.class.equals(where.getClass())) {
             GreaterThanEquals greaterThanEquals = (GreaterThanEquals) where;
             String operator = greaterThanEquals.getStringExpression();
@@ -206,10 +244,15 @@ public class QuerySql {
             String ln = getLeft(operator, left);
             Expression right = greaterThanEquals.getRightExpression();
             Object or = checkValue(operator, ln, getItem(operator, right), true);
-            if (or.getClass().equals(Long.class))
-                return LongPoint.newRangeQuery(ln, (long) or, (long) addNum(or));
-            else if (or.getClass().equals(Double.class))
+            if (or.getClass().equals(Long.class)) {
+                if (Field.Type.INT == columnMap.get(ln).getLeft())
+                    return IntPoint.newRangeQuery(ln,
+                            Integer.valueOf(String.valueOf(or)),
+                            Integer.valueOf(String.valueOf(addNum(or))));
+                else return LongPoint.newRangeQuery(ln, (long) or, (long) addNum(or));
+            } else if (or.getClass().equals(Double.class))
                 return DoublePoint.newRangeQuery(ln, (double) or, (double) addNum(or));
+            else throw new LSException(or.getClass() + " [" + operator + "] is not support");
         } else if (MinorThan.class.equals(where.getClass())) {
             MinorThan minorThan = (MinorThan) where;
             String operator = minorThan.getStringExpression();
@@ -217,10 +260,17 @@ public class QuerySql {
             String ln = getLeft(operator, left);
             Expression right = minorThan.getRightExpression();
             Object or = checkValue(operator, ln, getItem(operator, right), true);
-            if (or.getClass().equals(Long.class))
-                return LongPoint.newRangeQuery(ln, (long) minusNum(or), ((long) or - 1));
-            else if (or.getClass().equals(Double.class))
-                return DoublePoint.newRangeQuery(ln, (double) minusNum(or), ((double) or - 1));
+            if (or.getClass().equals(Long.class)) {
+                or = (long) or - 1;
+                if ((long) or < 0) or = 0;
+                if (Field.Type.INT == columnMap.get(ln).getLeft())
+                    return IntPoint.newRangeQuery(ln,
+                            Integer.valueOf(String.valueOf(minusNum(or))),
+                            Integer.valueOf(String.valueOf(or)));
+                else return LongPoint.newRangeQuery(ln, (long) minusNum(or), ((long) or));
+            } else if (or.getClass().equals(Double.class))
+                return DoublePoint.newRangeQuery(ln, (double) minusNum(or), ((double) or - 0.1));
+            else throw new LSException(or.getClass() + " [" + operator + "] is not support");
         } else if (MinorThanEquals.class.equals(where.getClass())) {
             MinorThanEquals minorThanEquals = (MinorThanEquals) where;
             String operator = minorThanEquals.getStringExpression();
@@ -228,10 +278,15 @@ public class QuerySql {
             String ln = getLeft(operator, left);
             Expression right = minorThanEquals.getRightExpression();
             Object or = checkValue(operator, ln, getItem(operator, right), true);
-            if (or.getClass().equals(Long.class))
-                return LongPoint.newRangeQuery(ln, (long) minusNum(or), (long) or);
-            else if (or.getClass().equals(Double.class))
+            if (or.getClass().equals(Long.class)) {
+                if (Field.Type.INT == columnMap.get(ln).getLeft())
+                    return IntPoint.newRangeQuery(ln,
+                            Integer.valueOf(String.valueOf(minusNum(or))),
+                            Integer.valueOf(String.valueOf(or)));
+                else return LongPoint.newRangeQuery(ln, (long) minusNum(or), (long) or);
+            } else if (or.getClass().equals(Double.class))
                 return DoublePoint.newRangeQuery(ln, (double) minusNum(or), (double) or);
+            else throw new LSException(or.getClass() + " [" + operator + "] is not support");
         } else if (Between.class.equals(where.getClass())) {
             Between between = (Between) where;
             if (between.isNot()) throw new LSException(" not between is not support");
@@ -248,8 +303,13 @@ public class QuerySql {
             if (Column.class.equals(end.getClass()))
                 throw new LSException("operator[between] end is column");
             end = checkValue(operator, ln, end, false);
-            if (start.getClass().equals(Long.class)) return LongPoint.newRangeQuery(ln, (long) start, (long) end);
-            else if (start.getClass().equals(Double.class))
+            if (start.getClass().equals(Long.class)) {
+                if (Field.Type.INT == columnMap.get(ln).getLeft())
+                    return IntPoint.newRangeQuery(ln,
+                            Integer.valueOf(String.valueOf(start)),
+                            Integer.valueOf(String.valueOf(end)));
+                else return LongPoint.newRangeQuery(ln, (long) start, (long) end);
+            } else if (start.getClass().equals(Double.class))
                 return DoublePoint.newRangeQuery(ln, (double) start, (double) end);
             else throw new LSException(start.getClass() + " between " + end.getClass() + " is not support");
         } else if (LikeExpression.class.equals(where.getClass())) {
@@ -263,7 +323,6 @@ public class QuerySql {
                 throw new LSException("operator[like] right is column");
             return new WildcardQuery(new Term(ln, String.valueOf(or)));
         } else throw new LSException(where.getClass() + " is not support");
-        return builder.build();
     }
 
     /**
@@ -350,7 +409,7 @@ public class QuerySql {
             if (Column.class.equals(end.getClass()))
                 throw new LSException("operator[between] end is column");
             end = checkValue(operator, ln, end, false);
-            builder.append(":{").append(start).append(" TO ").append(end).append("}");
+            builder.append(":[").append(start).append(" TO ").append(end).append("]");
         } else if (LikeExpression.class.equals(where.getClass())) {
             LikeExpression like = (LikeExpression) where;
             String operator = "like";
@@ -403,9 +462,10 @@ public class QuerySql {
             throws LSException {
         if (Column.class.equals(or.getClass()))
             throw new LSException("operator[" + operator + "] right is column");
-        if (dateMap.containsKey(leftName) && !(or instanceof Number)) {
-            logger.debug(leftName + " parse [" + or + "] by [" + dateMap.get(leftName) + "]");
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(dateMap.get(leftName));
+        if (!(or instanceof Number) && columnMap.containsKey(leftName) &&
+                Field.Type.DATE == columnMap.get(leftName).getLeft()) {
+            logger.debug(leftName + " parse [" + or + "] by [" + columnMap.get(leftName).getRight() + "]");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(columnMap.get(leftName).getRight());
             return Long.valueOf(Utils.toNanos(LocalDateTime.parse(String.valueOf(or), formatter)));
         } else if (num && !(or instanceof Number))
             throw new LSException("operator[" + operator + "] right is not number");
@@ -431,7 +491,7 @@ public class QuerySql {
             else return l1 - limit;
         } else if (Double.class.equals(clazz)) {
             double d1 = (double) object;
-            if (d1 <= limit) return 0;
+            if (d1 <= limit) return 0.0;
             else {
                 BigDecimal b1 = BigDecimal.valueOf((double) object);
                 BigDecimal b2 = new BigDecimal(String.valueOf(limit));

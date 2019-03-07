@@ -6,14 +6,17 @@ import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.LongValue;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.select.*;
+import org.apache.lucene.search.Query;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.StringReader;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.*;
 
@@ -70,6 +73,44 @@ public class QuerySqlTest {
         method.setAccessible(true);
         method.invoke(querySql, builder, where);
         System.out.println(builder.toString());
+    }
+
+
+    @SuppressWarnings("all")
+    @Test
+    public void parseWhereQuery() throws JSQLParserException, NoSuchMethodException, InvocationTargetException, IllegalAccessException, NoSuchFieldException {
+        String sql = "select * from test where date between '2019-02-28T09:43:10.224000' and '2019-02-28T09:43:10.225000'";
+        sql = "select * from test where date > '2019-02-28T09:43:10.224000'";
+        sql = "select * from test where index between 10 and 20";
+        sql = "select * from test where dd between 10.2 and 20.3";
+        sql = "select * from test where col1=2";
+        sql = "select * from test where col2='北京'";
+        sql = "select * from test where col2 like '北京'";
+        sql = "select * from test where col1 like '北京' and date > '2019-02-28T09:43:10.224000'";
+        sql = "select * from test where col1 like '北京' or date > '2019-02-28T09:43:10.224000'";
+        sql = "select * from test where (col3='test')";
+        sql = "select * from test where (col3='test' and col1 like 'a?b')";
+        sql = "select * from test where (col3='test' and col1 like 'a?b') or date>'2019-02-28T09:43:10.224000'";
+        sql = "select * from test where (col3='test' and col1 like 'a?b') or" +
+                " (col2>3 and date>'2019-02-28T09:43:10.224000')";
+        sql = "select * from test where (col3='test' and col1 like 'a?b') or " +
+                "(col2>3 or date>'2019-02-28T09:43:10.224000')";
+        sql = "select * from test where (col3='test' and col1 like 'a?b') or " +
+                "(col2>3 or date>'2019-02-28T09:43:10.224000') and col4='北京'";
+        sql = "select * from test where (col3='test' and col1 like 'a?b') or " +
+                "(col2>3 or date>'2019-02-28T09:43:10.224000') and (col5<=5.3)";
+        Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
+        PlainSelect ps = (PlainSelect) select.getSelectBody();
+        Expression where = ps.getWhere();
+        QuerySql querySql = new QuerySql(sql);
+        Method method = querySql.getClass().getDeclaredMethod("parseWhere", Expression.class);
+        method.setAccessible(true);
+        Field field = querySql.getClass().getDeclaredField("dateMap");
+        field.setAccessible(true);
+        Map<String, String> dateMap = (Map<String, String>) field.get(querySql);
+        dateMap.put("date", "uuuu-MM-dd'T'HH:mm:ss.SSSSSS");
+        Query query = (Query) method.invoke(querySql, where);
+        System.out.println(query.toString());
     }
 
     @Test
