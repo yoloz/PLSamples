@@ -58,7 +58,7 @@ import java.util.Map;
 /**
  * 大于,大于等于,小于,小于等于:
  * 1,要求为数值或者时间值；
- * 2,处理后会有上边界或下边界(+[-]limit),这样在提交lucene搜索返回的total不准确；
+ * 2,处理后会有上边界或下边界(+[-]{boundary}),这样在提交lucene搜索返回的total不准确；
  * <p>
  * 查询语句中字符值需加单引号
  * <p>
@@ -78,7 +78,8 @@ public class QuerySql {
     private final Logger logger = Logger.getLogger(QuerySql.class);
 
     private final String sql;
-    private int limit = 15;
+
+    private final int boundary = 10000; //添加上下边界
 
     private Map<String, ImmutablePair<Field.Type, String>> columnMap = new HashMap<>(5);
 
@@ -90,7 +91,8 @@ public class QuerySql {
      * @return <selects,limit>, query, schema
      * @throws LSException error
      */
-    public ImmutableTriple<ImmutablePair<List<String>, Integer>, Query, Schema> parseToQuery() throws LSException {
+    public ImmutableTriple<ImmutablePair<List<String>, ImmutablePair<Integer, Integer>>, Query, Schema> parseToQuery()
+            throws LSException {
         try {
             Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
             SelectBody selectBody = select.getSelectBody();
@@ -99,8 +101,7 @@ public class QuerySql {
             PlainSelect ps = (PlainSelect) selectBody;
             String indexName = parseTableName(ps.getFromItem());
             List<String> selects = parseSelectItem(ps.getSelectItems());
-            int _limit = parseLimit(ps.getLimit());
-            if (_limit > 0) limit = _limit;
+            ImmutablePair<Integer, Integer> limit = this.parseLimit(ps.getLimit());
             List<Map<String, Object>> list = SqlliteUtil.query("select value from schema where name=?",
                     indexName);
             if (list.isEmpty()) throw new LSException("索引[" + indexName + "]不存在");
@@ -125,8 +126,9 @@ public class QuerySql {
      * @return <selects,limit>, queryString, schema
      * @throws LSException error
      */
-    @SuppressWarnings("unused")
-    public ImmutableTriple<ImmutablePair<List<String>, Integer>, String, Schema> parseToString() throws LSException {
+    @Deprecated
+    public ImmutableTriple<ImmutablePair<List<String>, ImmutablePair<Integer, Integer>>, String, Schema> parseToString()
+            throws LSException {
         try {
             Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
             SelectBody selectBody = select.getSelectBody();
@@ -135,8 +137,7 @@ public class QuerySql {
             PlainSelect ps = (PlainSelect) selectBody;
             String indexName = parseTableName(ps.getFromItem());
             List<String> selects = parseSelectItem(ps.getSelectItems());
-            int _limit = parseLimit(ps.getLimit());
-            if (_limit > 0) limit = _limit;
+            ImmutablePair<Integer, Integer> limit = this.parseLimit(ps.getLimit());
             List<Map<String, Object>> list = SqlliteUtil.query("select value from schema where name=?",
                     indexName);
             if (list.isEmpty()) throw new LSException("索引[" + indexName + "]不存在");
@@ -178,17 +179,39 @@ public class QuerySql {
         return list;
     }
 
-    private int parseLimit(Limit limit) throws LSException {
+    /**
+     * 添加分页支持
+     * <p>
+     * limit offset,count
+     * offset第几页
+     * <p>
+     * 从offset*count条开始取数据,取count条
+     * <p>
+     * 默认rowCount=15
+     *
+     * @param limit limit
+     * @return <start,end> start会转换成offset*count
+     * @throws LSException error
+     */
+    private ImmutablePair<Integer, Integer> parseLimit(Limit limit) throws LSException {
+        int _rowCount = 0, _offset = 0;
         if (limit != null) {
             Expression offset = limit.getOffset();
             Expression rowCount = limit.getRowCount();
-            if (!LongValue.class.equals(rowCount.getClass()))
-                throw new LSException("limit right data type[" + rowCount.getClass() + "]not support");
-            int l = ((LongValue) rowCount).getBigIntegerValue().intValueExact();
-            if (offset != null) logger.warn("暂不只支持limit offset,count,这里取用count[" + l + "]");
-            return l;
+            if (offset != null) {
+                if (!LongValue.class.equals(offset.getClass()))
+                    throw new LSException("limit offset type[" + rowCount.getClass() + "]not support");
+                _offset = ((LongValue) offset).getBigIntegerValue().intValueExact();
+            }
+            if (rowCount != null) {
+                if (!LongValue.class.equals(rowCount.getClass()))
+                    throw new LSException("limit rowCount type[" + rowCount.getClass() + "]not support");
+
+                _rowCount = ((LongValue) rowCount).getBigIntegerValue().intValueExact();
+            }
         }
-        return 0;
+        if (_rowCount == 0) _rowCount = 15;
+        return ImmutablePair.of(_offset * _rowCount, _rowCount);
     }
 
     /**
@@ -488,10 +511,10 @@ public class QuerySql {
     private Object addNum(Object object) throws LSException {
         Class clazz = object.getClass();
         if (Long.class.equals(clazz)) {
-            return ((long) object) + limit;
+            return ((long) object) + boundary;
         } else if (Double.class.equals(clazz)) {
             BigDecimal b1 = BigDecimal.valueOf((double) object);
-            BigDecimal b2 = new BigDecimal(String.valueOf(limit));
+            BigDecimal b2 = new BigDecimal(String.valueOf(boundary));
             return b1.add(b2);
         } else throw new LSException(clazz + " 加法暂未实现");
     }
@@ -500,15 +523,15 @@ public class QuerySql {
         Class clazz = object.getClass();
         if (Long.class.equals(clazz)) {
             long l1 = (long) object;
-            if (l1 <= limit) return 0;
-            else return l1 - limit;
+            if (l1 <= boundary) return 0;
+            else return l1 - boundary;
         } else if (Double.class.equals(clazz)) {
             double d1 = (double) object;
-            if (d1 <= limit) return 0.0;
+            if (d1 <= boundary) return 0.0;
             else {
                 BigDecimal b1 = BigDecimal.valueOf((double) object);
-                BigDecimal b2 = new BigDecimal(String.valueOf(limit));
-                return b1.add(b2);
+                BigDecimal b2 = new BigDecimal(String.valueOf(boundary));
+                return b1.subtract(b2);
             }
         } else throw new LSException(clazz + " 减法暂未实现");
     }

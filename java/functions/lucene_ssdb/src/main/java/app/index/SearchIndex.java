@@ -1,6 +1,7 @@
 package app.index;
 
 import bean.Field;
+import bean.ImmutablePair;
 import bean.LSException;
 import bean.Schema;
 import bean.Ssdb;
@@ -55,7 +56,8 @@ public class SearchIndex {
      * @throws LSException ls error
      */
     @SuppressWarnings("all")
-    public Map<String, Object> search(String qs, List<String> cols, int limit) throws LSException {
+    public Map<String, Object> search(String qs, List<String> cols, ImmutablePair<Integer, Integer> limit)
+            throws LSException {
         Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
         QueryParser parser = new QueryParser("", analyzer);
         try {
@@ -74,7 +76,8 @@ public class SearchIndex {
      *
      * @throws LSException error
      */
-    public Map<String, Object> search(Query query, List<String> cols, int limit) throws LSException {
+    public Map<String, Object> search(Query query, List<String> cols, ImmutablePair<Integer, Integer> limit)
+            throws LSException {
         Map<String, Object> map = new HashMap<>(2);
         try (IndexReader reader = DirectoryReader.open(FSDirectory.open(indexPath))) {
             IndexSearcher searcher = new IndexSearcher(reader);

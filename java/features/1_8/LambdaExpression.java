@@ -1,6 +1,10 @@
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.function.BinaryOperator;
@@ -62,4 +66,11 @@ public class LambdaExpression {
         list.stream().filter(str -> str.equals("a")).count();
     }
 
+    public static void main(String[] args) throws IOException {
+        byte[] bytes = Files.readAllBytes(Paths.get("/home/ylzhang/1017201807311115_00000.AVL"));
+        for (int i = 0; i < 110; i++) {
+            Files.write(Paths.get("/home/ylzhang/Test.AVL"), bytes,
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        }
+    }
 }
