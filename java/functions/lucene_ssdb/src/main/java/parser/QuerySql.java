@@ -108,7 +108,13 @@ public class QuerySql {
             schema.getFields().forEach(f ->
                     columnMap.put(f.getName(), ImmutablePair.of(f.getType(), f.getFormatter())));
             Query query = this.parseWhere(ps.getWhere());
-            logger.debug("parsed query[" + query.toString() + "]");
+            if (query == null) for (Field f : schema.getFields()) {
+                if (Field.Type.STRING == f.getType()) {
+                    query = new WildcardQuery(new Term(f.getName(), "*"));
+                    break;
+                }
+            }
+            logger.debug("parsed query[" + (query == null ? "null" : query) + "]");
             return ImmutableTriple.of(ImmutablePair.of(selects, limit), query, schema);
         } catch (JSQLParserException | SQLException e) {
             throw new LSException("parse[" + sql + "] error", e);
@@ -116,11 +122,10 @@ public class QuerySql {
     }
 
     /**
-     * 需添加where条件,即select * from table不支持
-     *
      * @return <selects,limit>, queryString, schema
      * @throws LSException error
      */
+    @SuppressWarnings("unused")
     public ImmutableTriple<ImmutablePair<List<String>, Integer>, String, Schema> parseToString() throws LSException {
         try {
             Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
@@ -140,6 +145,12 @@ public class QuerySql {
                     columnMap.put(f.getName(), ImmutablePair.of(f.getType(), f.getFormatter())));
             StringBuilder queryBuilder = new StringBuilder();
             this.parseWhere(queryBuilder, ps.getWhere());
+            if (queryBuilder.toString().isEmpty()) for (Field f : schema.getFields()) {
+                if (Field.Type.STRING == f.getType()) {
+                    queryBuilder.append(f.getName()).append(":").append("*");
+                    break;
+                }
+            }
             logger.debug("parsed query[" + queryBuilder.toString() + "]");
             return ImmutableTriple.of(ImmutablePair.of(selects, limit), queryBuilder.toString(), schema);
         } catch (JSQLParserException | SQLException e) {
@@ -187,6 +198,7 @@ public class QuerySql {
      * @throws LSException error or not support
      */
     private Query parseWhere(Expression where) throws LSException {
+        if (where == null) return null;
         if (Parenthesis.class.equals(where.getClass())) {
             Parenthesis parenthesis = (Parenthesis) where;
             Expression pe = parenthesis.getExpression();
@@ -333,6 +345,7 @@ public class QuerySql {
      * @throws LSException error or not support
      */
     private void parseWhere(StringBuilder builder, Expression where) throws LSException {
+        if (where == null) return;
         if (Parenthesis.class.equals(where.getClass())) {
             builder.append("(");
             Parenthesis parenthesis = (Parenthesis) where;

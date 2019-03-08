@@ -43,14 +43,18 @@ public class SearchIndex {
 
     /**
      * int,long类型数据做搜索条件搜索不到数据
+     * <p>
+     * 需添加where条件
+     * 即select * from table不支持
+     * '*' or '?' not allowed as first character in WildcardQuery
      *
      * @param qs    query string
      * @param limit query count
      * @param cols  return field
      * @return map {@link HashMap} {total:123,results:[{},{}...]}
-     * @throws LSException    ls error
+     * @throws LSException ls error
      */
-    @SuppressWarnings("all")
+//    @SuppressWarnings("")
     public Map<String, Object> search(String qs, List<String> cols, int limit)
             throws LSException {
         Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
@@ -71,8 +75,7 @@ public class SearchIndex {
      *
      * @throws LSException error
      */
-    public Map<String, Object> search(Query query, List<String> cols, int limit)
-            throws LSException {
+    public Map<String, Object> search(Query query, List<String> cols, int limit) throws LSException {
         Map<String, Object> map = new HashMap<>(2);
         try (IndexReader reader = DirectoryReader.open(FSDirectory.open(indexPath))) {
             IndexSearcher searcher = new IndexSearcher(reader);

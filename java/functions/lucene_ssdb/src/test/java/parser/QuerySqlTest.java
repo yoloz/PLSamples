@@ -1,5 +1,6 @@
 package parser;
 
+import bean.ImmutablePair;
 import bean.LSException;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.expression.Expression;
@@ -60,10 +61,12 @@ public class QuerySqlTest {
      * to_date('2007-06-12 10:00:00', 'yyyy-mm-dd hh24:mi:ss')暂未处理
      */
     @Test
+    @SuppressWarnings("all")
     public void parseWhere() throws JSQLParserException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         String sql = "select * from test where (col3='test' and col1 like 'a?b') or " +
                 "(col2>11 or col4 between 1 and 4) and (col4<=5.3)";
-//        sql = "select * from test where date between '2019-02-28T09:43:10.224000' and '2019-02-28T09:43:10.225000'";
+        sql = "select * from test where date between '2019-02-28T09:43:10.224000' and '2019-02-28T09:43:10.225000'";
+        sql = "select * from test";
         Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
         PlainSelect ps = (PlainSelect) select.getSelectBody();
         Expression where = ps.getWhere();
@@ -99,16 +102,18 @@ public class QuerySqlTest {
                 "(col2>3 or date>'2019-02-28T09:43:10.224000') and col4='北京'";
         sql = "select * from test where (col3='test' and col1 like 'a?b') or " +
                 "(col2>3 or date>'2019-02-28T09:43:10.224000') and (col5<=5.3)";
+        sql = "select * from test";
         Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
         PlainSelect ps = (PlainSelect) select.getSelectBody();
         Expression where = ps.getWhere();
         QuerySql querySql = new QuerySql(sql);
         Method method = querySql.getClass().getDeclaredMethod("parseWhere", Expression.class);
         method.setAccessible(true);
-        Field field = querySql.getClass().getDeclaredField("dateMap");
+        Field field = querySql.getClass().getDeclaredField("columnMap");
         field.setAccessible(true);
-        Map<String, String> dateMap = (Map<String, String>) field.get(querySql);
-        dateMap.put("date", "uuuu-MM-dd'T'HH:mm:ss.SSSSSS");
+        Map<String, ImmutablePair<bean.Field.Type, String>> columnMap =
+                (Map<String, ImmutablePair<bean.Field.Type, String>>) field.get(querySql);
+        columnMap.put("date", ImmutablePair.of(bean.Field.Type.DATE, "uuuu-MM-dd'T'HH:mm:ss.SSSSSS"));
         Query query = (Query) method.invoke(querySql, where);
         System.out.println(query.toString());
     }
