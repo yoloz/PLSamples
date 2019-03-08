@@ -54,9 +54,8 @@ public class SearchIndex {
      * @return map {@link HashMap} {total:123,results:[{},{}...]}
      * @throws LSException ls error
      */
-//    @SuppressWarnings("")
-    public Map<String, Object> search(String qs, List<String> cols, int limit)
-            throws LSException {
+    @SuppressWarnings("all")
+    public Map<String, Object> search(String qs, List<String> cols, int limit) throws LSException {
         Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
         QueryParser parser = new QueryParser("", analyzer);
         try {
