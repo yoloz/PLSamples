@@ -55,7 +55,7 @@ public class SearchIndex {
      * @return map {@link HashMap} {total:123,results:[{},{}...]}
      * @throws LSException ls error
      */
-    @SuppressWarnings("all")
+    @Deprecated
     public Map<String, Object> search(String qs, List<String> cols, ImmutablePair<Integer, Integer> limit)
             throws LSException {
         Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
