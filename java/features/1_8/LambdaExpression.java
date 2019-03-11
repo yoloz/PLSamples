@@ -68,9 +68,12 @@ public class LambdaExpression {
 
     public static void main(String[] args) throws IOException {
         byte[] bytes = Files.readAllBytes(Paths.get("/home/ylzhang/1017201807311115_00000.AVL"));
-        for (int i = 0; i < 110; i++) {
+        long start = System.currentTimeMillis();
+        for (int i = 0; i < 569; i++) {
             Files.write(Paths.get("/home/ylzhang/Test.AVL"), bytes,
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         }
+        long end = System.currentTimeMillis();
+        System.out.println((end - start) / 1000);
     }
 }

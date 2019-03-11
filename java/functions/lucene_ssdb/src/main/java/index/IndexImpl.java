@@ -79,8 +79,8 @@ public class IndexImpl implements Runnable, Closeable {
         iwc.setRAMBufferSizeMB(128.0);
         this.indexWriter = new IndexWriter(dir, iwc);
         this.searcherManager = new SearcherManager(indexWriter, false, false, null);
-        ControlledRealTimeReopenThread<SearcherManager> crtThread =
-                new ControlledRealTimeReopenThread<SearcherManager>(
+        ControlledRealTimeReopenThread<IndexSearcher> crtThread =
+                new ControlledRealTimeReopenThread<>(
                         indexWriter, searcherManager, 300.0, 0.5);
         crtThread.setDaemon(true);
         crtThread.setName("update-" + schema.getIndex());
