@@ -1,6 +1,10 @@
 package util;
 
 import bean.LSException;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
+import org.apache.log4j.RollingFileAppender;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -132,12 +136,39 @@ public class Utils {
 
     /**
      * update app status
+     * <p>
+     * unused at all index by thread create
      *
      * @param pid       pid
      * @param indexName index name
      * @throws SQLException sql error
      */
+    @Deprecated
     public static void updateAppStatus(String pid, String indexName) throws SQLException {
         SqlliteUtil.update("update ssdb set pid=? where name=?", pid, indexName);
+    }
+
+    /**
+     * get a logger for per index thread
+     *
+     * @param name  index name
+     * @param level log level
+     * @return Logger {@link Logger}
+     */
+    public static Logger getLogger(String name, Level level) {
+        Logger logger = Logger.getLogger(name);
+        logger.setLevel(level);
+        String appenderName = name + "-thread";
+        if (logger.getAppender(appenderName) == null) {
+            RollingFileAppender appender = new RollingFileAppender();
+            appender.setName(appenderName);
+            appender.setFile(Constants.logDir.resolve(name + ".log").toString());
+            appender.setLayout(new PatternLayout("%d{ISO8601} %5p [%t] (%F:%L) - %m%n"));
+//            appender.setMaxFileSize("10240KB"); //default 10M
+            appender.setMaxBackupIndex(5);
+            appender.activateOptions();
+            logger.addAppender(appender);
+        }
+        return logger;
     }
 }

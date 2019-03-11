@@ -22,6 +22,7 @@ import java.util.concurrent.ArrayBlockingQueue;
  * 连接后不断开持续取数据,无数据即阻塞;
  * 定量(10000)更新point点,在异常断开后重启可以继续[异常断连会造成丢失数据]
  */
+@Deprecated
 public class SsdbPull extends Thread {
 
     private final Logger logger = Logger.getLogger(SsdbPull.class);

@@ -1,82 +1,98 @@
-package app.index;
+package index;
 
-
-import org.apache.lucene.document.*;
-import util.Constants;
+import app.source.SsdbPull;
 import bean.ImmutablePair;
 import bean.LSException;
 import bean.Schema;
 import bean.Ssdb;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.LongPoint;
+import org.apache.lucene.document.StoredField;
+import org.apache.lucene.document.StringField;
+import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.IndexWriterConfig.OpenMode;
+import org.apache.lucene.search.ControlledRealTimeReopenThread;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import util.Constants;
 import util.JsonUtil;
-import app.source.SsdbPull;
 import util.Utils;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 写索引
- * <p>
- * 持续取数据,无数据即阻塞
- * <p>
- * setRAMBufferSizeMB:
- * <p>
- * Optional: for better indexing performance, if you
- * are indexing many documents, increase the RAM
- * buffer.  But if you do this, increase the max heap
- * size to the JVM (eg add -Xmx512m or -Xmx1g).
- * <p>
- * forceMerge:
- * <p>
- * NOTE: if you want to maximize search performance,
- * you can optionaly call forceMerge here.  This can be
- * a terribly costly operation, so generally it's only
- * worth it when your index is relatively static (ie
- * you're done adding documents to it).
- */
+public class IndexImpl implements Runnable, Closeable {
 
-@Deprecated
-@SuppressWarnings("all")
-public class WriteIndex {
+    private final Logger logger;
 
-    private Logger logger = Logger.getLogger(WriteIndex.class);
+    private IndexWriter indexWriter;
+    //是线程安全的.第二个參数是是否在全部缓存清空后让search看到
+    private SearcherManager searcherManager;
+    private IndexSearcher indexSearcher;
+
+    private final ArrayBlockingQueue<ImmutablePair<Object, String>> queue =
+            new ArrayBlockingQueue<>(1000);
 
     private final Schema schema;
-
     private final Path indexPath;
-    private IndexWriter indexWriter;
 
-    private SsdbPull ssdbPull;
-
-    private boolean stop = false;
-
-    public WriteIndex(Schema schema) {
+    public IndexImpl(Schema schema, Logger logger) {
         this.schema = schema;
         this.indexPath = Constants.indexDir.resolve(schema.getIndex());
+        this.logger = logger;
+    }
+
+    @Override
+    public void run() {
+
+    }
+
+
+    @Override
+    public void close() throws IOException {
+
+    }
+
+    public IndexSearcher getIndexSearcher() {
+        return indexSearcher;
+    }
+
+    private void initIndex() throws IOException, LSException {
+        Directory dir = FSDirectory.open(indexPath);
+        Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
+        IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
+        iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
+        iwc.setRAMBufferSizeMB(128.0);
+        this.indexWriter = new IndexWriter(dir, iwc);
+        this.searcherManager = new SearcherManager(indexWriter, false, false, null);
+        ControlledRealTimeReopenThread<SearcherManager> crtThread =
+                new ControlledRealTimeReopenThread<SearcherManager>(
+                        indexWriter, searcherManager, 300.0, 0.5);
+        crtThread.setDaemon(true);
+        crtThread.setName("update-" + schema.getIndex());
+        crtThread.start();
     }
 
     public void write() {
         try {
-            Directory dir = FSDirectory.open(indexPath);
-            Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
-            IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
-            iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
-            iwc.setRAMBufferSizeMB(256.0);
-            indexWriter = new IndexWriter(dir, iwc);
+
+
             if (schema.getSsdb() != null) this.indexSsdb(indexWriter);
-//             writer.forceMerge(1);
+//             indexWriter.forceMerge(1);
             logger.debug("committing index[" + schema.getIndex() + "]");
             long start = System.currentTimeMillis();
             indexWriter.commit();
@@ -96,7 +112,7 @@ public class WriteIndex {
 //        ssdbPull = new SsdbPull(addr.substring(0, idex),
 //                Integer.parseInt(addr.substring(idex + 1)),
 //                ssdb.getName(), ssdb.getType(), schema.getIndex());
-        ssdbPull = new SsdbPull(ssdb.getIp(),ssdb.getPort(),ssdb.getName(),ssdb.getType(),schema.getIndex());
+        ssdbPull = new SsdbPull(ssdb.getIp(), ssdb.getPort(), ssdb.getName(), ssdb.getType(), schema.getIndex());
         ssdbPull.start();
         logger.debug("indexing[" + schema.getIndex() + "]");
 //        long start = System.currentTimeMillis();
@@ -169,22 +185,5 @@ public class WriteIndex {
         }
 //        long end = System.currentTimeMillis();
 //        logger.debug("index [" + schema.getIndex() + "]finished,count[" + count + "],cost time[" + (end - start) + "] mills");
-    }
-
-    public void close() {
-        logger.warn("强制关闭索引[" + schema.getIndex() + "]...");
-        stop = true;
-        if (ssdbPull != null) {
-            ssdbPull.close();
-            try {
-                Thread.sleep(ssdbPull.timeout + 10);
-            } catch (InterruptedException ignore) {
-            }
-        } else if (indexWriter != null) try {
-            indexWriter.commit();
-            indexWriter.close();
-        } catch (IOException e) {
-            logger.error(e);
-        }
     }
 }

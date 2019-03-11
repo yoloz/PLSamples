@@ -62,7 +62,7 @@ public class SqlliteUtil {
      * <br/>list:offset
      * <br/>hash:key_start
      * <p>
-     * pid: default 0
+     * pid: default 0,unused at all index by thread create
      */
     private static void checkSsdb() {
         String checkSql = "select count(*) from sqlite_master where type=? and name=?";

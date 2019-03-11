@@ -1,7 +1,6 @@
 package app.index;
 
 import bean.Field;
-import bean.ImmutablePair;
 import bean.LSException;
 import bean.Schema;
 import bean.Ssdb;
@@ -29,7 +28,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
+/**
+ * 索引创建完毕后的搜索
+ */
+@Deprecated
+@SuppressWarnings("all")
 public class SearchIndex {
 
     private final Logger logger = Logger.getLogger(SearchIndex.class);
@@ -56,7 +59,7 @@ public class SearchIndex {
      * @throws LSException ls error
      */
     @Deprecated
-    public Map<String, Object> search(String qs, List<String> cols, ImmutablePair<Integer, Integer> limit)
+    public Map<String, Object> search(String qs, List<String> cols, Integer limit)
             throws LSException {
         Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
         QueryParser parser = new QueryParser("", analyzer);
@@ -76,7 +79,7 @@ public class SearchIndex {
      *
      * @throws LSException error
      */
-    public Map<String, Object> search(Query query, List<String> cols, ImmutablePair<Integer, Integer> limit)
+    public Map<String, Object> search(Query query, List<String> cols, Integer limit)
             throws LSException {
         Map<String, Object> map = new HashMap<>(2);
         try (IndexReader reader = DirectoryReader.open(FSDirectory.open(indexPath))) {

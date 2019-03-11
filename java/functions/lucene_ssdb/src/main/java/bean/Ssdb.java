@@ -7,8 +7,9 @@ public class Ssdb {
     }
 
     private Type type;
-    private String addr;
-    private String name;
+    private String ip;
+    private int port;
+    private String name; //listName,hashName
 
     public Ssdb() {
     }
@@ -35,12 +36,20 @@ public class Ssdb {
         }
     }
 
-    public String getAddr() {
-        return addr;
+    public String getIp() {
+        return ip;
     }
 
-    public void setAddr(String addr) {
-        this.addr = addr;
+    public void setIp(String ip) {
+        this.ip = ip;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
     }
 
     public String getName() {

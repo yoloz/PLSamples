@@ -14,6 +14,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 近实时查询需要search从index writer中生成,即查询和产生绑定在一起
+ * 如果新建进程作为创建,则jetty需要和这个进程通信交互
+ * 简便化直接在jetty中通过线程来生成索引
+ */
+@Deprecated
 public class AppServer {
 
     private static final Logger logger = Logger.getLogger(AppServer.class);
@@ -51,5 +57,6 @@ public class AppServer {
         }
 //        logger.info(args[0] + " finished...");
     }
+
 
 }

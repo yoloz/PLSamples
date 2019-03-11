@@ -15,5 +15,6 @@ fields:
 ssdb:
     # LIST,HASH
     type: LIST
-    addr: ip:port
+    ip: ip
+    port: port
     name: listName
