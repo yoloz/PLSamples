@@ -4,11 +4,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import static org.junit.Assert.*;
 
@@ -23,8 +23,15 @@ public class SM4Test {
     }
 
     @Test
-    public void processOne() throws NoSuchMethodException, InvocationTargetException,
-            IllegalAccessException {
+    public void testPattern() {
+        Pattern p = Pattern.compile("^[0-9A-Za-z]+$");
+        assertTrue(p.matcher("64EC7C763AB7BF64E2D75FF83A319918").matches());
+        assertTrue(p.matcher("JeF8U9wHFOMfs2Y8").matches());
+        assertFalse(p.matcher("JeF8U9wHFOMfs2Y8!").matches());
+    }
+
+    @Test
+    public void processOne() throws Exception {
 
         boolean isPadding = true; //对于长度不够16*n的,false会造成解密多出不适别的字符
 
@@ -67,8 +74,7 @@ public class SM4Test {
     }
 
     @Test
-    public void processBatch() throws NoSuchMethodException, InvocationTargetException,
-            IllegalAccessException {
+    public void processBatch() throws Exception {
         boolean isPadding = true;
         int count = 100;
         String key = "JeF8U9wHFOMfs2Y8";

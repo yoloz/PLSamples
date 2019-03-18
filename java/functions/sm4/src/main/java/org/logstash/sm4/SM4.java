@@ -16,13 +16,15 @@ public class SM4 {
     private final int mode;    //加密1,解密0
     private final SM4Context ctx;
 
+    private final Pattern p = Pattern.compile("^[0-9A-Za-z]+$");
+
     private byte[] ivBytes;
 
-    public SM4(String key, String iv, int mode) {
+    public SM4(String key, String iv, int mode) throws Exception {
         this(key, iv, mode, true);
     }
 
-    SM4(String key, String iv, int mode, boolean padding) {
+    SM4(String key, String iv, int mode, boolean padding) throws Exception {
         this.key = key;
         this.iv = iv;
         this.mode = mode;
@@ -41,7 +43,13 @@ public class SM4 {
         }
     }
 
-    private void init() {
+    private void init() throws Exception {
+        if (key.length() != 16 && key.length() < 32) throw new Exception("密钥长度不对[16,32,>32]");
+        if (!p.matcher(key).matches()) throw new Exception("密钥需为字母和数字组合");
+        if (iv != null && !iv.isEmpty()) {
+            if (iv.length() != 16 && iv.length() < 32) throw new Exception("初始化向量长度不对[16,32,>32]");
+            if (!p.matcher(iv).matches()) throw new Exception("初始化向量需为字母和数字组合");
+        }
         int kl = key.getBytes(StandardCharsets.UTF_8).length;
         byte[] keyBytes;
         if (kl > 16) keyBytes = this.hexStringToBytes(key);
@@ -52,12 +60,13 @@ public class SM4 {
             sm4Impl.sm4_setkey(ctx.getSk(), keyBytes);
             for (i = 0; i < 16; i++) sm4Impl.SWAP(ctx.getSk(), i);
         }
-
-        int ivl = iv.getBytes(StandardCharsets.UTF_8).length;
-        if (ivl > 16) {
-            ivBytes = this.hexStringToBytes(iv);
-        } else {
-            ivBytes = iv.getBytes(StandardCharsets.UTF_8);
+        if (iv != null && !iv.isEmpty()) {
+            int ivl = iv.getBytes(StandardCharsets.UTF_8).length;
+            if (ivl > 16) {
+                ivBytes = this.hexStringToBytes(iv);
+            } else {
+                ivBytes = iv.getBytes(StandardCharsets.UTF_8);
+            }
         }
     }
 
