@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.concurrent.ArrayBlockingQueue;
 
 /**
@@ -26,29 +27,18 @@ public class SsdbPull extends Pull {
     private final Ssdb ssdb;
 
     public SsdbPull(Ssdb ssdb, String name,
-             ArrayBlockingQueue<ImmutableTriple<Object, String, String>> queue,
-             int blockSec, Logger logger) {
+                    ArrayBlockingQueue<ImmutableTriple<Object, String, String>> queue,
+                    int blockSec, Logger logger) {
         super(name, queue, blockSec, logger);
         this.ssdb = ssdb;
     }
 
-    @Override
-    public void close() {
-        logger.info("close[" + indexName + "]ssdb_pull...");
-        this.stop = true;
-        try {
-            Thread.sleep(blockSec * 500 + 10);
-        } catch (InterruptedException ignore) {
-        }
-    }
 
-    /**
-     * 创建单连接
-     *
-     * @return SSDB {@link SSDB}
-     */
-    private SSDB connect() {
-        return SSDBs.simple(ssdb.getIp(), ssdb.getPort(), (blockSec - 1) * 1000);
+    @Override
+    void setName() {
+        if(ssdb.getName().contains("*")){
+
+        }else pullName.add(ssdb.getName());
     }
 
     @Override
@@ -77,6 +67,15 @@ public class SsdbPull extends Pull {
             logger.warn(e.getMessage(), e);
         }
         logger.info("stop pull[" + indexName + "]data from ssdb");
+    }
+
+    /**
+     * 创建单连接
+     *
+     * @return SSDB {@link SSDB}
+     */
+    private SSDB connect() {
+        return SSDBs.simple(ssdb.getIp(), ssdb.getPort(), (blockSec - 1) * 1000);
     }
 
     private void initPoint() throws LSException {
