@@ -17,6 +17,8 @@ public class Constants {
     public static final Path logDir;
     public static final Path varDir;
     public static final int httpPort;
+    public static final int pageCache;
+    public static final int searchCache;
 
     static {
         String root_dir = System.getProperty("LSDir");
@@ -37,5 +39,7 @@ public class Constants {
         if (_indexDir == null || _indexDir.isEmpty()) indexDir = varDir.resolve("index");
         else indexDir = Paths.get(_indexDir);
         httpPort = Integer.parseInt(properties.getProperty("httpPort"));
+        pageCache = Integer.parseInt(properties.getProperty("pageCache", "10"));
+        searchCache = Integer.parseInt(properties.getProperty("searchCache", "5"));
     }
 }

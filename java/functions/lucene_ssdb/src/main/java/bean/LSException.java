@@ -23,4 +23,8 @@ public class LSException extends Exception {
     public LSException(String message) {
         super(message);
     }
+
+    public LSException(Throwable cause) {
+        super(cause);
+    }
 }

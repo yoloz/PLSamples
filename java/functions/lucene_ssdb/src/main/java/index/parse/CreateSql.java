@@ -1,4 +1,4 @@
-package parser;
+package index.parse;
 
 import bean.Field;
 import bean.LSException;
@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * date('uuuu-MM-dd\'T\'HH:mm:ss.SSSSSS')
+ * date('uuuu-MM-dd'T'HH:mm:ss.SSSSSS')
  * <p>
  * CREATE TABLE test
  * (col1 int, col2 string, col3 date('yyyy-MM-dd HH:mm:ss.SSS'))
@@ -33,7 +33,6 @@ import java.util.Map;
  * <p>
  * 如果字段名前缀含有'_',在解析处理时会再添加'_',内部字段使用前缀'_'
  */
-@Deprecated
 public class CreateSql {
 
     private final Logger logger = Logger.getLogger(CreateSql.class);
@@ -51,7 +50,7 @@ public class CreateSql {
      * @return indexName
      * @throws LSException error
      */
-    public String parse() throws LSException, SQLException {
+    public String store() throws LSException, SQLException {
         CreateTable table;
         try {
             table = (CreateTable) new CCJSqlParserManager().
@@ -63,7 +62,7 @@ public class CreateSql {
         schema.setIndex(table.getTable().getName());
 
         List<Map<String, Object>> list = SqlliteUtil
-                .query("select pid from ssdb where name=?", table.getTable().getName());
+                .query("select name from schema where name=?", table.getTable().getName());
         if (!list.isEmpty()) throw new LSException("index[" + table.getTable().getName() + "] is exit...");
 
         Map<String, String> indexOptions = getIndexOptions(table.getTableOptionsStrings());
@@ -73,7 +72,10 @@ public class CreateSql {
         String from = indexOptions.get("from");
         if ("ssdb".equals(from)) {
             Ssdb ssdb = new Ssdb();
-//            ssdb.setAddr(indexOptions.get("addr"));
+            String addr = indexOptions.get("addr");
+            int idex = addr.indexOf(":");
+            ssdb.setIp(addr.substring(0, idex));
+            ssdb.setPort(Integer.parseInt(addr.substring(idex + 1)));
             ssdb.setName(indexOptions.get("name"));
             ssdb.setType(indexOptions.get("type"));
             schema.setSsdb(ssdb);

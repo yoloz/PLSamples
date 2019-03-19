@@ -36,7 +36,7 @@ public class QuerySqlTest {
         PlainSelect ps = (PlainSelect) select.getSelectBody();
         List<SelectItem> selects = ps.getSelectItems();
         QuerySql querySql = new QuerySql(sql);
-        Method method = querySql.getClass().getDeclaredMethod("parseSelectItem", List.class);
+        Method method = querySql.getClass().getDeclaredMethod("getSelects", List.class);
         method.setAccessible(true);
         List<String> list = (List<String>) method.invoke(querySql, selects);
         assertEquals(3, list.size());
@@ -51,7 +51,7 @@ public class QuerySqlTest {
         PlainSelect ps = (PlainSelect) select.getSelectBody();
         FromItem fromItem = ps.getFromItem();
         QuerySql querySql = new QuerySql(sql);
-        Method method = querySql.getClass().getDeclaredMethod("parseTableName", FromItem.class);
+        Method method = querySql.getClass().getDeclaredMethod("getIndexName", FromItem.class);
         method.setAccessible(true);
         String name = (String) method.invoke(querySql, fromItem);
         assertEquals("test", name);

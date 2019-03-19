@@ -1,10 +1,12 @@
 package util;
 
 import bean.LSException;
+import bean.Schema;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.apache.log4j.RollingFileAppender;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -18,6 +20,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class Utils {
 
@@ -170,5 +173,16 @@ public class Utils {
             logger.addAppender(appender);
         }
         return logger;
+    }
+
+    public static Schema getSchema(String name) throws LSException {
+        List<Map<String, Object>> list;
+        try {
+            list = SqlliteUtil.query("select value from schema where name=?", name);
+        } catch (SQLException e) {
+            throw new LSException("取索引[" + name + "]元数据错误", e);
+        }
+        if (list.isEmpty()) throw new LSException("索引[" + name + "]不存在");
+        return new Yaml().loadAs((String) list.get(0).get("value"), Schema.class);
     }
 }

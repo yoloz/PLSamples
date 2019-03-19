@@ -1,10 +1,11 @@
 package index;
 
-import app.source.SsdbPull;
-import bean.ImmutablePair;
+import bean.ImmutableTriple;
 import bean.LSException;
 import bean.Schema;
 import bean.Ssdb;
+import index.pull.Pull;
+import index.pull.SsdbPull;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
@@ -30,45 +31,76 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 索引原始数据均不存储
+ */
 public class IndexImpl implements Runnable, Closeable {
 
     private final Logger logger;
 
     private IndexWriter indexWriter;
-    //是线程安全的.第二个參数是是否在全部缓存清空后让search看到
     private SearcherManager searcherManager;
-    private IndexSearcher indexSearcher;
-
-    private final ArrayBlockingQueue<ImmutablePair<Object, String>> queue =
+    //point,name,value
+    private final ArrayBlockingQueue<ImmutableTriple<Object, String, String>> queue =
             new ArrayBlockingQueue<>(1000);
+
+    private final int blockSec = 10;
 
     private final Schema schema;
     private final Path indexPath;
+    private Pull pull;
+
 
     public IndexImpl(Schema schema, Logger logger) {
         this.schema = schema;
         this.indexPath = Constants.indexDir.resolve(schema.getIndex());
         this.logger = logger;
+        if (schema.getSsdb() != null)
+            this.pull = new SsdbPull(schema.getSsdb(), schema.getIndex(), queue, blockSec, logger);
     }
 
     @Override
     public void run() {
-
+        try {
+            this.initIndex();
+            if (this.pull instanceof SsdbPull) this.indexSsdb();
+            //ssdbPull error stop that index writer will stop and need commit
+            logger.info("committing index[" + schema.getIndex() + "]");
+            //this.indexWriter.forceMerge(1);
+            this.indexWriter.commit();
+            this.indexWriter.close();
+        } catch (IOException | LSException e) {
+            logger.error(e);
+            this.close();
+        }
     }
 
 
     @Override
-    public void close() throws IOException {
-
+    public void close() {
+        logger.info("close index[" + schema.getIndex() + "]...");
+        if (this.pull != null) this.pull.close();
+        try {
+            this.searcherManager.close();
+            if (this.indexWriter != null && this.indexWriter.isOpen()) {
+                logger.debug("committing index[" + schema.getIndex() + "]");
+                //this.indexWriter.forceMerge(1);
+                this.indexWriter.commit();
+                this.indexWriter.close();
+            }
+        } catch (IOException e) {
+            logger.error("close[" + schema.getIndex() + "] error", e);
+        }
+        this.searcherManager = null;
     }
 
-    public IndexSearcher getIndexSearcher() {
-        return indexSearcher;
+    public IndexSearcher getSearcher() throws IOException {
+        if (this.searcherManager != null) return this.searcherManager.acquire();
+        else return null;
     }
 
     private void initIndex() throws IOException, LSException {
@@ -78,56 +110,29 @@ public class IndexImpl implements Runnable, Closeable {
         iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
         iwc.setRAMBufferSizeMB(128.0);
         this.indexWriter = new IndexWriter(dir, iwc);
-        this.searcherManager = new SearcherManager(indexWriter, false, false, null);
+        this.searcherManager = new SearcherManager(indexWriter, false,
+                false, null);
         ControlledRealTimeReopenThread<IndexSearcher> crtThread =
-                new ControlledRealTimeReopenThread<>(
-                        indexWriter, searcherManager, 300.0, 0.5);
+                new ControlledRealTimeReopenThread<>(indexWriter, searcherManager,
+                        300.0, 0.5);
         crtThread.setDaemon(true);
         crtThread.setName("update-" + schema.getIndex());
         crtThread.start();
     }
 
-    public void write() {
-        try {
-
-
-            if (schema.getSsdb() != null) this.indexSsdb(indexWriter);
-//             indexWriter.forceMerge(1);
-            logger.debug("committing index[" + schema.getIndex() + "]");
-            long start = System.currentTimeMillis();
-            indexWriter.commit();
-            indexWriter.close();
-            long end = System.currentTimeMillis();
-            logger.debug("index[" + schema.getIndex() + "] commit cost time[" + (end - start) + "] mills");
-        } catch (Exception e) {
-            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
-            this.close();
-        }
-    }
-
-    private void indexSsdb(IndexWriter writer) throws LSException {
-        Ssdb ssdb = schema.getSsdb();
-//        String addr = ssdb.getAddr();
-//        int idex = addr.indexOf(":");
-//        ssdbPull = new SsdbPull(addr.substring(0, idex),
-//                Integer.parseInt(addr.substring(idex + 1)),
-//                ssdb.getName(), ssdb.getType(), schema.getIndex());
-        ssdbPull = new SsdbPull(ssdb.getIp(), ssdb.getPort(), ssdb.getName(), ssdb.getType(), schema.getIndex());
-        ssdbPull.start();
+    private void indexSsdb() throws IOException {
+        new Thread(pull).start();
         logger.debug("indexing[" + schema.getIndex() + "]");
-//        long start = System.currentTimeMillis();
-//        long count = 0;
-        while (!stop) {
+        while (pull.isRunning()) {
             try {
-                ImmutablePair<Object, String> pair = ssdbPull.queue.poll(ssdbPull.timeout, TimeUnit.MILLISECONDS);
-//                if (pair == null) break;
-                if (pair == null) continue;
+                ImmutableTriple<Object, String, String> triple = this.queue.poll(blockSec, TimeUnit.SECONDS);
+                if (triple == null) continue;
                 Map<String, Object> data;
                 try {
-                    data = JsonUtil.toMap(pair.getRight());
+                    data = JsonUtil.toMap(triple.getRight());
                 } catch (IOException e) {
-                    logger.warn("ssdb." + ssdb.getName()
-                            + " value[" + pair.getRight() + "] format is not support,this record will be discarded...");
+                    logger.warn("ssdb[" + schema.getSsdb().getName() + "," + triple.getLeft()
+                            + "]value convert to JSON fail,this record will be discarded...");
                     data = null;
                 }
                 if (data == null) continue;
@@ -142,24 +147,17 @@ public class IndexImpl implements Runnable, Closeable {
                                 if (value instanceof Integer) i = (int) value;
                                 else i = Integer.valueOf(String.valueOf(value));
                                 doc.add(new IntPoint(name, i));
-//                                doc.add(new NumericDocValuesField(name, i));
-//                                doc.add(new StoredField(name, i));
                                 break;
                             case DATE:
                                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern(field.getFormatter());
                                 LocalDateTime localDateTime = LocalDateTime.parse(String.valueOf(value), formatter);
-//                                doc.add(new StringField(name, Utils.toNanos(localDateTime), Field.Store.YES));
                                 doc.add(new LongPoint(name, Long.valueOf(Utils.toNanos(localDateTime))));
-//                                doc.add(new NumericDocValuesField(name, mills));
-//                                doc.add(new StoredField(name, mills));
                                 break;
                             case LONG:
                                 long l;
                                 if (value instanceof Long) l = (long) value;
                                 else l = Long.valueOf(String.valueOf(value));
                                 doc.add(new LongPoint(name, l));
-//                                doc.add(new NumericDocValuesField(name, l));
-//                                doc.add(new StoredField(name, l));
                                 break;
                             case STRING:
                                 doc.add(new StringField(name, String.valueOf(value), Field.Store.NO));
@@ -170,20 +168,17 @@ public class IndexImpl implements Runnable, Closeable {
                         }
                     }
                 }
-                if (Ssdb.Type.LIST == ssdb.getType()) {
-                    doc.add(new StoredField("_index", (int) pair.getLeft()));
-                } else if (Ssdb.Type.HASH == ssdb.getType()) {
-                    doc.add(new StoredField("_key", (String) pair.getLeft()));
+                if (Ssdb.Type.LIST == schema.getSsdb().getType()) {
+                    doc.add(new StoredField("_index", (int) triple.getLeft()));
+                } else {
+                    doc.add(new StoredField("_key", (String) triple.getLeft()));
                 }
-                writer.addDocument(doc);
-//                count++;
+                doc.add(new StoredField("_name", triple.getMiddle()));
+                indexWriter.addDocument(doc);
             } catch (InterruptedException e) {
-                logger.warn("队列中断", e);
-            } catch (DateTimeParseException | IOException e) {
-                throw new LSException("索引[" + schema.getIndex() + "]创建document出错", e);
+                logger.warn(schema.getIndex() + "数据缓存存储队列异常", e);
             }
         }
-//        long end = System.currentTimeMillis();
-//        logger.debug("index [" + schema.getIndex() + "]finished,count[" + count + "],cost time[" + (end - start) + "] mills");
     }
+
 }

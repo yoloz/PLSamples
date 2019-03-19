@@ -36,7 +36,7 @@ public class QueryIndex extends HttpServlet {
             ImmutableTriple<ImmutablePair<List<String>, ImmutablePair<Integer, Integer>>, Query, Schema> triple =
                     querySql.parseToQuery();
             SearchIndex searchIndex = new SearchIndex(triple.getRight());
-            results = searchIndex.search(triple.getMiddle(), triple.getLeft().getLeft(), triple.getLeft().getRight());
+//            results = searchIndex.search(triple.getMiddle(), triple.getLeft().getLeft(), triple.getLeft().getRight());
             results.put("success", true);
         } catch (Exception e) {
             logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
