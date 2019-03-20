@@ -25,7 +25,7 @@ public class NewIndex extends HttpServlet {
             String indexName = createSql.parse();
             Utils.starApp(indexName);
         } catch (Exception e) {
-            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
+            logger.error("create index[" + sql + "] error", e);
             error = "{\"success\":false,\"error\":\"" + e.getMessage() + "\"}";
         }
         resp.setContentType("application/json;charset=UTF-8");

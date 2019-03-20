@@ -33,7 +33,7 @@ public class SqlliteUtil {
         dataSource.setMinIdle(1);
         dataSource.setMaxWaitMillis(1800000);
         checkSchema();
-        checkSsdb();
+        checkPoint();
     }
 
     /**
@@ -51,33 +51,25 @@ public class SqlliteUtil {
                 SqlliteUtil.update(createSql);
             }
         } catch (SQLException e) {
-            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
+            logger.error("初始化schema error", e);
             System.exit(1);
         }
     }
 
-    /**
-     * ssdb数据源的运行信息
-     * point:
-     * <br/>list:offset
-     * <br/>hash:key_start
-     * <p>
-     * pid: default 0,unused at all index by thread create
-     */
-    private static void checkSsdb() {
+    private static void checkPoint() {
         String checkSql = "select count(*) from sqlite_master where type=? and name=?";
         try {
-            List<Map<String, Object>> result = query(checkSql, "table", "ssdb");
+            List<Map<String, Object>> result = query(checkSql, "table", "point");
             if ((int) result.get(0).get("count(*)") == 0) {
-                String createSql = "CREATE TABLE ssdb(" +
-                        "name TEXT PRIMARY KEY NOT NULL, " +
-                        "point TEXT NOT NULL," +
-                        "pid INT DEFAULT 0" +
+                String createSql = "CREATE TABLE point(" +
+                        "iname TEXT PRIMARY KEY NOT NULL, " +
+                        "name TEXT DEFAULT ''," +
+                        "value TEXT NOT NULL" +
                         ")";
                 SqlliteUtil.update(createSql);
             }
         } catch (SQLException e) {
-            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
+            logger.error("初始化point error", e);
             System.exit(1);
         }
     }

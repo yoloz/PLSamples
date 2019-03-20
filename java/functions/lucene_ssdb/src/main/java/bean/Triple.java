@@ -6,25 +6,33 @@ import java.util.Objects;
  * element may be null
  *
  * @param <L> left type
+ * @param <M> middle type
  * @param <R> right type
  */
-public class ImmutablePair<L, R> {
+public class Triple<L, M, R> {
+
 
     private final L left;
+    private final M middle;
     private final R right;
 
-    public static <L, R> ImmutablePair<L, R> of(final L left, final R right) {
-        return new ImmutablePair<>(left, right);
+    public static <L, M, R> Triple<L, M, R> of(final L left, final M middle, final R right) {
+        return new Triple<>(left, middle, right);
     }
 
-    private ImmutablePair(final L left, final R right) {
+    private Triple(final L left, final M middle, final R right) {
         this.left = left;
+        this.middle = middle;
         this.right = right;
     }
 
 
     public L getLeft() {
         return left;
+    }
+
+    public M getMiddle() {
+        return middle;
     }
 
     public R getRight() {
@@ -36,9 +44,10 @@ public class ImmutablePair<L, R> {
         if (obj == this) {
             return true;
         }
-        if (obj instanceof ImmutablePair<?, ?>) {
-            final ImmutablePair<?, ?> other = (ImmutablePair<?, ?>) obj;
+        if (obj instanceof Triple<?, ?, ?>) {
+            final Triple<?, ?, ?> other = (Triple<?, ?, ?>) obj;
             return Objects.equals(getLeft(), other.getLeft())
+                    && Objects.equals(getMiddle(), other.getMiddle())
                     && Objects.equals(getRight(), other.getRight());
         }
         return false;
@@ -47,11 +56,13 @@ public class ImmutablePair<L, R> {
     @Override
     public int hashCode() {
         return (getLeft() == null ? 0 : getLeft().hashCode()) ^
+                (getMiddle() == null ? 0 : getMiddle().hashCode()) ^
                 (getRight() == null ? 0 : getRight().hashCode());
     }
 
     @Override
     public String toString() {
-        return "(" + getLeft() + "," + getRight() + ")";
+        return "(" + getLeft() + "," + getMiddle() + "," + getRight() + ")";
     }
+
 }

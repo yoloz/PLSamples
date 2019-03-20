@@ -1,6 +1,6 @@
 package app.source;
 
-import bean.ImmutablePair;
+import bean.Pair;
 import bean.Ssdb;
 import org.junit.After;
 import org.junit.Before;
@@ -78,8 +78,8 @@ public class SsdbPullTest {
         listScan.setAccessible(true);
         Field point = ssdbPull.getClass().getDeclaredField("point");
         point.setAccessible(true);
-        List<ImmutablePair<Object, String>> result = (List<ImmutablePair<Object, String>>) listScan.invoke(ssdbPull, ssdb, 0);
-        assertEquals(ImmutablePair.of(0, "listTest_0"), result.get(0));
+        List<Pair<Object, String>> result = (List<Pair<Object, String>>) listScan.invoke(ssdbPull, ssdb, 0);
+        assertEquals(Pair.of(0, "listTest_0"), result.get(0));
         assertEquals(100, point.get(ssdbPull));
         ssdb.close();
     }
@@ -100,8 +100,8 @@ public class SsdbPullTest {
         hashScan.setAccessible(true);
         Field point = ssdbPull.getClass().getDeclaredField("point");
         point.setAccessible(true);
-        List<ImmutablePair<Object, String>> result = (List<ImmutablePair<Object, String>>) hashScan.invoke(ssdbPull, ssdb, "");
-        assertEquals(ImmutablePair.of("key_0", "hashTest_0"), result.get(0));
+        List<Pair<Object, String>> result = (List<Pair<Object, String>>) hashScan.invoke(ssdbPull, ssdb, "");
+        assertEquals(Pair.of("key_0", "hashTest_0"), result.get(0));
         assertEquals("key_99", point.get(ssdbPull));
         ssdb.close();
     }

@@ -29,7 +29,7 @@ public class Constants {
                 properties.load(inputStream);
             }
         } catch (Exception e) {
-            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
+            logger.error("load server.properties error", e);
             System.exit(1);
         }
         appDir = Paths.get(root_dir);

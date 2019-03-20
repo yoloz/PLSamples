@@ -36,6 +36,16 @@ public class JsonUtil {
         } catch (JsonParseException e) {
             throw new IOException(e);
         }
+
+    }
+
+    public static String toJson(Object obj, Class clazz) throws IOException {
+        try {
+            return gson.toJson(obj, clazz);
+        } catch (JsonSyntaxException e) {
+            throw new IOException(e);
+        }
+
     }
 
     private static Object customParse(final String json) throws IOException {
@@ -62,6 +72,7 @@ public class JsonUtil {
         }
     }
 
+    //com.google.gson.internal.bind.ObjectTypeAdapter
     private static Object read(JsonReader in) throws IOException {
         JsonToken token = in.peek();
         switch (token) {

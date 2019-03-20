@@ -1,7 +1,7 @@
 package index.parse;
 
 import bean.Field;
-import bean.ImmutablePair;
+import bean.Pair;
 import bean.LSException;
 import bean.Schema;
 import net.sf.jsqlparser.JSQLParserException;
@@ -76,8 +76,10 @@ public class SelectSql {
 
     private final int boundary = 10000; //添加上下边界
     private final PlainSelect selectBody;
+    private final Schema schema;
+    private final String indexName;
 
-    private Map<String, ImmutablePair<Field.Type, String>> colMap = new HashMap<>(5);
+    private Map<String, Pair<Field.Type, String>> colMap = new HashMap<>(5);
 
     public SelectSql(String sql) throws LSException, JSQLParserException {
         Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
@@ -85,20 +87,24 @@ public class SelectSql {
         if (!PlainSelect.class.equals(sb.getClass()))
             throw new LSException(sb.getClass() + " is not support");
         this.selectBody = (PlainSelect) sb;
-    }
-
-    public String getIndexName() throws LSException {
         FromItem from = selectBody.getFromItem();
         if (!Table.class.equals(from.getClass())) throw new LSException(from.getClass() + " is not support");
         Table table = (Table) from;
-        return table.getName();
+        this.indexName = table.getName();
+        this.schema = Utils.getSchema(indexName);
+        schema.getFields().forEach(f ->
+                colMap.put(f.getName(), Pair.of(f.getType(), f.getFormatter())));
+    }
+
+    public String getIndexName() {
+        return this.indexName;
     }
 
     public List<String> getSelects() {
         List<SelectItem> selects = selectBody.getSelectItems();
         List<String> list = new ArrayList<>(selects.size());
         if (selects.size() == 1 && selects.get(0).getClass().equals(AllColumns.class))
-            list.add(selects.get(0).toString());
+            list.addAll(colMap.keySet());
         else for (SelectItem item : selects) {
             SelectExpressionItem selectItem = (SelectExpressionItem) item;
             Column col = (Column) selectItem.getExpression();
@@ -123,7 +129,7 @@ public class SelectSql {
      *
      * @throws LSException error
      */
-    public ImmutablePair<Integer, Integer> getLimit() throws LSException {
+    public Pair<Integer, Integer> getLimit() throws LSException {
         Limit limit = selectBody.getLimit();
         int _rowCount = 0, _offset = 0;
         if (limit != null) {
@@ -142,14 +148,11 @@ public class SelectSql {
             }
         }
         if (_rowCount == 0) _rowCount = 15;
-        return ImmutablePair.of(_offset * _rowCount, _rowCount);
+        return Pair.of(_offset * _rowCount, _rowCount);
     }
 
     public Query getQuery() throws LSException {
-        Schema schema = Utils.getSchema(getIndexName());
         Query query = this.queryImpl(selectBody.getWhere());
-        schema.getFields().forEach(f ->
-                colMap.put(f.getName(), ImmutablePair.of(f.getType(), f.getFormatter())));
         if (query == null) for (Field f : schema.getFields()) {
             if (Field.Type.STRING == f.getType()) {
                 query = new WildcardQuery(new Term(f.getName(), "*"));

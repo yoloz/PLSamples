@@ -44,7 +44,7 @@ public class StopIndex extends HttpServlet {
                 //results.put("success", false);
             }
         } catch (Exception e) {
-            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
+            logger.error("stop index[" + indexName + "] error", e);
             error = "{\"success\":false,\"error\":\"" + e.getMessage() + "\"}";
         }
         resp.setContentType("application/json;charset=UTF-8");

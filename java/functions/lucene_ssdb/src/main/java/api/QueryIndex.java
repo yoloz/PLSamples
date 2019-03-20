@@ -1,8 +1,8 @@
 package api;
 
 import app.index.SearchIndex;
-import bean.ImmutablePair;
-import bean.ImmutableTriple;
+import bean.Pair;
+import bean.Triple;
 import bean.Schema;
 import org.apache.log4j.Logger;
 import org.apache.lucene.search.Query;
@@ -33,13 +33,13 @@ public class QueryIndex extends HttpServlet {
             QuerySql querySql = new QuerySql(sql);
 //            ImmutableTriple<ImmutablePair<List<String>, ImmutablePair<Integer, Integer>>, String, Schema> triple
 //                    = querySql.parseToString();
-            ImmutableTriple<ImmutablePair<List<String>, ImmutablePair<Integer, Integer>>, Query, Schema> triple =
+            Triple<Pair<List<String>, Pair<Integer, Integer>>, Query, Schema> triple =
                     querySql.parseToQuery();
             SearchIndex searchIndex = new SearchIndex(triple.getRight());
 //            results = searchIndex.search(triple.getMiddle(), triple.getLeft().getLeft(), triple.getLeft().getRight());
             results.put("success", true);
         } catch (Exception e) {
-            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
+            logger.error("query index[" + sql + "] error", e);
             error = "{\"success\":false,\"error\":\"" + e.getMessage() + "\"}";
         }
         resp.setContentType("application/json;charset=UTF-8");

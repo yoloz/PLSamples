@@ -31,7 +31,7 @@ public class StartIndex extends HttpServlet {
             if ("0".equals(pid)) Utils.starApp(indexName);
             else throw new LSException("index[" + indexName + "] is running");
         } catch (Exception e) {
-            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
+            logger.error("start index[" + indexName + "] error", e);
             error = "{\"success\":false,\"error\":\"" + e.getMessage() + "\"}";
         }
         resp.setContentType("application/json;charset=UTF-8");

@@ -1,6 +1,6 @@
 package parser;
 
-import bean.ImmutablePair;
+import bean.Pair;
 import bean.LSException;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.expression.Expression;
@@ -111,9 +111,9 @@ public class QuerySqlTest {
         method.setAccessible(true);
         Field field = querySql.getClass().getDeclaredField("columnMap");
         field.setAccessible(true);
-        Map<String, ImmutablePair<bean.Field.Type, String>> columnMap =
-                (Map<String, ImmutablePair<bean.Field.Type, String>>) field.get(querySql);
-        columnMap.put("date", ImmutablePair.of(bean.Field.Type.DATE, "uuuu-MM-dd'T'HH:mm:ss.SSSSSS"));
+        Map<String, Pair<bean.Field.Type, String>> columnMap =
+                (Map<String, Pair<bean.Field.Type, String>>) field.get(querySql);
+        columnMap.put("date", Pair.of(bean.Field.Type.DATE, "uuuu-MM-dd'T'HH:mm:ss.SSSSSS"));
         Query query = (Query) method.invoke(querySql, where);
         System.out.println(query.toString());
     }

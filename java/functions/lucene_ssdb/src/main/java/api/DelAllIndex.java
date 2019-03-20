@@ -77,16 +77,16 @@ public class DelAllIndex extends HttpServlet {
             try {
                 conn.setAutoCommit(false);
                 SqlliteUtil.update(conn, "delete from schema where name=?", indexName);
-                SqlliteUtil.update(conn, "delete from ssdb where name=?", indexName);
+                SqlliteUtil.update(conn, "delete from point where iname=?", indexName);
                 conn.commit();
             } catch (SQLException e) {
-                logger.error(e);
+                logger.error("delete all index[" + indexName + "] error,", e);
                 conn.rollback();
             } finally {
                 conn.close();
             }
         } catch (Exception e) {
-            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
+            logger.error("delete all index[" + indexName + "] error,", e);
             error = "{\"success\":false,\"error\":\"" + e.getMessage() + "\"}";
         }
         resp.setContentType("application/json;charset=UTF-8");

@@ -3,7 +3,7 @@ package app.index;
 
 import org.apache.lucene.document.*;
 import util.Constants;
-import bean.ImmutablePair;
+import bean.Pair;
 import bean.LSException;
 import bean.Schema;
 import bean.Ssdb;
@@ -103,7 +103,7 @@ public class WriteIndex {
 //        long count = 0;
         while (!stop) {
             try {
-                ImmutablePair<Object, String> pair = ssdbPull.queue.poll(ssdbPull.timeout, TimeUnit.MILLISECONDS);
+                Pair<Object, String> pair = ssdbPull.queue.poll(ssdbPull.timeout, TimeUnit.MILLISECONDS);
 //                if (pair == null) break;
                 if (pair == null) continue;
                 Map<String, Object> data;

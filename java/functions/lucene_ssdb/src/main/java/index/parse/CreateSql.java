@@ -115,7 +115,8 @@ public class CreateSql {
             Object point;
             if (Ssdb.Type.LIST == schema.getSsdb().getType()) point = 0;
             else point = "";
-            SqlliteUtil.insert(conn, "INSERT INTO ssdb(name,point)VALUES (?,?)", schema.getIndex(), point);
+            SqlliteUtil.insert(conn, "INSERT INTO point(iname,value)VALUES (?,?)",
+                    schema.getIndex(), point);
             conn.commit();
         } catch (SQLException e) {
             conn.rollback();

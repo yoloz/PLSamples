@@ -9,6 +9,7 @@ import util.Constants;
 import org.apache.log4j.Logger;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletHandler;
+import util.SqlliteUtil;
 import util.Utils;
 
 import java.lang.management.ManagementFactory;
@@ -16,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.sql.SQLException;
 
 public class LuceneSsdb {
 
@@ -58,7 +60,13 @@ public class LuceneSsdb {
                 Path pf = Constants.varDir.resolve("pid");
                 if (!Files.notExists(pf, LinkOption.NOFOLLOW_LINKS)) throw new LSException("server pid is exit");
                 LuceneSsdb luceneSsdb = new LuceneSsdb();
-                Runtime.getRuntime().addShutdownHook(new Thread(luceneSsdb::stopHttpServer));
+                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                    try {
+                        SqlliteUtil.close();
+                    } catch (SQLException ignore) {
+                    }
+                    luceneSsdb.stopHttpServer();
+                }));
                 Files.write(Constants.varDir.resolve("pid"), ManagementFactory.getRuntimeMXBean()
                         .getName().split("@")[0].getBytes(StandardCharsets.UTF_8));
                 luceneSsdb.startHttpServer();
@@ -67,7 +75,7 @@ public class LuceneSsdb {
                 logger.info("luceneSsdb stop exit:[" + exit + "]");
             }
         } catch (Exception e) {
-            logger.error(e.getCause() == null ? e.getMessage() : e.getCause());
+            logger.error("启动失败", e);
             System.exit(1);
         }
         System.exit(0);

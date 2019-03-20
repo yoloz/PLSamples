@@ -1,6 +1,6 @@
 package app.source;
 
-import bean.ImmutablePair;
+import bean.Pair;
 import bean.LSException;
 import bean.Ssdb;
 import org.apache.log4j.Logger;
@@ -41,7 +41,7 @@ public class SsdbPull extends Thread {
 
     private boolean stop = false;
 
-    public final ArrayBlockingQueue<ImmutablePair<Object, String>> queue =
+    public final ArrayBlockingQueue<Pair<Object, String>> queue =
             new ArrayBlockingQueue<>(limit * 2);
 
     public SsdbPull(String ip, int port, String name, Ssdb.Type type, String indexName) {
@@ -85,8 +85,8 @@ public class SsdbPull extends Thread {
             int counter = 0;
             while (!stop) {
                 long start = System.currentTimeMillis();
-                List<ImmutablePair<Object, String>> pairs = pollOnce(ssdb);
-                if (!pairs.isEmpty()) for (ImmutablePair<Object, String> pair : pairs) {
+                List<Pair<Object, String>> pairs = pollOnce(ssdb);
+                if (!pairs.isEmpty()) for (Pair<Object, String> pair : pairs) {
                     queue.put(pair);
                 }
                 counter += pairs.size();
@@ -107,6 +107,11 @@ public class SsdbPull extends Thread {
         logger.debug("ssdb pull has stopped...");
     }
 
+    /*    String createSql = "CREATE TABLE ssdb(" +
+            "name TEXT PRIMARY KEY NOT NULL, " +
+            "point TEXT NOT NULL," +
+            "pid INT DEFAULT 0" +
+            ")";*/
     private void initPoint() throws LSException {
         try {
             List<Map<String, Object>> points = SqlliteUtil.query(
@@ -126,7 +131,7 @@ public class SsdbPull extends Thread {
         }
     }
 
-    private List<ImmutablePair<Object, String>> pollOnce(SSDB ssdb) throws LSException {
+    private List<Pair<Object, String>> pollOnce(SSDB ssdb) throws LSException {
         switch (type) {
             case LIST:
                 return listScan(ssdb, (int) point);
@@ -137,16 +142,16 @@ public class SsdbPull extends Thread {
         }
     }
 
-    private List<ImmutablePair<Object, String>> listScan(SSDB ssdb, int offset) {
+    private List<Pair<Object, String>> listScan(SSDB ssdb, int offset) {
         Response response = ssdb.qrange(name, offset, limit);
         if (response.datas.size() == 0) return Collections.emptyList();
         else {
 //           response.datas.parallelStream()
 //                    .map(v -> new String(v, SSDBs.DEFAULT_CHARSET))
 //                    .collect(Collectors.toList());
-            List<ImmutablePair<Object, String>> list = new ArrayList<>(response.datas.size());
+            List<Pair<Object, String>> list = new ArrayList<>(response.datas.size());
             for (int i = 0; i < response.datas.size(); i++) {
-                ImmutablePair<Object, String> pair = ImmutablePair.of(offset + i,
+                Pair<Object, String> pair = Pair.of(offset + i,
                         new String(response.datas.get(i), SSDBs.DEFAULT_CHARSET));
                 list.add(pair);
             }
@@ -155,15 +160,15 @@ public class SsdbPull extends Thread {
         }
     }
 
-    private List<ImmutablePair<Object, String>> hashScan(SSDB ssdb, String key_start) {
+    private List<Pair<Object, String>> hashScan(SSDB ssdb, String key_start) {
         Response response = ssdb.hscan(name, key_start, "", limit);
         if (response.datas.size() == 0) return Collections.emptyList();
         else {
-            List<ImmutablePair<Object, String>> list = new ArrayList<>(response.datas.size());
+            List<Pair<Object, String>> list = new ArrayList<>(response.datas.size());
             for (int i = 0; i < response.datas.size(); i += 2) {
                 String key = new String(response.datas.get(i), SSDBs.DEFAULT_CHARSET);
                 if (i == response.datas.size() - 2) point = key;
-                ImmutablePair<Object, String> pair = ImmutablePair.of(key,
+                Pair<Object, String> pair = Pair.of(key,
                         new String(response.datas.get(i + 1), SSDBs.DEFAULT_CHARSET));
                 list.add(pair);
             }

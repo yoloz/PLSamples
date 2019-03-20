@@ -1,8 +1,8 @@
 package parser;
 
 import bean.Field;
-import bean.ImmutablePair;
-import bean.ImmutableTriple;
+import bean.Pair;
+import bean.Triple;
 import bean.LSException;
 import bean.Schema;
 import net.sf.jsqlparser.JSQLParserException;
@@ -82,7 +82,7 @@ public class QuerySql {
 
     private final int boundary = 10000; //添加上下边界
 
-    private Map<String, ImmutablePair<Field.Type, String>> columnMap = new HashMap<>(5);
+    private Map<String, Pair<Field.Type, String>> columnMap = new HashMap<>(5);
 
     public QuerySql(String sql) {
         this.sql = sql;
@@ -92,7 +92,7 @@ public class QuerySql {
      * @return <selects,limit>, query, schema
      * @throws LSException error
      */
-    public ImmutableTriple<ImmutablePair<List<String>, ImmutablePair<Integer, Integer>>, Query, Schema> parseToQuery()
+    public Triple<Pair<List<String>, Pair<Integer, Integer>>, Query, Schema> parseToQuery()
             throws LSException {
         try {
             Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
@@ -102,13 +102,13 @@ public class QuerySql {
             PlainSelect ps = (PlainSelect) selectBody;
             String indexName = parseTableName(ps.getFromItem());
             List<String> selects = parseSelectItem(ps.getSelectItems());
-            ImmutablePair<Integer, Integer> limit = this.parseLimit(ps.getLimit());
+            Pair<Integer, Integer> limit = this.parseLimit(ps.getLimit());
             List<Map<String, Object>> list = SqlliteUtil.query("select value from schema where name=?",
                     indexName);
             if (list.isEmpty()) throw new LSException("索引[" + indexName + "]不存在");
             Schema schema = new Yaml().loadAs((String) list.get(0).get("value"), Schema.class);
             schema.getFields().forEach(f ->
-                    columnMap.put(f.getName(), ImmutablePair.of(f.getType(), f.getFormatter())));
+                    columnMap.put(f.getName(), Pair.of(f.getType(), f.getFormatter())));
             Query query = this.parseWhere(ps.getWhere());
             if (query == null) for (Field f : schema.getFields()) {
                 if (Field.Type.STRING == f.getType()) {
@@ -117,7 +117,7 @@ public class QuerySql {
                 }
             }
             logger.debug("parsed query[" + (query == null ? "null" : query) + "]");
-            return ImmutableTriple.of(ImmutablePair.of(selects, limit), query, schema);
+            return Triple.of(Pair.of(selects, limit), query, schema);
         } catch (JSQLParserException | SQLException e) {
             throw new LSException("parse[" + sql + "] error", e);
         }
@@ -128,7 +128,7 @@ public class QuerySql {
      * @throws LSException error
      */
     @Deprecated
-    public ImmutableTriple<ImmutablePair<List<String>, ImmutablePair<Integer, Integer>>, String, Schema> parseToString()
+    public Triple<Pair<List<String>, Pair<Integer, Integer>>, String, Schema> parseToString()
             throws LSException {
         try {
             Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
@@ -138,13 +138,13 @@ public class QuerySql {
             PlainSelect ps = (PlainSelect) selectBody;
             String indexName = parseTableName(ps.getFromItem());
             List<String> selects = parseSelectItem(ps.getSelectItems());
-            ImmutablePair<Integer, Integer> limit = this.parseLimit(ps.getLimit());
+            Pair<Integer, Integer> limit = this.parseLimit(ps.getLimit());
             List<Map<String, Object>> list = SqlliteUtil.query("select value from schema where name=?",
                     indexName);
             if (list.isEmpty()) throw new LSException("索引[" + indexName + "]不存在");
             Schema schema = new Yaml().loadAs((String) list.get(0).get("value"), Schema.class);
             schema.getFields().forEach(f ->
-                    columnMap.put(f.getName(), ImmutablePair.of(f.getType(), f.getFormatter())));
+                    columnMap.put(f.getName(), Pair.of(f.getType(), f.getFormatter())));
             StringBuilder queryBuilder = new StringBuilder();
             this.parseWhere(queryBuilder, ps.getWhere());
             if (queryBuilder.toString().isEmpty()) for (Field f : schema.getFields()) {
@@ -154,7 +154,7 @@ public class QuerySql {
                 }
             }
             logger.debug("parsed query[" + queryBuilder.toString() + "]");
-            return ImmutableTriple.of(ImmutablePair.of(selects, limit), queryBuilder.toString(), schema);
+            return Triple.of(Pair.of(selects, limit), queryBuilder.toString(), schema);
         } catch (JSQLParserException | SQLException e) {
             throw new LSException("parse[" + sql + "] error", e);
         }
@@ -194,7 +194,7 @@ public class QuerySql {
      * @return <start,end> start会转换成offset*count
      * @throws LSException error
      */
-    private ImmutablePair<Integer, Integer> parseLimit(Limit limit) throws LSException {
+    private Pair<Integer, Integer> parseLimit(Limit limit) throws LSException {
         int _rowCount = 0, _offset = 0;
         if (limit != null) {
             Expression offset = limit.getOffset();
@@ -212,7 +212,7 @@ public class QuerySql {
             }
         }
         if (_rowCount == 0) _rowCount = 15;
-        return ImmutablePair.of(_offset * _rowCount, _rowCount);
+        return Pair.of(_offset * _rowCount, _rowCount);
     }
 
     /**

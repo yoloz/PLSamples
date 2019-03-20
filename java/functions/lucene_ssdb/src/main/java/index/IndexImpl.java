@@ -1,6 +1,6 @@
 package index;
 
-import bean.ImmutableTriple;
+import bean.Triple;
 import bean.LSException;
 import bean.Schema;
 import bean.Ssdb;
@@ -24,11 +24,13 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import util.Constants;
 import util.JsonUtil;
+import util.SqlliteUtil;
 import util.Utils;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
@@ -44,8 +46,8 @@ public class IndexImpl implements Runnable, Closeable {
 
     private IndexWriter indexWriter;
     private SearcherManager searcherManager;
-    //point,name,value
-    private final ArrayBlockingQueue<ImmutableTriple<Object, String, String>> queue =
+    //<pullName,key,value>
+    private final ArrayBlockingQueue<Triple<String, Object, Object>> queue =
             new ArrayBlockingQueue<>(1000);
 
     private final int blockSec = 10;
@@ -66,15 +68,17 @@ public class IndexImpl implements Runnable, Closeable {
     @Override
     public void run() {
         try {
+            logger.info("start index[" + schema.getIndex() + "]");
             this.initIndex();
-            if (this.pull instanceof SsdbPull) this.indexSsdb();
-            //ssdbPull error stop that index writer will stop and need commit
+            new Thread(pull).start();
+            this.indexImpl();
+            //pull stop that index writer will stop and need commit
             logger.info("committing index[" + schema.getIndex() + "]");
             //this.indexWriter.forceMerge(1);
             this.indexWriter.commit();
             this.indexWriter.close();
         } catch (IOException | LSException e) {
-            logger.error(e);
+            logger.error("index[" + schema.getIndex() + "] error", e);
             this.close();
         }
     }
@@ -87,7 +91,7 @@ public class IndexImpl implements Runnable, Closeable {
         try {
             this.searcherManager.close();
             if (this.indexWriter != null && this.indexWriter.isOpen()) {
-                logger.debug("committing index[" + schema.getIndex() + "]");
+                logger.info("committing index[" + schema.getIndex() + "]");
                 //this.indexWriter.forceMerge(1);
                 this.indexWriter.commit();
                 this.indexWriter.close();
@@ -120,18 +124,21 @@ public class IndexImpl implements Runnable, Closeable {
         crtThread.start();
     }
 
-    private void indexSsdb() throws IOException {
-        new Thread(pull).start();
-        logger.debug("indexing[" + schema.getIndex() + "]");
+    private void indexImpl() throws IOException {
+        int counter = 0;
         while (pull.isRunning()) {
             try {
-                ImmutableTriple<Object, String, String> triple = this.queue.poll(blockSec, TimeUnit.SECONDS);
+                Triple<String, Object, Object> triple = this.queue.poll(blockSec, TimeUnit.SECONDS);
                 if (triple == null) continue;
+//                Object rv = triple.getRight();
+//                if (!(rv instanceof String)) {
+//                    logger.warn("暂时仅支持处理字符串值!");
+//                }
                 Map<String, Object> data;
                 try {
-                    data = JsonUtil.toMap(triple.getRight());
+                    data = JsonUtil.toMap((String) triple.getRight());
                 } catch (IOException e) {
-                    logger.warn("ssdb[" + schema.getSsdb().getName() + "," + triple.getLeft()
+                    logger.warn("ssdb[" + triple.getLeft() + "," + triple.getMiddle()
                             + "]value convert to JSON fail,this record will be discarded...");
                     data = null;
                 }
@@ -169,15 +176,26 @@ public class IndexImpl implements Runnable, Closeable {
                     }
                 }
                 if (Ssdb.Type.LIST == schema.getSsdb().getType()) {
-                    doc.add(new StoredField("_index", (int) triple.getLeft()));
+                    doc.add(new StoredField("_index", (int) triple.getMiddle()));
                 } else {
-                    doc.add(new StoredField("_key", (String) triple.getLeft()));
+                    doc.add(new StoredField("_key", (String) triple.getMiddle()));
                 }
-                doc.add(new StoredField("_name", triple.getMiddle()));
+                doc.add(new StoredField("_name", triple.getLeft()));
                 indexWriter.addDocument(doc);
+
+                counter++;
+                if (counter >= 10000) {
+                    logger.debug("update [" + schema.getIndex() + "] point message");
+                    SqlliteUtil.update("update point set name=?,value=? where iname=?",
+                            triple.getLeft(), triple.getMiddle(), schema.getIndex());
+                    counter = 0;
+                }
             } catch (InterruptedException e) {
-                logger.warn(schema.getIndex() + "数据缓存存储队列异常", e);
+                logger.error(schema.getIndex() + " queue error", e);
+            } catch (SQLException e) {
+                logger.error(schema.getIndex() + " update point error", e);
             }
+
         }
     }
 
