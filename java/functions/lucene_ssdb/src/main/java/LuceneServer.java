@@ -19,7 +19,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.sql.SQLException;
 
-public class LuceneSsdb {
+public class LuceneServer {
 
     private Server httpServer;
 
@@ -53,23 +53,23 @@ public class LuceneSsdb {
             System.err.printf("param %s is not defined\n%s", args[1], "USAGE:*.sh start|stop");
             System.exit(1);
         }
-        PropertyConfigurator.configure(LuceneSsdb.class.getResourceAsStream("/log4j.properties"));
-        Logger logger = Logger.getLogger(LuceneSsdb.class);
+        PropertyConfigurator.configure(LuceneServer.class.getResourceAsStream("/log4j.properties"));
+        Logger logger = Logger.getLogger(LuceneServer.class);
         try {
             if ("start".equals(args[0])) {
                 Path pf = Constants.varDir.resolve("pid");
                 if (!Files.notExists(pf, LinkOption.NOFOLLOW_LINKS)) throw new LSException("server pid is exit");
-                LuceneSsdb luceneSsdb = new LuceneSsdb();
+                LuceneServer luceneServer = new LuceneServer();
                 Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                     try {
                         SqlliteUtil.close();
                     } catch (SQLException ignore) {
                     }
-                    luceneSsdb.stopHttpServer();
+                    luceneServer.stopHttpServer();
                 }));
                 Files.write(Constants.varDir.resolve("pid"), ManagementFactory.getRuntimeMXBean()
                         .getName().split("@")[0].getBytes(StandardCharsets.UTF_8));
-                luceneSsdb.startHttpServer();
+                luceneServer.startHttpServer();
             } else {
                 int exit = Utils.stopPid(Constants.varDir.resolve("pid"));
                 logger.info("luceneSsdb stop exit:[" + exit + "]");

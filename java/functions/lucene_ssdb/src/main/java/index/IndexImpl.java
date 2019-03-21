@@ -3,7 +3,6 @@ package index;
 import bean.Triple;
 import bean.LSException;
 import bean.Schema;
-import bean.Ssdb;
 import index.pull.Pull;
 import index.pull.SsdbPull;
 import org.apache.log4j.Logger;
@@ -61,8 +60,8 @@ public class IndexImpl implements Runnable, Closeable {
         this.schema = schema;
         this.indexPath = Constants.indexDir.resolve(schema.getIndex());
         this.logger = logger;
-        if (schema.getSsdb() != null)
-            this.pull = new SsdbPull(schema.getSsdb(), schema.getIndex(), queue, blockSec, logger);
+        if (schema.getSource() != null)
+            this.pull = new SsdbPull(schema.getSource(), schema.getIndex(), queue, blockSec, logger);
     }
 
     @Override
@@ -102,7 +101,7 @@ public class IndexImpl implements Runnable, Closeable {
         this.searcherManager = null;
     }
 
-    public IndexSearcher getSearcher() throws IOException {
+    IndexSearcher getSearcher() throws IOException {
         if (this.searcherManager != null) return this.searcherManager.acquire();
         else return null;
     }
@@ -112,7 +111,7 @@ public class IndexImpl implements Runnable, Closeable {
         Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
         IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
         iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
-        iwc.setRAMBufferSizeMB(128.0);
+        iwc.setRAMBufferSizeMB(Constants.RAMBuffer);
         this.indexWriter = new IndexWriter(dir, iwc);
         this.searcherManager = new SearcherManager(indexWriter, false,
                 false, null);
@@ -175,11 +174,7 @@ public class IndexImpl implements Runnable, Closeable {
                         }
                     }
                 }
-                if (Ssdb.Type.LIST == schema.getSsdb().getType()) {
-                    doc.add(new StoredField("_index", (int) triple.getMiddle()));
-                } else {
-                    doc.add(new StoredField("_key", (String) triple.getMiddle()));
-                }
+                doc.add(new StoredField("_key", (String) triple.getMiddle()));
                 doc.add(new StoredField("_name", triple.getLeft()));
                 indexWriter.addDocument(doc);
 

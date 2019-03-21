@@ -96,6 +96,10 @@ public class SelectSql {
                 colMap.put(f.getName(), Pair.of(f.getType(), f.getFormatter())));
     }
 
+    public Schema getSchema() {
+        return this.schema;
+    }
+
     public String getIndexName() {
         return this.indexName;
     }

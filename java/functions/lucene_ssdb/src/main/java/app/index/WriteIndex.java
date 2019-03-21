@@ -6,7 +6,7 @@ import util.Constants;
 import bean.Pair;
 import bean.LSException;
 import bean.Schema;
-import bean.Ssdb;
+import bean.Source;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.index.IndexWriter;
@@ -75,7 +75,7 @@ public class WriteIndex {
             iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
             iwc.setRAMBufferSizeMB(256.0);
             indexWriter = new IndexWriter(dir, iwc);
-            if (schema.getSsdb() != null) this.indexSsdb(indexWriter);
+            if (schema.getSource() != null) this.indexSsdb(indexWriter);
 //             writer.forceMerge(1);
             logger.debug("committing index[" + schema.getIndex() + "]");
             long start = System.currentTimeMillis();
@@ -90,13 +90,13 @@ public class WriteIndex {
     }
 
     private void indexSsdb(IndexWriter writer) throws LSException {
-        Ssdb ssdb = schema.getSsdb();
+        Source source = schema.getSource();
 //        String addr = ssdb.getAddr();
 //        int idex = addr.indexOf(":");
 //        ssdbPull = new SsdbPull(addr.substring(0, idex),
 //                Integer.parseInt(addr.substring(idex + 1)),
 //                ssdb.getName(), ssdb.getType(), schema.getIndex());
-        ssdbPull = new SsdbPull(ssdb.getIp(),ssdb.getPort(),ssdb.getName(),ssdb.getType(),schema.getIndex());
+        ssdbPull = new SsdbPull(source.getIp(), source.getPort(), source.getName(), source.getType(),schema.getIndex());
         ssdbPull.start();
         logger.debug("indexing[" + schema.getIndex() + "]");
 //        long start = System.currentTimeMillis();
@@ -110,7 +110,7 @@ public class WriteIndex {
                 try {
                     data = JsonUtil.toMap(pair.getRight());
                 } catch (IOException e) {
-                    logger.warn("ssdb." + ssdb.getName()
+                    logger.warn("ssdb." + source.getName()
                             + " value[" + pair.getRight() + "] format is not support,this record will be discarded...");
                     data = null;
                 }
@@ -154,9 +154,9 @@ public class WriteIndex {
                         }
                     }
                 }
-                if (Ssdb.Type.LIST == ssdb.getType()) {
+                if (Source.Type.LIST == source.getType()) {
                     doc.add(new StoredField("_index", (int) pair.getLeft()));
-                } else if (Ssdb.Type.HASH == ssdb.getType()) {
+                } else if (Source.Type.HASH == source.getType()) {
                     doc.add(new StoredField("_key", (String) pair.getLeft()));
                 }
                 writer.addDocument(doc);

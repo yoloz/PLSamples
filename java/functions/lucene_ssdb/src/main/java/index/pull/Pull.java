@@ -2,6 +2,7 @@ package index.pull;
 
 import bean.LSException;
 import bean.Pair;
+import bean.Source;
 import bean.Triple;
 import org.apache.log4j.Logger;
 import util.SqlliteUtil;
@@ -17,6 +18,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 public abstract class Pull implements Runnable, Closeable {
 
     Logger logger;
+    Source source;
     String indexName;
     //<pullName,key>
     Pair<String, Object> point;
@@ -25,9 +27,10 @@ public abstract class Pull implements Runnable, Closeable {
     int blockSec;
     boolean stop = false;
 
-    Pull(String name,
+    Pull(Source source, String name,
          ArrayBlockingQueue<Triple<String, Object, Object>> queue,
          int blockSec, Logger logger) {
+        this.source = source;
         this.indexName = name;
         this.queue = queue;
         this.blockSec = blockSec;

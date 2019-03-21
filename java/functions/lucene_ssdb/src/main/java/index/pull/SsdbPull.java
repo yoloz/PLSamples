@@ -3,7 +3,7 @@ package index.pull;
 import bean.Pair;
 import bean.Triple;
 import bean.LSException;
-import bean.Ssdb;
+import bean.Source;
 import org.apache.log4j.Logger;
 import org.nutz.ssdb4j.SSDBs;
 import org.nutz.ssdb4j.spi.Response;
@@ -22,16 +22,13 @@ import java.util.concurrent.ArrayBlockingQueue;
 
 public class SsdbPull extends Pull {
 
-
-    private final Ssdb sdbBean;
     private TreeSet<String> pulls;
     private String prefix = "";
 
-    public SsdbPull(Ssdb ssdb, String name,
+    public SsdbPull(Source source, String name,
                     ArrayBlockingQueue<Triple<String, Object, Object>> queue,
                     int blockSec, Logger logger) {
-        super(name, queue, blockSec, logger);
-        this.sdbBean = ssdb;
+        super(source, name, queue, blockSec, logger);
     }
 
 
@@ -41,19 +38,19 @@ public class SsdbPull extends Pull {
             List<Map<String, Object>> points = SqlliteUtil.query(
                     "select name,value from point where iname=?", indexName);
             Map<String, Object> m = points.get(0);
-            if (Ssdb.Type.LIST == sdbBean.getType())
+            if (Source.Type.LIST == source.getType())
                 point = Pair.of(String.valueOf(m.get("name")), Integer.parseInt(String.valueOf(m.get("value"))));
             else point = Pair.of(String.valueOf(m.get("name")), String.valueOf(m.get("value")));
-            if (sdbBean.getName().contains("*")) {
-                prefix = sdbBean.getName().replaceAll("\\*", "");
+            if (source.getName().contains("*")) {
+                prefix = source.getName().replaceAll("\\*", "");
                 pulls = new TreeSet<>();
                 this.updatePullName();
                 if (point.getLeft().isEmpty()) {
-                    if (pulls.isEmpty()) throw new LSException("ssdb 的名称[" + sdbBean.getName() + "]匹配项为零");
+                    if (pulls.isEmpty()) throw new LSException("ssdb 的名称[" + source.getName() + "]匹配项为零");
                     point = Pair.of(pulls.pollFirst(), point.getRight());
                 }
             } else {
-                if (point.getLeft().isEmpty()) point = Pair.of(sdbBean.getName(), point.getRight());
+                if (point.getLeft().isEmpty()) point = Pair.of(source.getName(), point.getRight());
             }
         } catch (SQLException e) {
             throw new LSException("初始化" + indexName + "的point信息出错", e);
@@ -88,7 +85,7 @@ public class SsdbPull extends Pull {
         }
         String _pull = pulls.pollFirst();
         logger.info("change to [" + _pull + "]");
-        if (sdbBean.getType() == Ssdb.Type.LIST) point = Pair.of(_pull, 0);
+        if (source.getType() == Source.Type.LIST) point = Pair.of(_pull, 0);
         else point = Pair.of(_pull, "");
         return true;
     }
@@ -97,7 +94,7 @@ public class SsdbPull extends Pull {
         if (pulls == null) return;
         try (SSDB ssdb = this.connect()) {
             Response response;
-            if (Ssdb.Type.LIST == sdbBean.getType())
+            if (Source.Type.LIST == source.getType())
                 response = ssdb.qlist(point.getLeft(), "", 150);
             else response = ssdb.hlist(point.getLeft(), "", 150);
             for (int i = 0; i < response.datas.size(); i++) {
@@ -115,11 +112,11 @@ public class SsdbPull extends Pull {
      * @return SSDB {@link SSDB}
      */
     private SSDB connect() {
-        return SSDBs.simple(sdbBean.getIp(), sdbBean.getPort(), (blockSec - 1) * 1000);
+        return SSDBs.simple(source.getIp(), source.getPort(), (blockSec - 1) * 1000);
     }
 
     private List<Triple<String, Object, Object>> pollOnce(SSDB ssdb) {
-        if (Ssdb.Type.LIST == sdbBean.getType()) return listScan(ssdb);
+        if (Source.Type.LIST == source.getType()) return listScan(ssdb);
         else return hashScan(ssdb);
     }
 

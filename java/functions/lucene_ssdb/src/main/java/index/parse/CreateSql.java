@@ -3,7 +3,7 @@ package index.parse;
 import bean.Field;
 import bean.LSException;
 import bean.Schema;
-import bean.Ssdb;
+import bean.Source;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
@@ -71,14 +71,14 @@ public class CreateSql {
                 "org.apache.lucene.analysis.standard.StandardAnalyzer"));
         String from = indexOptions.get("from");
         if ("ssdb".equals(from)) {
-            Ssdb ssdb = new Ssdb();
+            Source source = new Source();
             String addr = indexOptions.get("addr");
             int idex = addr.indexOf(":");
-            ssdb.setIp(addr.substring(0, idex));
-            ssdb.setPort(Integer.parseInt(addr.substring(idex + 1)));
-            ssdb.setName(indexOptions.get("name"));
-            ssdb.setType(indexOptions.get("type"));
-            schema.setSsdb(ssdb);
+            source.setIp(addr.substring(0, idex));
+            source.setPort(Integer.parseInt(addr.substring(idex + 1)));
+            source.setName(indexOptions.get("name"));
+            source.setType(indexOptions.get("type"));
+            schema.setSource(source);
         } else {
             throw new LSException("类型[" + from + "]暂未支持");
         }
@@ -112,9 +112,9 @@ public class CreateSql {
             conn.setAutoCommit(false);
             String insertSql = "INSERT INTO schema(name,value)VALUES (?,?)";
             SqlliteUtil.insert(conn, insertSql, schema.getIndex(), yaml.dump(schema));
-            Object point;
-            if (Ssdb.Type.LIST == schema.getSsdb().getType()) point = 0;
-            else point = "";
+            Object point = null;
+            if (Source.Type.LIST == schema.getSource().getType()) point = 0;
+            else if (Source.Type.HASH == schema.getSource().getType()) point = "";
             SqlliteUtil.insert(conn, "INSERT INTO point(iname,value)VALUES (?,?)",
                     schema.getIndex(), point);
             conn.commit();

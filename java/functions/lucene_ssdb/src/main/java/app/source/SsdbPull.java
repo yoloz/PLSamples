@@ -2,7 +2,7 @@ package app.source;
 
 import bean.Pair;
 import bean.LSException;
-import bean.Ssdb;
+import bean.Source;
 import org.apache.log4j.Logger;
 import org.nutz.ssdb4j.SSDBs;
 import org.nutz.ssdb4j.spi.Response;
@@ -33,7 +33,7 @@ public class SsdbPull extends Thread {
     private String ip;
     private int port;
     private String name;
-    private Ssdb.Type type;
+    private Source.Type type;
     public final int timeout;
     private final int waitMills = 10000; //need lower than timeout
 
@@ -44,11 +44,11 @@ public class SsdbPull extends Thread {
     public final ArrayBlockingQueue<Pair<Object, String>> queue =
             new ArrayBlockingQueue<>(limit * 2);
 
-    public SsdbPull(String ip, int port, String name, Ssdb.Type type, String indexName) {
+    public SsdbPull(String ip, int port, String name, Source.Type type, String indexName) {
         this(ip, port, name, type, indexName, 15000);
     }
 
-    private SsdbPull(String ip, int port, String name, Ssdb.Type type, String indexName, int timeout) {
+    private SsdbPull(String ip, int port, String name, Source.Type type, String indexName, int timeout) {
         this.ip = ip;
         this.port = port;
         this.name = name;

@@ -1,6 +1,6 @@
 package bean;
 
-public class Ssdb {
+public class Source {
 
     public enum Type {
         LIST, HASH
@@ -9,9 +9,9 @@ public class Ssdb {
     private Type type;
     private String ip;
     private int port;
-    private String name; //listName,hashName
+    private String name;
 
-    public Ssdb() {
+    public Source() {
     }
 
     public Type getType() {

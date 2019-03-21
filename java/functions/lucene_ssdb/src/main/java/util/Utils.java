@@ -15,10 +15,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -184,5 +187,16 @@ public class Utils {
         }
         if (list.isEmpty()) throw new LSException("索引[" + name + "]不存在");
         return new Yaml().loadAs((String) list.get(0).get("value"), Schema.class);
+    }
+
+    public static String md5(String str) {
+        try {
+            MessageDigest md5 = MessageDigest.getInstance("MD5");
+            return new String(Base64.getEncoder().encode(
+                    md5.digest(str.getBytes(StandardCharsets.UTF_8))),
+                    StandardCharsets.UTF_8);
+        } catch (NoSuchAlgorithmException ignored) {
+        }
+        return str;
     }
 }

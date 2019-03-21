@@ -19,6 +19,8 @@ public class Constants {
     public static final int httpPort;
     public static final int pageCache;
     public static final int searchCache;
+    public static final int totalIndex;
+    public static final double RAMBuffer;
 
     static {
         String root_dir = System.getProperty("LSDir");
@@ -41,5 +43,7 @@ public class Constants {
         httpPort = Integer.parseInt(properties.getProperty("httpPort"));
         pageCache = Integer.parseInt(properties.getProperty("pageCache", "10"));
         searchCache = Integer.parseInt(properties.getProperty("searchCache", "5"));
+        totalIndex = Integer.valueOf(properties.getProperty("totalIndex", "6"));
+        RAMBuffer = Double.parseDouble(properties.getProperty("indexBuffer", "128"));
     }
 }

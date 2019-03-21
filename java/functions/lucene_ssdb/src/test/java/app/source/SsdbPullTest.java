@@ -1,7 +1,7 @@
 package app.source;
 
 import bean.Pair;
-import bean.Ssdb;
+import bean.Source;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,9 +49,9 @@ public class SsdbPullTest {
         assertEquals("abcdeft_245", SqlliteUtil.query(sql, "hash").get(0).get("point"));
     }
 
-    private void createData(Ssdb.Type type) throws IOException {
+    private void createData(Source.Type type) throws IOException {
         try (SSDB ssdb = SSDBs.simple()) {
-            if (Ssdb.Type.LIST == type) {
+            if (Source.Type.LIST == type) {
                 Object[] values = new Object[100];
                 for (int i = 0; i < 100; i++) values[i] = "listTest_" + i;
                 ssdb.qpush_back("listTest", values);
@@ -69,8 +69,8 @@ public class SsdbPullTest {
         System.setProperty("LSDir",
                 Paths.get(this.getClass().getResource("/schema_template.yaml").getPath())
                         .getParent().toString());
-        createData(Ssdb.Type.LIST);
-        SsdbPull ssdbPull = new SsdbPull("127.0.1", 8888, "listTest", Ssdb.Type.LIST, "list");
+        createData(Source.Type.LIST);
+        SsdbPull ssdbPull = new SsdbPull("127.0.1", 8888, "listTest", Source.Type.LIST, "list");
         Method connect = ssdbPull.getClass().getDeclaredMethod("connect");
         connect.setAccessible(true);
         SSDB ssdb = (SSDB) connect.invoke(ssdbPull);
@@ -91,8 +91,8 @@ public class SsdbPullTest {
         System.setProperty("LSDir",
                 Paths.get(this.getClass().getResource("/schema_template.yaml").getPath())
                         .getParent().toString());
-        createData(Ssdb.Type.HASH);
-        SsdbPull ssdbPull = new SsdbPull("127.0.1", 8888, "hashTest", Ssdb.Type.LIST, "hash");
+        createData(Source.Type.HASH);
+        SsdbPull ssdbPull = new SsdbPull("127.0.1", 8888, "hashTest", Source.Type.LIST, "hash");
         Method connect = ssdbPull.getClass().getDeclaredMethod("connect");
         connect.setAccessible(true);
         SSDB ssdb = (SSDB) connect.invoke(ssdbPull);

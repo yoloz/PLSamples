@@ -3,7 +3,7 @@ package parser;
 import bean.Field;
 import bean.LSException;
 import bean.Schema;
-import bean.Ssdb;
+import bean.Source;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
@@ -72,11 +72,11 @@ public class CreateSql {
                 "org.apache.lucene.analysis.standard.StandardAnalyzer"));
         String from = indexOptions.get("from");
         if ("ssdb".equals(from)) {
-            Ssdb ssdb = new Ssdb();
+            Source source = new Source();
 //            ssdb.setAddr(indexOptions.get("addr"));
-            ssdb.setName(indexOptions.get("name"));
-            ssdb.setType(indexOptions.get("type"));
-            schema.setSsdb(ssdb);
+            source.setName(indexOptions.get("name"));
+            source.setType(indexOptions.get("type"));
+            schema.setSource(source);
         } else {
             throw new LSException("类型[" + from + "]暂未支持");
         }
@@ -110,9 +110,9 @@ public class CreateSql {
             conn.setAutoCommit(false);
             String insertSql = "INSERT INTO schema(name,value)VALUES (?,?)";
             SqlliteUtil.insert(conn, insertSql, schema.getIndex(), yaml.dump(schema));
-            Object point;
-            if (Ssdb.Type.LIST == schema.getSsdb().getType()) point = 0;
-            else point = "";
+            Object point = null;
+            if (Source.Type.LIST == schema.getSource().getType()) point = 0;
+            else if (Source.Type.HASH == schema.getSource().getType()) point = "";
             SqlliteUtil.insert(conn, "INSERT INTO ssdb(name,point)VALUES (?,?)", schema.getIndex(), point);
             conn.commit();
         } catch (SQLException e) {

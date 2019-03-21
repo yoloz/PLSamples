@@ -41,9 +41,9 @@ dependencies {
 }
 
 jar {
-    baseName 'luceneSsdb'
+    baseName 'luceneSearch'
     manifest {
-        attributes 'Main-Class': 'LuceneSsdb'
+        attributes 'Main-Class': 'LuceneServer'
     }
 }
 

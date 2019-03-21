@@ -3,7 +3,7 @@ package app.index;
 import bean.Field;
 import bean.LSException;
 import bean.Schema;
-import bean.Ssdb;
+import bean.Source;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
@@ -121,14 +121,14 @@ public class SearchIndex {
                             break;
                     }
                 }
-                if (Ssdb.Type.LIST == schema.getSsdb().getType()) {
+                if (Source.Type.LIST == schema.getSource().getType()) {
                     String _index = doc.get("_index");
                     if (_index != null) m.put("_index", Integer.valueOf(_index));
-                } else if (Ssdb.Type.HASH == schema.getSsdb().getType()) {
+                } else if (Source.Type.HASH == schema.getSource().getType()) {
                     String _key = doc.get("_key");
                     if (_key != null) m.put("_key", _key);
                 }
-                m.put("_name", schema.getSsdb().getName());
+                m.put("_name", schema.getSource().getName());
                 results.add(m);
             }
             map.put("results", results);
