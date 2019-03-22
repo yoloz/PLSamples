@@ -1,12 +1,8 @@
 package api;
 
-import app.index.SearchIndex;
-import bean.Pair;
-import bean.Triple;
-import bean.Schema;
+import bean.LSException;
+import index.Searcher;
 import org.apache.log4j.Logger;
-import org.apache.lucene.search.Query;
-import parser.QuerySql;
 import util.JsonUtil;
 import util.Utils;
 
@@ -16,31 +12,32 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Map;
 
+/**
+ * params:
+ * 1,select sql {"key":""}
+ * 2,nrt search and page {"key":"","offset":,"limit":}
+ */
 public class QueryIndex extends HttpServlet {
 
     private final Logger logger = Logger.getLogger(QueryIndex.class);
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        String sql = Utils.getInputStream(req.getInputStream());
-        logger.debug("query sql=>[" + sql + "]");
+        String request = Utils.getInputStream(req.getInputStream());
+        logger.debug("query params=>[" + request + "]");
+        Map<String, Object> map = JsonUtil.toMap(request);
         String error = "";
         Map<String, Object> results = null;
         try {
-            QuerySql querySql = new QuerySql(sql);
-//            ImmutableTriple<ImmutablePair<List<String>, ImmutablePair<Integer, Integer>>, String, Schema> triple
-//                    = querySql.parseToString();
-            Triple<Pair<List<String>, Pair<Integer, Integer>>, Query, Schema> triple =
-                    querySql.parseToQuery();
-            SearchIndex searchIndex = new SearchIndex(triple.getRight());
-//            results = searchIndex.search(triple.getMiddle(), triple.getLeft().getLeft(), triple.getLeft().getRight());
+            if (map.isEmpty() || !map.containsKey("key"))
+                throw new LSException("query params=>[" + request + "] error");
+            results = Searcher.search(map.get("key"), map.get("offset"), map.get("limit"));
             results.put("success", true);
         } catch (Exception e) {
-            logger.error("query index[" + sql + "] error", e);
-            error = "{\"success\":false,\"error\":\"" + e.getMessage() + "\"}";
+            logger.error("query [" + request + "] error", e);
+            error = Utils.responseError(e.getMessage());
         }
         resp.setContentType("application/json;charset=UTF-8");
         OutputStream outputStream = resp.getOutputStream();

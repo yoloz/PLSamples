@@ -2,12 +2,12 @@ package api;
 
 import bean.LSException;
 import bean.Schema;
+import index.Indexer;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.FSDirectory;
-import org.yaml.snakeyaml.Yaml;
 import util.Constants;
 import util.SqlliteUtil;
 import util.Utils;
@@ -27,8 +27,6 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.List;
-import java.util.Map;
 
 public class DelAllIndex extends HttpServlet {
 
@@ -40,14 +38,9 @@ public class DelAllIndex extends HttpServlet {
         logger.debug("delete all index=>[" + indexName + "]");
         String error = "";
         try {
-            List<Map<String, Object>> list = SqlliteUtil
-                    .query("select sch.value,ssd.pid from schema as sch left join " +
-                            "ssdb as ssd where sch.name=ssd.name and sch.name=?", indexName);
-            if (list.isEmpty()) throw new LSException("index[" + indexName + "] is not exit...");
-            if (!"0".equals(String.valueOf(list.get(0).get("pid"))))
-                throw new LSException("index[" + indexName + "] is running...");
+            if (Indexer.isRunning(indexName)) throw new LSException("index[" + indexName + "] is running");
             logger.debug("delete all index data...");
-            Schema schema = new Yaml().loadAs((String) list.get(0).get("value"), Schema.class);
+            Schema schema = Utils.getSchema(indexName);
             Analyzer analyzer = Utils.getInstance(schema.getAnalyser(), Analyzer.class);
             IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
             try (IndexWriter indexWriter = new IndexWriter(
@@ -87,7 +80,7 @@ public class DelAllIndex extends HttpServlet {
             }
         } catch (Exception e) {
             logger.error("delete all index[" + indexName + "] error,", e);
-            error = "{\"success\":false,\"error\":\"" + e.getMessage() + "\"}";
+            error = Utils.responseError(e.getMessage());
         }
         resp.setContentType("application/json;charset=UTF-8");
         OutputStream outputStream = resp.getOutputStream();

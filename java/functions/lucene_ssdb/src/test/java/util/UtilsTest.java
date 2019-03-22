@@ -35,6 +35,14 @@ public class UtilsTest {
         assertEquals(d1, _dt1.format(dateTimeFormatter));
     }
 
+    @Test
+    public void trimPrefix(){
+        String s1 = " SELECT index,city from test where time>'2019-02-28T09:43:10.224000'";
+        String s2 = Utils.trimPrefix(s1);
+        assertNotEquals("select",s1.substring(0,6).toLowerCase());
+        assertEquals("select",s2.substring(0,6).toLowerCase());
+    }
+
     @After
     public void tearDown() {
     }

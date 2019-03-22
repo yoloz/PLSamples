@@ -14,7 +14,12 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
+import org.nutz.ssdb4j.SSDBs;
+import org.nutz.ssdb4j.spi.Response;
+import org.nutz.ssdb4j.spi.SSDB;
 import util.Constants;
+import util.JsonUtil;
+import util.Utils;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -28,36 +33,110 @@ class SearchImpl {
 
     private final Logger logger = Logger.getLogger(SearchImpl.class);
 
-    private final int nrtLimit;
+    private String key;
+    private int start;
+    private int rowCount;
 
-    private final int start;
-    private final int rowCount;
-    private final Source source;
-
-    private final Query query;
-    private final String indexName;
+    //following parameters need by select sql
+    private Query query;
+    private int nrtLimit;     //need by nrt search
     private List<String> cols;
+    private String indexName;  //also need by to pull source data
+    private Source source;     //also need by to pull source data
 
 
-    SearchImpl(SelectSql selectSql) throws LSException {
-        this(selectSql.getIndexName(), selectSql.getSchema().getSource(), selectSql.getQuery(),
-                selectSql.getLimit().getLeft(), selectSql.getLimit().getRight(), selectSql.getSelects());
+    //"select xx" or [key,offset,limit]
+    SearchImpl(Object... params) {
+        this.key = (String) params[0];
+        this.rowCount = params[2] == null ? 0 : (int) params[2];
+        this.start = params[1] == null ? 0 : ((int) params[1]) * rowCount;
     }
 
-    private SearchImpl(String indexName, Source source, Query query, int start, int rowCount, List<String> cols) {
-        this.start = start;
-        this.rowCount = rowCount;
-        this.source = source;
-        this.query = query;
-        this.indexName = indexName;
-        this.cols = cols;
-        this.nrtLimit = Constants.pageCache * rowCount;
+    Map<String, Object> search() throws IOException, LSException {
+        Map<String, Object> results = indexSearch();
+        if (indexName == null) indexName = Searcher.mapper.get(key);
+        if (indexName == null) throw new LSException("get data from index by[" + key + "] that indexName is null");
+        source = Utils.getSchema(indexName).getSource();
+        if (Source.Type.LIST == source.getType() || Source.Type.HASH == source.getType()) fromSsdb(results);
+        else throw new LSException("源类型[" + source.getType() + "]暂不支持");
+        return results;
     }
 
     @SuppressWarnings("unchecked")
-    Map<String, Object> offSearch() throws IOException {
+    private void fromSsdb(Map<String, Object> results) throws IOException {
+        List<String> cols = (List<String>) results.remove("cols");
+        List<Pair<String, Object>> _datas = (List<Pair<String, Object>>) results.remove("list");
+        List<Map<String, Object>> dm = new ArrayList<>(_datas.size());
+        try (SSDB ssdb = SSDBs.simple(source.getIp(), source.getPort(), SSDBs.DEFAULT_TIMEOUT)) {
+            Response response;
+            for (Pair<String, Object> pair : _datas) {
+                if (Source.Type.HASH == source.getType())
+                    response = ssdb.hget(pair.getLeft(), pair.getRight());
+                else response = ssdb.qget(pair.getLeft(), (int) pair.getRight());
+                if (response.datas.size() > 0) {
+                    Map<String, Object> map = new HashMap<>(cols.size());
+                    String value = new String(response.datas.get(0), SSDBs.DEFAULT_CHARSET);
+                    Map<String, Object> _m = JsonUtil.toMap(value);
+                    for (String col : cols) if (_m.containsKey(col)) map.put(col, _m.get(col));
+                    dm.add(map);
+                }
+            }
+        }
+        results.put("results", dm);
+    }
+
+    private Map<String, Object> indexSearch() throws LSException, IOException {
+        String prefix = Utils.trimPrefix(key).substring(0, 6).toLowerCase();
+        if ("select".equals(prefix)) {
+            String sql = key;
+            SelectSql selectSql = new SelectSql(sql);
+            Pair<Integer, Integer> _limit = selectSql.getLimit();
+            start = _limit.getLeft();
+            rowCount = _limit.getRight();
+            indexName = selectSql.getIndexName();
+            source = selectSql.getSchema().getSource();
+            query = selectSql.getQuery();
+            cols = selectSql.getSelects();
+
+            IndexImpl indexImpl = Indexer.indexes.getIfPresent(indexName);
+            if (indexImpl == null) {
+                logger.info("索引[" + indexName + "]非运行中,IndexReader查询");
+                return offSearch();
+            }
+
+            logger.info("索引[" + indexName + "]运行中,近实时查询");
+            key = Utils.md5(sql);
+            nrtLimit = Constants.pageCache * rowCount;
+//            if (Searcher.searches.getIfPresent(key) != null) {
+//                logger.warn("清空索引[" + indexName + "]查询[" + sql + "]缓存,重新查询");
+//                Searcher.searches.invalidate(key);
+//            }
+            return nrtSearch(key, indexImpl.getSearcher());
+        }
+        logger.info("取缓存[" + key + "]分页数据");
+        Triple<List<String>, List<Pair<String, Object>>, Integer> triple = Searcher.searches.getIfPresent(key);
+        if (triple == null) throw new LSException("缓存已经移除,请重新查询");
+        List<Pair<String, Object>> cache = triple.getMiddle();
+        //返回total<=pageCache*pageSize,下面错误理论不会出现
+        if (cache.size() < start) throw new LSException("请求数据越界[start > cacheSize]");
+        List<Object> list = new ArrayList<>(rowCount);
+        int end = Math.min(cache.size(), start + rowCount);
+        for (int i = start; i < end; i++) list.add(cache.get(i));
+        Map<String, Object> results = new HashMap<>(3);
+        results.put("total", triple.getRight());
+        results.put("list", list);
+        results.put("cols", triple.getLeft());
+        return results;
+    }
+
+    /**
+     * @return {"total":,"list":[<pullName,key>...],"cols":[f1,f2...]}
+     * @throws IOException io exception
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> offSearch() throws IOException {
         Path indexPath = Constants.indexDir.resolve(indexName);
-        Map<String, Object> results = new HashMap<>(2);
+        Map<String, Object> results = new HashMap<>(3);
         try (IndexReader reader = DirectoryReader.open(FSDirectory.open(indexPath))) {
             IndexSearcher searcher = new IndexSearcher(reader);
             this.firstSearch(searcher, results);
@@ -77,18 +156,40 @@ class SearchImpl {
         return results;
     }
 
+    /**
+     * @param key      sqlId
+     * @param searcher searcher{@link IndexSearcher}
+     * @return {"total":,"size":,"key":"","list":[<pullName,key>...],"cols":[f1,f2...]}
+     * @throws IOException io exception
+     */
     @SuppressWarnings("unchecked")
-    void nrtSearch(String key, IndexSearcher searcher) throws IOException {
-        Map<String, Object> first = new HashMap<>(2);
-        ScoreDoc scoreDoc = this.firstSearch(searcher, first);
-        if (!first.isEmpty()) {
-            int totalHits = (int) first.get("total");
-            List<Pair<String, Object>> list = (List<Pair<String, Object>>) first.remove("list");
+    private Map<String, Object> nrtSearch(String key, IndexSearcher searcher) throws IOException {
+        Map<String, Object> results = new HashMap<>(5);
+        ScoreDoc scoreDoc = this.firstSearch(searcher, results);
+        if (!results.isEmpty()) {
+            int totalHits = (int) results.get("total");
+            List<Pair<String, Object>> list = (List<Pair<String, Object>>) results.remove("list");
             int total = Math.min(nrtLimit, totalHits);
             Searcher.searches.put(key, Triple.of(cols, list, total));
+            Searcher.mapper.put(key, indexName);
             if (list.size() < nrtLimit && list.size() < totalHits)
                 new AfterSearch(searcher, key, scoreDoc, list.size()).start();
+            List<Pair<String, Object>> _l = new ArrayList<>(rowCount);
+            for (int i = start; i < list.size(); i++) {
+                _l.add(list.get(i));
+            }
+            results.put("list", _l);
+            results.put("size", total);
+            results.put("key", key);
+            results.put("cols", cols);
+        } else {
+            results.put("total", 0);
+            results.put("size", 0);
+            results.put("list", Collections.emptyList());
+            results.put("key", key);
+            results.put("cols", cols);
         }
+        return results;
     }
 
     private ScoreDoc firstSearch(IndexSearcher searcher, Map<String, Object> results) throws IOException {

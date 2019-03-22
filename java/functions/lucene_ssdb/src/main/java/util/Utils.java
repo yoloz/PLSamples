@@ -141,20 +141,6 @@ public class Utils {
     }
 
     /**
-     * update app status
-     * <p>
-     * unused at all index by thread create
-     *
-     * @param pid       pid
-     * @param indexName index name
-     * @throws SQLException sql error
-     */
-    @Deprecated
-    public static void updateAppStatus(String pid, String indexName) throws SQLException {
-        SqlliteUtil.update("update ssdb set pid=? where name=?", pid, indexName);
-    }
-
-    /**
      * get a logger for per index thread
      *
      * @param name  index name
@@ -198,5 +184,17 @@ public class Utils {
         } catch (NoSuchAlgorithmException ignored) {
         }
         return str;
+    }
+
+    public static String trimPrefix(String value) {
+        int len = value.length();
+        int st = 0;
+        char[] val = value.toCharArray();
+        while ((st < len) && (val[st] <= ' ')) st++;
+        return (st > 0) ? value.substring(st) : value;
+    }
+
+    public static String responseError(String error){
+        return  "{\"success\":false,\"error\":\"" + error + "\"}";
     }
 }

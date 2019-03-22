@@ -26,7 +26,6 @@ import util.JsonUtil;
 import util.SqlliteUtil;
 import util.Utils;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.SQLException;
@@ -39,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * 索引原始数据均不存储
  */
-public class IndexImpl implements Runnable, Closeable {
+class IndexImpl implements Runnable {
 
     private final Logger logger;
 
@@ -56,7 +55,7 @@ public class IndexImpl implements Runnable, Closeable {
     private Pull pull;
 
 
-    public IndexImpl(Schema schema, Logger logger) {
+    IndexImpl(Schema schema, Logger logger) {
         this.schema = schema;
         this.indexPath = Constants.indexDir.resolve(schema.getIndex());
         this.logger = logger;
@@ -70,7 +69,7 @@ public class IndexImpl implements Runnable, Closeable {
             logger.info("start index[" + schema.getIndex() + "]");
             this.initIndex();
             new Thread(pull).start();
-            this.indexImpl();
+            this.impl();
             //pull stop that index writer will stop and need commit
             logger.info("committing index[" + schema.getIndex() + "]");
             //this.indexWriter.forceMerge(1);
@@ -83,8 +82,7 @@ public class IndexImpl implements Runnable, Closeable {
     }
 
 
-    @Override
-    public void close() {
+    void close() {
         logger.info("close index[" + schema.getIndex() + "]...");
         if (this.pull != null) this.pull.close();
         try {
@@ -98,6 +96,7 @@ public class IndexImpl implements Runnable, Closeable {
         } catch (IOException e) {
             logger.error("close[" + schema.getIndex() + "] error", e);
         }
+        Indexer.indexes.invalidate(schema.getIndex());
         this.searcherManager = null;
     }
 
@@ -123,7 +122,7 @@ public class IndexImpl implements Runnable, Closeable {
         crtThread.start();
     }
 
-    private void indexImpl() throws IOException {
+    private void impl() throws IOException {
         int counter = 0;
         while (pull.isRunning()) {
             try {

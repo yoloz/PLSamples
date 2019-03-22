@@ -1,7 +1,8 @@
 package api;
 
+import index.Indexer;
+import index.parse.CreateSql;
 import org.apache.log4j.Logger;
-import parser.CreateSql;
 import util.Utils;
 
 import javax.servlet.http.HttpServlet;
@@ -22,11 +23,11 @@ public class NewIndex extends HttpServlet {
         String error = "";
         try {
             CreateSql createSql = new CreateSql(sql);
-            String indexName = createSql.parse();
-            Utils.starApp(indexName);
+            String indexName = createSql.store();
+            Indexer.index(indexName);
         } catch (Exception e) {
             logger.error("create index[" + sql + "] error", e);
-            error = "{\"success\":false,\"error\":\"" + e.getMessage() + "\"}";
+            error = Utils.responseError(e.getMessage());
         }
         resp.setContentType("application/json;charset=UTF-8");
         OutputStream outputStream = resp.getOutputStream();

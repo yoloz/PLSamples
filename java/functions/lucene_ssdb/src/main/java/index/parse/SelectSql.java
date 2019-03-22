@@ -79,10 +79,19 @@ public class SelectSql {
     private final Schema schema;
     private final String indexName;
 
-    private Map<String, Pair<Field.Type, String>> colMap = new HashMap<>(5);
+    private final Map<String, Pair<Field.Type, String>> colMap = new HashMap<>(5);
 
-    public SelectSql(String sql) throws LSException, JSQLParserException {
-        Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
+    private List<String> cols;
+    private Pair<Integer, Integer> limit;
+    private Query query;
+
+    public SelectSql(String sql) throws LSException {
+        Select select;
+        try {
+            select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
+        } catch (JSQLParserException e) {
+            throw new LSException("parse sql[" + sql + "] fail[" + e.getMessage() + "]", e);
+        }
         SelectBody sb = select.getSelectBody();
         if (!PlainSelect.class.equals(sb.getClass()))
             throw new LSException(sb.getClass() + " is not support");
@@ -105,18 +114,20 @@ public class SelectSql {
     }
 
     public List<String> getSelects() {
-        List<SelectItem> selects = selectBody.getSelectItems();
-        List<String> list = new ArrayList<>(selects.size());
-        if (selects.size() == 1 && selects.get(0).getClass().equals(AllColumns.class))
-            list.addAll(colMap.keySet());
-        else for (SelectItem item : selects) {
-            SelectExpressionItem selectItem = (SelectExpressionItem) item;
-            Column col = (Column) selectItem.getExpression();
-            if (col.getTable() != null) logger.warn("discard [" + col.getTable().getName() +
-                    "] of[" + col.getTable().getName() + "." + col.getColumnName() + "]");
-            list.add(col.getColumnName());
+        if (cols == null) {
+            List<SelectItem> selects = selectBody.getSelectItems();
+            cols = new ArrayList<>(selects.size());
+            if (selects.size() == 1 && selects.get(0).getClass().equals(AllColumns.class))
+                cols.addAll(colMap.keySet());
+            else for (SelectItem item : selects) {
+                SelectExpressionItem selectItem = (SelectExpressionItem) item;
+                Column col = (Column) selectItem.getExpression();
+                if (col.getTable() != null) logger.warn("discard [" + col.getTable().getName() +
+                        "] of[" + col.getTable().getName() + "." + col.getColumnName() + "]");
+                cols.add(col.getColumnName());
+            }
         }
-        return list;
+        return cols;
     }
 
     /**
@@ -134,33 +145,38 @@ public class SelectSql {
      * @throws LSException error
      */
     public Pair<Integer, Integer> getLimit() throws LSException {
-        Limit limit = selectBody.getLimit();
-        int _rowCount = 0, _offset = 0;
-        if (limit != null) {
-            Expression offset = limit.getOffset();
-            Expression rowCount = limit.getRowCount();
-            if (offset != null) {
-                if (!LongValue.class.equals(offset.getClass()))
-                    throw new LSException("limit offset type[" + rowCount.getClass() + "]not support");
-                _offset = ((LongValue) offset).getBigIntegerValue().intValueExact();
-            }
-            if (rowCount != null) {
-                if (!LongValue.class.equals(rowCount.getClass()))
-                    throw new LSException("limit rowCount type[" + rowCount.getClass() + "]not support");
+        if (limit == null) {
+            Limit _limit = selectBody.getLimit();
+            int _rowCount = 0, _offset = 0;
+            if (_limit != null) {
+                Expression offset = _limit.getOffset();
+                Expression rowCount = _limit.getRowCount();
+                if (offset != null) {
+                    if (!LongValue.class.equals(offset.getClass()))
+                        throw new LSException("limit offset type[" + rowCount.getClass() + "]not support");
+                    _offset = ((LongValue) offset).getBigIntegerValue().intValueExact();
+                }
+                if (rowCount != null) {
+                    if (!LongValue.class.equals(rowCount.getClass()))
+                        throw new LSException("limit rowCount type[" + rowCount.getClass() + "]not support");
 
-                _rowCount = ((LongValue) rowCount).getBigIntegerValue().intValueExact();
+                    _rowCount = ((LongValue) rowCount).getBigIntegerValue().intValueExact();
+                }
             }
+            if (_rowCount == 0) _rowCount = 15;
+            limit = Pair.of(_offset * _rowCount, _rowCount);
         }
-        if (_rowCount == 0) _rowCount = 15;
-        return Pair.of(_offset * _rowCount, _rowCount);
+        return limit;
     }
 
     public Query getQuery() throws LSException {
-        Query query = this.queryImpl(selectBody.getWhere());
-        if (query == null) for (Field f : schema.getFields()) {
-            if (Field.Type.STRING == f.getType()) {
-                query = new WildcardQuery(new Term(f.getName(), "*"));
-                break;
+        if (query == null) {
+            query = this.queryImpl(selectBody.getWhere());
+            if (query == null) for (Field f : schema.getFields()) {
+                if (Field.Type.STRING == f.getType()) {
+                    query = new WildcardQuery(new Term(f.getName(), "*"));
+                    break;
+                }
             }
         }
         return query;
