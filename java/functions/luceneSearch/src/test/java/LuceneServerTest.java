@@ -22,6 +22,8 @@ public class LuceneServerTest {
         System.setProperty("LSDir",
                 Paths.get(LuceneServer.class.getResource("/schema_template.yaml").getPath())
                         .getParent().toString());
+        System.setProperty("LogLevel","debug");
+        System.out.println(LuceneServer.class.getResource("/log4j.properties").getPath());
         PropertyConfigurator.configure(LuceneServer.class.getResource("/log4j.properties").getPath());
         LuceneServer luceneServer = new LuceneServer();
         Method startHttpServer = luceneServer.getClass().getDeclaredMethod("startHttpServer");

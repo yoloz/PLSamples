@@ -100,11 +100,11 @@ class SearchImpl {
 
             IndexImpl indexImpl = Indexer.indexes.getIfPresent(indexName);
             if (indexImpl == null) {
-                logger.info("索引[" + indexName + "]非运行中,IndexReader查询");
+                logger.debug("索引[" + indexName + "]非运行中,IndexReader查询");
                 return offSearch();
             }
 
-            logger.info("索引[" + indexName + "]运行中,近实时查询");
+            logger.debug("索引[" + indexName + "]运行中,近实时查询");
             key = Utils.md5(sql);
             nrtLimit = Constants.pageCache * rowCount;
 //            if (Searcher.searches.getIfPresent(key) != null) {
@@ -113,7 +113,7 @@ class SearchImpl {
 //            }
             return nrtSearch(key, indexImpl.getSearcher());
         }
-        logger.info("取缓存[" + key + "]分页数据");
+        logger.debug("取缓存[" + key + "]分页数据");
         Triple<List<String>, List<Pair<String, Object>>, Integer> triple = Searcher.searches.getIfPresent(key);
         if (triple == null) throw new LSException("缓存已经移除,请重新查询");
         List<Pair<String, Object>> cache = triple.getMiddle();
@@ -197,10 +197,10 @@ class SearchImpl {
         TopDocs topDocs = searcher.search(query, limit);
         ScoreDoc[] hits = topDocs.scoreDocs;
         int totalHits = Math.toIntExact(topDocs.totalHits);
-        logger.info("first search[" + indexName + "] total[" + totalHits + "] matching documents");
+        logger.debug("first search[" + indexName + "] total[" + totalHits + "] matching documents");
         int end = Math.min(totalHits, limit);
         if (end < totalHits && end > hits.length) {
-            logger.warn("top hits[" + hits.length + "] of total[" + totalHits
+            logger.debug("top hits[" + hits.length + "] of total[" + totalHits
                     + "] matched documents collected,need collect more[" + end + "]");
             hits = searcher.search(query, end).scoreDocs;
         }
@@ -245,7 +245,7 @@ class SearchImpl {
                     TopDocs topDocs = searcher.searchAfter(scoreDoc, query, afterCount);
                     ScoreDoc[] hits = topDocs.scoreDocs;
                     int totalHits = Math.toIntExact(topDocs.totalHits);
-                    logger.info("backstage search[" + indexName + "] total[" + totalHits +
+                    logger.debug("backstage search[" + indexName + "] total[" + totalHits +
                             "] need[" + afterCount + "]");
                     for (ScoreDoc hit : hits) {
                         Document doc = searcher.doc(hit.doc);
@@ -263,7 +263,7 @@ class SearchImpl {
                     scoreDoc = hits[hits.length - 1];
                 }
             } catch (IOException e) {
-                logger.warn("index[" + indexName + "] search error", e);
+                logger.error("index[" + indexName + "] backstage search error", e);
             }
         }
     }

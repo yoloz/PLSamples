@@ -3,7 +3,9 @@ import api.NewIndex;
 import api.QueryIndex;
 import api.StartIndex;
 import api.StopIndex;
+import api.UpdateAnalyser;
 import bean.LSException;
+import index.Indexer;
 import org.apache.log4j.PropertyConfigurator;
 import util.Constants;
 import org.apache.log4j.Logger;
@@ -18,6 +20,8 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
 
 public class LuceneServer {
 
@@ -39,6 +43,7 @@ public class LuceneServer {
         handler.addServletWithMapping(StartIndex.class, "/start");
         handler.addServletWithMapping(StopIndex.class, "/stop");
         handler.addServletWithMapping(DelAllIndex.class, "/delAll");
+        handler.addServletWithMapping(UpdateAnalyser.class, "/updateAnalyser");
         httpServer.start();
         httpServer.join();
     }
@@ -62,8 +67,14 @@ public class LuceneServer {
                 LuceneServer luceneServer = new LuceneServer();
                 Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                     try {
+                        List<Object> indexList = SqlliteUtil.queryL("select name from schema");
+                        indexList.forEach(k -> {
+                            String index = String.valueOf(k);
+                            if (Indexer.isRunning(index)) Indexer.stopIndex(index);
+                        });
                         SqlliteUtil.close();
-                    } catch (SQLException ignore) {
+                    } catch (SQLException e) {
+                        logger.warn("可能有索引数据未保存丢失", e);
                     }
                     luceneServer.stopHttpServer();
                 }));
@@ -72,7 +83,7 @@ public class LuceneServer {
                 luceneServer.startHttpServer();
             } else {
                 int exit = Utils.stopPid(Constants.varDir.resolve("pid"));
-                logger.info("luceneSsdb stop exit:[" + exit + "]");
+                logger.info("luceneSearch stop exit:[" + exit + "]");
             }
         } catch (Exception e) {
             logger.error("启动失败", e);

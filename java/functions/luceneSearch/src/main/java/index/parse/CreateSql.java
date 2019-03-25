@@ -26,8 +26,7 @@ import java.util.Map;
  * <p>
  * CREATE TABLE test
  * (col1 int, col2 string, col3 date('yyyy-MM-dd HH:mm:ss.SSS'))
- * source=ssdb.test1 addr='127.0.0.1:8888' type=list
- * analyser='org.apache.lucene.analysis.standard.StandardAnalyzer'
+ * name=test1 addr='127.0.0.1:8888' type=list analyser=standardAnalyzer
  * <p>
  * analyser如果没定义则使用默认的分析器{@link org.apache.lucene.analysis.standard.StandardAnalyzer}
  * <p>
@@ -67,21 +66,17 @@ public class CreateSql {
 
         Map<String, String> indexOptions = getIndexOptions(table.getTableOptionsStrings());
         this.checkIndexOptions(indexOptions);
-        schema.setAnalyser(indexOptions.getOrDefault("analyser",
-                "org.apache.lucene.analysis.standard.StandardAnalyzer"));
-        String from = indexOptions.get("from");
-        if ("ssdb".equals(from)) {
-            Source source = new Source();
-            String addr = indexOptions.get("addr");
-            int idex = addr.indexOf(":");
-            source.setIp(addr.substring(0, idex));
-            source.setPort(Integer.parseInt(addr.substring(idex + 1)));
-            source.setName(indexOptions.get("name"));
-            source.setType(indexOptions.get("type"));
-            schema.setSource(source);
-        } else {
-            throw new LSException("类型[" + from + "]暂未支持");
-        }
+        schema.setAnalyserKey(indexOptions.getOrDefault("analyser", "StandardAnalyzer"));
+
+        Source source = new Source();
+        String addr = indexOptions.get("addr");
+        int idex = addr.indexOf(":");
+        source.setIp(addr.substring(0, idex));
+        source.setPort(Integer.parseInt(addr.substring(idex + 1)));
+        source.setName(indexOptions.get("name"));
+        source.setType(indexOptions.get("type"));
+        schema.setSource(source);
+
         List<Field> fields = new ArrayList<>(table.getColumnDefinitions().size());
         for (ColumnDefinition column : table.getColumnDefinitions()) {
             Field field = new Field();
@@ -131,26 +126,17 @@ public class CreateSql {
 
     private void checkIndexOptions(Map<String, String> options) throws LSException {
         if (!options.containsKey("addr")) throw new LSException("创建语句中未定义addr");
-        if (!options.containsKey("from")) throw new LSException("创建语句中source配置有误");
-        String from = options.get("from");
-        if ("ssdb".equals(from)) {
-            if (!options.containsKey("name")) throw new LSException("创建语句的source未定义ssdb的名称");
-            if (!options.containsKey("type")) throw new LSException("创建语句中未定义ssdb的类型");
-        } else throw new LSException("对来源[" + from + "]的数据暂不支持");
+        if (!options.containsKey("name")) throw new LSException("创建语句中未定义name");
+        if (!options.containsKey("type")) throw new LSException("创建语句中未定义type");
     }
 
-    private Map<String, String> getIndexOptions(List<?> options) throws LSException {
-        Map<String, String> params = new HashMap<>(5);
+    private Map<String, String> getIndexOptions(List<?> options) {
+        Map<String, String> params = new HashMap<>(4);
         for (int i = 0; i < options.size(); i += 3) {
             String key = String.valueOf(options.get(i)).toLowerCase();
             String value = String.valueOf(options.get(i + 2));
             if (value.charAt(0) == '\'') value = value.substring(1, value.length() - 1);
-            if ("source".equals(key)) {
-                if (!value.contains(".")) throw new LSException("创建语句source[" + value + "]格式[type.name]错误");
-                int index = value.indexOf(".");
-                params.put("from", value.substring(0, index).toLowerCase());
-                params.put("name", value.substring(index + 1));
-            } else params.put(key, value);
+            params.put(key, value);
         }
         return Collections.unmodifiableMap(params);
     }

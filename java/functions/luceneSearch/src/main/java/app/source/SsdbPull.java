@@ -114,14 +114,15 @@ public class SsdbPull extends Thread {
             ")";*/
     private void initPoint() throws LSException {
         try {
-            List<Map<String, Object>> points = SqlliteUtil.query(
+            List<Object> points = SqlliteUtil.queryL(
                     "select point from ssdb where name=?", indexName);
+            String _point = String.valueOf(points.get(0));
             switch (type) {
                 case LIST:
-                    point = Integer.parseInt((String) points.get(0).get("point"));
+                    point = Integer.parseInt(_point);
                     break;
                 case HASH:
-                    point = points.get(0).get("point");
+                    point = _point;
                     break;
                 default:
                     throw new LSException("ssdb type [" + type + "] is not support...");

@@ -155,9 +155,10 @@ public class Utils {
             RollingFileAppender appender = new RollingFileAppender();
             appender.setName(appenderName);
             appender.setFile(Constants.logDir.resolve(name + ".log").toString());
-            appender.setLayout(new PatternLayout("%d{ISO8601} %5p [%t] (%F:%L) - %m%n"));
+            appender.setLayout(new PatternLayout("[%d] %p %m (%c)%n"));
 //            appender.setMaxFileSize("10240KB"); //default 10M
             appender.setMaxBackupIndex(5);
+//            appender.setThreshold(level);
             appender.activateOptions();
             logger.addAppender(appender);
         }
@@ -194,7 +195,7 @@ public class Utils {
         return (st > 0) ? value.substring(st) : value;
     }
 
-    public static String responseError(String error){
-        return  "{\"success\":false,\"error\":\"" + error + "\"}";
+    public static String responseError(String error) {
+        return "{\"success\":false,\"error\":\"" + error + "\"}";
     }
 }

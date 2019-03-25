@@ -13,6 +13,7 @@ public class Constants {
     private static final Logger logger = Logger.getLogger(Constants.class);
 
     static final Path appDir;
+    public static final Path confDir;
     public static final Path indexDir;
     public static final Path logDir;
     public static final Path varDir;
@@ -22,21 +23,24 @@ public class Constants {
     public static final int totalIndex;
     public static final double RAMBuffer;
 
+    public static final String logLevel;
+
     static {
+        logLevel = System.getProperty("LogLevel");
         String root_dir = System.getProperty("LSDir");
+        appDir = Paths.get(root_dir);
+        confDir = appDir.resolve("conf");
+        logDir = appDir.resolve("logs");
+        varDir = appDir.resolve("var");
         Properties properties = new Properties();
         try {
-            try (InputStream inputStream = Files.newInputStream(Paths.get(root_dir,
-                    "conf", "server.properties"))) {
+            try (InputStream inputStream = Files.newInputStream(confDir.resolve("server.properties"))) {
                 properties.load(inputStream);
             }
         } catch (Exception e) {
-            logger.error("load server.properties error", e);
+            logger.error("load file[" + confDir.resolve("server.properties") + "] error", e);
             System.exit(1);
         }
-        appDir = Paths.get(root_dir);
-        logDir = appDir.resolve("logs");
-        varDir = appDir.resolve("var");
         String _indexDir = properties.getProperty("indexDir");
         if (_indexDir == null || _indexDir.isEmpty()) indexDir = varDir.resolve("index");
         else indexDir = Paths.get(_indexDir);

@@ -79,7 +79,7 @@ public class SsdbPull extends Pull {
             this.updatePullName();
             if (!pulls.isEmpty()) updatePoint();
             else {
-                logger.info("no new ssdb source to get,latest[" + point.getLeft() + "]");
+                logger.debug("no new ssdb source to get,latest[" + point.getLeft() + "]");
                 return false;
             }
         }

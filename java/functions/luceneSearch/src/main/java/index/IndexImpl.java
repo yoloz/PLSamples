@@ -54,6 +54,8 @@ class IndexImpl implements Runnable {
     private final Path indexPath;
     private Pull pull;
 
+    private ControlledRealTimeReopenThread<IndexSearcher> crtThread;
+
 
     IndexImpl(Schema schema, Logger logger) {
         this.schema = schema;
@@ -75,7 +77,7 @@ class IndexImpl implements Runnable {
             //this.indexWriter.forceMerge(1);
             this.indexWriter.commit();
             this.indexWriter.close();
-        } catch (IOException | LSException e) {
+        } catch (Exception e) {
             logger.error("index[" + schema.getIndex() + "] error", e);
             this.close();
         }
@@ -86,7 +88,8 @@ class IndexImpl implements Runnable {
         logger.info("close index[" + schema.getIndex() + "]...");
         if (this.pull != null) this.pull.close();
         try {
-            this.searcherManager.close();
+            if (crtThread != null) crtThread.close();
+            if (searcherManager != null) searcherManager.close();
             if (this.indexWriter != null && this.indexWriter.isOpen()) {
                 logger.info("committing index[" + schema.getIndex() + "]");
                 //this.indexWriter.forceMerge(1);
@@ -114,9 +117,8 @@ class IndexImpl implements Runnable {
         this.indexWriter = new IndexWriter(dir, iwc);
         this.searcherManager = new SearcherManager(indexWriter, false,
                 false, null);
-        ControlledRealTimeReopenThread<IndexSearcher> crtThread =
-                new ControlledRealTimeReopenThread<>(indexWriter, searcherManager,
-                        300.0, 0.5);
+        crtThread = new ControlledRealTimeReopenThread<>(indexWriter, searcherManager,
+                300.0, 0.5);
         crtThread.setDaemon(true);
         crtThread.setName("update-" + schema.getIndex());
         crtThread.start();
@@ -173,7 +175,7 @@ class IndexImpl implements Runnable {
                         }
                     }
                 }
-                doc.add(new StoredField("_key", (String) triple.getMiddle()));
+                doc.add(new StoredField("_key", String.valueOf(triple.getMiddle())));
                 doc.add(new StoredField("_name", triple.getLeft()));
                 indexWriter.addDocument(doc);
 

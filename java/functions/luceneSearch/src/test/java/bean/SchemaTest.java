@@ -47,6 +47,24 @@ public class SchemaTest {
     }
 
     @Test
+    public void schemaTest() throws SQLException, LSException {
+        System.setProperty("LSDir",
+                Paths.get(this.getClass().getResource("/schema_template.yaml").getPath())
+                        .getParent().toString());
+        SqlliteUtil.update("delete from schema where name='test'");
+        SqlliteUtil.update("delete from point where iname='test'");
+        String sql = "CREATE TABLE test" +
+                "(index int,city string,company text,time date('uuuu-MM-dd'T'HH:mm:ss.SSSSSS'),timestamp long)" +
+                " name='list*' addr='127.0.0.1:8888' type=list";
+        index.parse.CreateSql createSql = new index.parse.CreateSql(sql);
+        String indexName = createSql.store();
+        assertEquals("test", indexName);
+        String checkSql = "select value from schema where name='test'";
+        List<Map<String, Object>> result = SqlliteUtil.query(checkSql);
+        System.out.println(result.get(0).get("value"));
+    }
+
+    @Test
     public void readAndWrite() throws IOException {
         try (InputStream inputStream = this.getClass()
                 .getResourceAsStream("/schema_template.yaml")) {

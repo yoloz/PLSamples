@@ -5,6 +5,7 @@ import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.ResultSetHandler;
 import org.apache.commons.dbutils.handlers.ArrayHandler;
 import org.apache.commons.dbutils.handlers.ArrayListHandler;
+import org.apache.commons.dbutils.handlers.ColumnListHandler;
 import org.apache.commons.dbutils.handlers.MapListHandler;
 import org.apache.log4j.Logger;
 
@@ -85,6 +86,12 @@ public class SqlliteUtil {
     public static List<Map<String, Object>> query(String sql, Object... params) throws SQLException {
         QueryRunner runner = new QueryRunner(dataSource);
         ResultSetHandler<List<Map<String, Object>>> h = new MapListHandler();
+        return runner.query(sql, h, params);
+    }
+
+    public static List<Object> queryL(String sql, Object... params) throws SQLException {
+        QueryRunner runner = new QueryRunner(dataSource);
+        ResultSetHandler<List<Object>> h = new ColumnListHandler<>();
         return runner.query(sql, h, params);
     }
 

@@ -1,5 +1,7 @@
 package bean;
 
+import index.Indexer;
+
 import java.util.List;
 
 public class Schema {
@@ -26,6 +28,10 @@ public class Schema {
 
     public void setAnalyser(String analyser) {
         this.analyser = analyser;
+    }
+
+    public void setAnalyserKey(String analyser) throws LSException {
+        this.analyser = Indexer.getAnalyserClass(analyser);
     }
 
     public List<Field> getFields() {

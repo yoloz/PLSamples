@@ -1,7 +1,5 @@
 package bean;
 
-import util.JsonUtil;
-
 import java.util.Objects;
 
 /**
