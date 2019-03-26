@@ -22,7 +22,7 @@ test -d ${LSDir}"/var" || mkdir -p ${LSDir}"/var"
 
 if [[ "x$1" = "xdaemon" ]]; then
   shift
-  nohup ${JAVA} "-Xmx1G -Xms1G" "-DLSDir="${LSDir} "-DLogLevel=info" -cp ${LSDir}"/lib/*" LuceneSsdb "start" > ${LSDir}"/logs/server.out" 2>&1 < /dev/null &
+  nohup ${JAVA} "-Xmx1G" "-Xms1G" "-DLSDir="${LSDir} "-DLogLevel=info" -cp ${LSDir}"/lib/*" LuceneServer "start" > ${LSDir}"/logs/server.out" 2>&1 < /dev/null &
 else
-  exec ${JAVA} "-Xmx1G -Xms1G" "-DLSDir="${LSDir} "-DLogLevel=info" -cp ${LSDir}"/lib/*" LuceneSsdb "start"
+  exec ${JAVA} "-Xmx1G" "-Xms1G" "-DLSDir="${LSDir} "-DLogLevel=info" -cp ${LSDir}"/lib/*" LuceneServer "start"
 fi

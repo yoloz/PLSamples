@@ -21,7 +21,6 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Map;
 
 public class LuceneServer {
 
@@ -45,6 +44,8 @@ public class LuceneServer {
         handler.addServletWithMapping(DelAllIndex.class, "/delAll");
         handler.addServletWithMapping(UpdateAnalyser.class, "/updateAnalyser");
         httpServer.start();
+        Files.write(Constants.varDir.resolve("pid"), ManagementFactory.getRuntimeMXBean()
+                .getName().split("@")[0].getBytes(StandardCharsets.UTF_8));
         httpServer.join();
     }
 
@@ -78,8 +79,6 @@ public class LuceneServer {
                     }
                     luceneServer.stopHttpServer();
                 }));
-                Files.write(Constants.varDir.resolve("pid"), ManagementFactory.getRuntimeMXBean()
-                        .getName().split("@")[0].getBytes(StandardCharsets.UTF_8));
                 luceneServer.startHttpServer();
             } else {
                 int exit = Utils.stopPid(Constants.varDir.resolve("pid"));
