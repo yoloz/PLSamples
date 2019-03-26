@@ -137,11 +137,12 @@ class SearchImpl {
     private Map<String, Object> offSearch() throws IOException {
         Path indexPath = Constants.indexDir.resolve(indexName);
         Map<String, Object> results = new HashMap<>(3);
+        ScoreDoc scoreDoc;
         try (IndexReader reader = DirectoryReader.open(FSDirectory.open(indexPath))) {
             IndexSearcher searcher = new IndexSearcher(reader);
-            this.firstSearch(searcher, results);
+            scoreDoc = this.firstSearch(searcher, results);
         }
-        if (!results.isEmpty()) {
+        if (scoreDoc != null) {
             List<Pair<String, Object>> list = (List<Pair<String, Object>>) results.remove("list");
             List<Pair<String, Object>> _l = new ArrayList<>(rowCount);
             for (int i = start; i < list.size(); i++) {
@@ -167,7 +168,7 @@ class SearchImpl {
         if (searcher == null) throw new IOException("index[" + indexName + "] searcher is null");
         Map<String, Object> results = new HashMap<>(5);
         ScoreDoc scoreDoc = this.firstSearch(searcher, results);
-        if (!results.isEmpty()) {
+        if (scoreDoc != null) {
             int totalHits = (int) results.get("total");
             List<Pair<String, Object>> list = (List<Pair<String, Object>>) results.remove("list");
             int total = Math.min(nrtLimit, totalHits);
@@ -218,7 +219,7 @@ class SearchImpl {
         }
         results.put("total", totalHits);
         results.put("list", list);
-        return hits[hits.length - 1];
+        return hits.length > 0 ? hits[hits.length - 1] : null;
     }
 
     private class AfterSearch extends Thread {

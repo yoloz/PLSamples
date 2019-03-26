@@ -91,7 +91,7 @@ class IndexImpl implements Runnable {
 
     private void commit() {
         try {
-            this.indexWriter.commit();
+            if (this.indexWriter != null && this.indexWriter.isOpen()) this.indexWriter.commit();
         } catch (IOException e) {
             logger.error("index[" + schema.getIndex() + "] commit error", e);
         }
@@ -126,7 +126,7 @@ class IndexImpl implements Runnable {
         this.searcherManager = new SearcherManager(indexWriter, false,
                 false, null);
         crtThread = new ControlledRealTimeReopenThread<>(indexWriter, searcherManager,
-                300.0, 0.5);
+                Constants.refreshTime, 1.0);
         crtThread.setDaemon(true);
         crtThread.setName("update-" + schema.getIndex());
         crtThread.start();

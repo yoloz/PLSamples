@@ -52,6 +52,7 @@ public class SsdbPull extends Pull {
             } else {
                 if (point.getLeft().isEmpty()) point = Pair.of(source.getName(), point.getRight());
             }
+            logger.debug("[" + indexName + "] init point[" + point + "]");
         } catch (SQLException e) {
             throw new LSException("初始化" + indexName + "的point信息出错", e);
         }
@@ -63,6 +64,7 @@ public class SsdbPull extends Pull {
             while (!stop) {
 //                long start = System.currentTimeMillis();
                 List<Triple<String, Object, Object>> triples = pollOnce(ssdb);
+//                logger.debug("pollOnce [" + triples.size() + "]");
                 if (!triples.isEmpty()) for (Triple<String, Object, Object> triple : triples) queue.put(triple);
 //                long end = System.currentTimeMillis();
 //                logger.debug("pollOnce[" + triples.size() + "] cost time[" + (end - start) + "] mills");
@@ -122,7 +124,7 @@ public class SsdbPull extends Pull {
 
     private List<Triple<String, Object, Object>> listScan(SSDB ssdb) {
         int offset = (int) point.getRight();
-        Response response = ssdb.qrange(point.getLeft(), offset, queue.size() / 2);
+        Response response = ssdb.qrange(point.getLeft(), offset, 500);
         if (response.datas.size() == 0) return Collections.emptyList();
         else {
             List<Triple<String, Object, Object>> list = new ArrayList<>(response.datas.size());
@@ -138,7 +140,7 @@ public class SsdbPull extends Pull {
 
     private List<Triple<String, Object, Object>> hashScan(SSDB ssdb) {
         String key_start = (String) point.getRight();
-        Response response = ssdb.hscan(point.getLeft(), key_start, "", queue.size() / 2);
+        Response response = ssdb.hscan(point.getLeft(), key_start, "", 500);
         if (response.datas.size() == 0) return Collections.emptyList();
         else {
             List<Triple<String, Object, Object>> list = new ArrayList<>(response.datas.size());
