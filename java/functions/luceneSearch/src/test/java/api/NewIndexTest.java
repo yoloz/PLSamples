@@ -37,10 +37,11 @@ public class NewIndexTest {
             Object[] values = new Object[100];
             for (int j = 0; j < 10; j++) {
                 for (int i = 0; i < 100; i++) {
-                    Map<String, Object> value = new HashMap<>(5);
+                    Map<String, Object> value = new HashMap<>(6);
                     LocalDateTime lt = LocalDateTime.now();
                     value.put("city", "hangzhou");
                     value.put("company", "北京三维力控科技有限公司");
+                    value.put("english","Analysis is one of the main causes of slow indexing.");
                     value.put("time", lt.format(dateTimeFormatter));
                     value.put("index", j * 100 + i);
                     value.put("timestamp", Utils.toNanos(lt));
