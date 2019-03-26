@@ -45,7 +45,6 @@ public class Indexer {
                         for (Map.Entry<String, String> entry : Searcher.mapper.entrySet()) {
                             if (entry.getValue().equals(notify.getKey())) {
                                 String key = entry.getKey();
-                                Searcher.mapper.remove(key);
                                 Searcher.searches.invalidate(key);
                             }
                         }

@@ -29,9 +29,15 @@ import util.Utils;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -71,18 +77,25 @@ class IndexImpl implements Runnable {
             logger.info("start index[" + schema.getIndex() + "]");
             this.initIndex();
             new Thread(pull).start();
+            new PerDayCommit().sched();
             this.impl();
             //pull stop that index writer will stop and need commit
             logger.info("committing index[" + schema.getIndex() + "]");
             //this.indexWriter.forceMerge(1);
-            this.indexWriter.commit();
-            this.indexWriter.close();
+            this.commit();
         } catch (Exception e) {
             logger.error("index[" + schema.getIndex() + "] error", e);
-            this.close();
         }
+        this.close();
     }
 
+    private void commit() {
+        try {
+            this.indexWriter.commit();
+        } catch (IOException e) {
+            logger.error("index[" + schema.getIndex() + "] commit error", e);
+        }
+    }
 
     void close() {
         logger.info("close index[" + schema.getIndex() + "]...");
@@ -90,12 +103,7 @@ class IndexImpl implements Runnable {
         try {
             if (crtThread != null) crtThread.close();
             if (searcherManager != null) searcherManager.close();
-            if (this.indexWriter != null && this.indexWriter.isOpen()) {
-                logger.info("committing index[" + schema.getIndex() + "]");
-                //this.indexWriter.forceMerge(1);
-                this.indexWriter.commit();
-                this.indexWriter.close();
-            }
+            if (this.indexWriter != null && this.indexWriter.isOpen()) this.indexWriter.close();
         } catch (IOException e) {
             logger.error("close[" + schema.getIndex() + "] error", e);
         }
@@ -195,4 +203,25 @@ class IndexImpl implements Runnable {
         }
     }
 
+
+    private class PerDayCommit {
+
+        private final long PERIOD_DAY = 24 * 60 * 60 * 1000;
+        private final Date firstTime;
+
+        private PerDayCommit() {
+            LocalDateTime _time = LocalDateTime.of(LocalDate.now(), LocalTime.of(Constants.perDayHour, 0));
+            if (_time.isBefore(LocalDateTime.now())) _time = _time.plusDays(1);
+            firstTime = Date.from(_time.atZone(ZoneId.systemDefault()).toInstant());
+        }
+
+        private void sched() {
+            new Timer().schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    commit();
+                }
+            }, firstTime, PERIOD_DAY);
+        }
+    }
 }

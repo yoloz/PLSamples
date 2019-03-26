@@ -164,6 +164,7 @@ class SearchImpl {
      */
     @SuppressWarnings("unchecked")
     private Map<String, Object> nrtSearch(String key, IndexSearcher searcher) throws IOException {
+        if (searcher == null) throw new IOException("index[" + indexName + "] searcher is null");
         Map<String, Object> results = new HashMap<>(5);
         ScoreDoc scoreDoc = this.firstSearch(searcher, results);
         if (!results.isEmpty()) {

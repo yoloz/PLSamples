@@ -22,6 +22,7 @@ public class Constants {
     public static final int searchCache;
     public static final int totalIndex;
     public static final double RAMBuffer;
+    public static final int perDayHour;
 
     public static final String logLevel;
 
@@ -42,12 +43,14 @@ public class Constants {
             System.exit(1);
         }
         String _indexDir = properties.getProperty("indexDir");
-        if (_indexDir == null || _indexDir.isEmpty()) indexDir = varDir.resolve("index");
+        if (_indexDir == null || _indexDir.isEmpty() || ".var".equals(_indexDir))
+            indexDir = varDir.resolve("index");
         else indexDir = Paths.get(_indexDir);
         httpPort = Integer.parseInt(properties.getProperty("httpPort"));
         pageCache = Integer.parseInt(properties.getProperty("pageCache", "10"));
         searchCache = Integer.parseInt(properties.getProperty("searchCache", "5"));
         totalIndex = Integer.valueOf(properties.getProperty("totalIndex", "6"));
         RAMBuffer = Double.parseDouble(properties.getProperty("indexBuffer", "128"));
+        perDayHour = Integer.valueOf(properties.getProperty("perDayHour", "2"));
     }
 }
