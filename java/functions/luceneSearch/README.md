@@ -91,7 +91,7 @@ POST indexName
 
 * /delAll
 
-POST indexName
+POST indexName  
 返回：{"success":true}
 
 * /updateAnalyser
