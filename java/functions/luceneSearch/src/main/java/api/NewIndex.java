@@ -1,8 +1,12 @@
 package api;
 
+import bean.LSException;
+import bean.Source;
 import index.Indexer;
 import index.parse.CreateSql;
 import org.apache.log4j.Logger;
+import org.nutz.ssdb4j.SSDBs;
+import org.nutz.ssdb4j.spi.SSDB;
 import util.Utils;
 
 import javax.servlet.http.HttpServlet;
@@ -24,6 +28,15 @@ public class NewIndex extends HttpServlet {
         try {
             CreateSql createSql = new CreateSql(sql);
             String indexName = createSql.store();
+            Source source = Utils.getSchema(indexName).getSource();
+            if (Source.Type.LIST == source.getType() || Source.Type.HASH == source.getType()) {
+                try {
+                    SSDB ssdb = SSDBs.simple(source.getIp(), source.getPort(), SSDBs.DEFAULT_TIMEOUT);
+                    ssdb.close();
+                } catch (Exception e) {
+                    throw new LSException("连接[" + source.getIp() + ":" + source.getPort() + "]失败", e);
+                }
+            } else throw new LSException("type[" + source.getType() + "] is not support");
             Indexer.index(indexName);
         } catch (Exception e) {
             logger.error("create index[" + sql + "] error", e);

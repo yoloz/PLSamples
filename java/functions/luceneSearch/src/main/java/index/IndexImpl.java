@@ -61,6 +61,7 @@ class IndexImpl implements Runnable {
     private Pull pull;
 
     private ControlledRealTimeReopenThread<IndexSearcher> crtThread;
+    private PerDayCommit perDayCommit;
 
 
     IndexImpl(Schema schema, Logger logger) {
@@ -77,7 +78,8 @@ class IndexImpl implements Runnable {
             logger.info("start index[" + schema.getIndex() + "]");
             this.initIndex();
             new Thread(pull).start();
-            new PerDayCommit().sched();
+            perDayCommit = new PerDayCommit();
+            perDayCommit.sched();
             this.impl();
             //pull stop that index writer will stop and need commit
             logger.info("committing index[" + schema.getIndex() + "]");
@@ -102,6 +104,7 @@ class IndexImpl implements Runnable {
         if (this.pull != null) this.pull.close();
         try {
             if (crtThread != null) crtThread.close();
+            if (perDayCommit != null) perDayCommit.cancel();
             if (searcherManager != null) searcherManager.close();
             if (this.indexWriter != null && this.indexWriter.isOpen()) this.indexWriter.close();
         } catch (IOException e) {
@@ -206,8 +209,8 @@ class IndexImpl implements Runnable {
 
     private class PerDayCommit {
 
-        private final long PERIOD_DAY = 24 * 60 * 60 * 1000;
         private final Date firstTime;
+        private final Timer timer = new Timer();
 
         private PerDayCommit() {
             LocalDateTime _time = LocalDateTime.of(LocalDate.now(), LocalTime.of(Constants.perDayHour, 0));
@@ -216,12 +219,16 @@ class IndexImpl implements Runnable {
         }
 
         private void sched() {
-            new Timer().schedule(new TimerTask() {
+            timer.schedule(new TimerTask() {
                 @Override
                 public void run() {
                     commit();
                 }
-            }, firstTime, PERIOD_DAY);
+            }, firstTime, 24 * 60 * 60 * 1000);
+        }
+
+        private void cancel() {
+            timer.cancel();
         }
     }
 }
