@@ -66,8 +66,8 @@ POST indexName
 
 POST json {key:""\[,offset:,limit:\]}
 1. {"key":"select * from test where city='hangzhou'"}
-> 直接查询，支持 limit page,count,如：
-select * from test where city='hangzhou' limit 1,15(取第一页数据15条)
+> 直接查询，支持 limit page,count,如：  
+select * from test where city='hangzhou' limit 1,15(取第一页数据15条)  
 select * from test where city='hangzhou' limit 1000(取前1000数据)
 2. {"key":"gMSWyOmTgS2CjW0lM8Xz9A\u003d\u003d","offset":2,"limit":10}"
 > 从静态副本中取数据(第二页10条)
