@@ -48,8 +48,9 @@ class SearchImpl {
     //"select xx" or [key,offset,limit]
     SearchImpl(Object... params) {
         this.key = (String) params[0];
-        this.rowCount = params[2] == null ? 0 : (int) params[2];
-        this.start = params[1] == null ? 0 : ((int) params[1]) * rowCount;
+        this.rowCount = params[2] == null ? 15 : (int) params[2];
+        int _offset = params[1] == null ? 0 : ((int) params[1]);
+        this.start = _offset > 0 ? (_offset - 1) * rowCount : 0;
     }
 
     Map<String, Object> search() throws IOException, LSException {

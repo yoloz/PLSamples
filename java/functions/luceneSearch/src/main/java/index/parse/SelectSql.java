@@ -164,6 +164,7 @@ public class SelectSql {
                 }
             }
             if (_rowCount == 0) _rowCount = 15;
+            if (_offset > 0) _offset -= 1;
             limit = Pair.of(_offset * _rowCount, _rowCount);
         }
         return limit;
