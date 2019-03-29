@@ -98,7 +98,7 @@ class SearchImpl {
             source = selectSql.getSchema().getSource();
             query = selectSql.getQuery();
             cols = selectSql.getSelects();
-
+            logger.debug("query[" + query + "]");
             IndexImpl indexImpl = Indexer.indexes.getIfPresent(indexName);
             if (indexImpl == null) {
                 logger.debug("索引[" + indexName + "]非运行中,IndexReader查询");

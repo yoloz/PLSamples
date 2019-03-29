@@ -9,6 +9,7 @@ import util.Utils;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +42,7 @@ public class NewIndexTest {
                     LocalDateTime lt = LocalDateTime.now();
                     value.put("city", "hangzhou");
                     value.put("company", "北京三维力控科技有限公司");
-                    value.put("english","Analysis is one of the main causes of slow indexing.");
+                    value.put("english", "Analysis is one of the main causes of slow indexing.");
                     value.put("time", lt.format(dateTimeFormatter));
                     value.put("index", j * 100 + i);
                     value.put("timestamp", Utils.toNanos(lt));
@@ -50,6 +51,26 @@ public class NewIndexTest {
                 }
                 ssdb.qpush_back("listTest", values);
             }
+        }
+    }
+
+    @Test
+    public void createListData1() throws IOException, InterruptedException {
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSSSS");
+        try (SSDB ssdb = SSDBs.simple()) {
+            Object[] values = new Object[100];
+            LocalDateTime lt = LocalDateTime.now();
+            for (int i = 0; i < 100; i++) {
+                Map<String, Object> value = new HashMap<>(6);
+                value.put("city", "hangzhou");
+                value.put("company", "北京三维力控科技有限公司");
+                value.put("english", "Analysis is one of the main causes of slow indexing.");
+                value.put("index", i);
+                value.put("timestamp", LocalDateTime.of(lt.plusDays(i).toLocalDate(), LocalTime.MIN).format(dateTimeFormatter));
+                values[i] = toJson(value);
+                Thread.sleep(0, 999999);
+            }
+            ssdb.qpush_back("listTest", values);
         }
     }
 

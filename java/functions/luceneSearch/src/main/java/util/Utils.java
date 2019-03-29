@@ -103,13 +103,21 @@ public class Utils {
     public static String toNanos(LocalDateTime dateTime) {
         long second = dateTime.toEpochSecond(ZoneOffset.UTC);
         int nano = dateTime.getNano();
-        return Long.toString(second) + nano;
+        StringBuilder result = new StringBuilder(Long.toString(second) + nano);
+        int padding = 19 - result.length();
+        for (int i = padding; i > 0; i--) {
+            result.append("0");
+        }
+        return result.toString();
     }
 
     public static LocalDateTime ofNanos(String longValue) {
-        int index = longValue.length() - 9;
-        String nano = longValue.substring(index);
-        String second = longValue.substring(0, index);
+        String nano = "0";
+        String second = longValue;
+        if (longValue.length() > 10) {
+            nano = longValue.substring(10);
+            second = longValue.substring(0, 10);
+        }
         return LocalDateTime.ofEpochSecond(Long.valueOf(second), Integer.valueOf(nano), ZoneOffset.UTC);
     }
 

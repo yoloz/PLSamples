@@ -307,14 +307,16 @@ public class SelectSql {
                 throw new LSException("operator[between] end is column");
             end = checkValue(operator, ln, end, false);
             if (start.getClass().equals(Long.class)) {
+                if ((long) start > (long) end) throw new LSException("起始值大于结束值");
                 if (Field.Type.INT == colMap.get(ln).getLeft())
                     return IntPoint.newRangeQuery(ln,
                             Integer.valueOf(String.valueOf(start)),
                             Integer.valueOf(String.valueOf(end)));
                 else return LongPoint.newRangeQuery(ln, (long) start, (long) end);
-            } else if (start.getClass().equals(Double.class))
+            } else if (start.getClass().equals(Double.class)) {
+                if ((double) start > (double) end) throw new LSException("起始值大于结束值");
                 return DoublePoint.newRangeQuery(ln, (double) start, (double) end);
-            else throw new LSException(start.getClass() + " between " + end.getClass() + " is not support");
+            } else throw new LSException(start.getClass() + " between " + end.getClass() + " is not support");
         } else if (LikeExpression.class.equals(where.getClass())) {
             LikeExpression like = (LikeExpression) where;
             String operator = "like";
