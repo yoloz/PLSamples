@@ -89,7 +89,7 @@
         <metrics-core.version>2.2.0</metrics-core.version>
         <zkclient.version>0.10</zkclient.version>
         <zookeeper.version>3.4.9</zookeeper.version>
-        <jetty.version>9.2.15.v20160210</jetty.version>
+        <jetty.version>[9.4.12.v20180830,)</jetty.version>
         <junit.version>4.12</junit.version>
         <shaded.name>final</shaded.name>
         <java.version>1.8</java.version>
