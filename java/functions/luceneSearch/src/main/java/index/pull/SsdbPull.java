@@ -86,6 +86,10 @@ public class SsdbPull extends Pull {
             }
         }
         String _pull = pulls.pollFirst();
+        if (_pull == null) {
+            logger.warn("pull name is null");
+            return false;
+        }
         logger.info("change to [" + _pull + "]");
         if (source.getType() == Source.Type.LIST) point = Pair.of(_pull, 0);
         else point = Pair.of(_pull, "");
