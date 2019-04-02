@@ -23,9 +23,9 @@ public class NewIndexTest {
     }
 
     /**
-     * curl localhost:12580/newIndex -X POST -d "CREATE TABLE test(index int,city string,company text,
+     * curl localhost:12580/create -X POST -d "CREATE TABLE test(index int,city string,company text,
      * time date('uuuu-MM-dd'T'HH:mm:ss.SSSSSS')) name=listTest addr='127.0.0.1:8888' type=list"
-     * curl localhost:12580/addIndex -X POST -d "test"
+     * curl localhost:12580/start -X POST -d "test"
      * 测试前需要目录${LSDir}下满足conf/*
      * 启动HttpServerTest.startHttpServer监听http请求
      *
@@ -40,7 +40,7 @@ public class NewIndexTest {
                 for (int i = 0; i < 100; i++) {
                     Map<String, Object> value = new HashMap<>(6);
                     LocalDateTime lt = LocalDateTime.now();
-                    value.put("city", "hangzhou");
+                    value.put("city", "hz" + (j * 100 + i));
                     value.put("company", "北京三维力控科技有限公司");
                     value.put("english", "Analysis is one of the main causes of slow indexing.");
                     value.put("time", lt.format(dateTimeFormatter));

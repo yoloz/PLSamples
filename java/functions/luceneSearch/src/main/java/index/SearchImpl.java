@@ -12,6 +12,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
 import org.nutz.ssdb4j.SSDBs;
@@ -39,6 +40,7 @@ class SearchImpl {
 
     //following parameters need by select sql
     private Query query;
+    private Sort sort;
     private int nrtLimit;     //need by nrt search
     private List<String> cols;
     private String indexName;  //also need by to pull source data
@@ -98,7 +100,8 @@ class SearchImpl {
             source = selectSql.getSchema().getSource();
             query = selectSql.getQuery();
             cols = selectSql.getSelects();
-            logger.debug("query[" + query + "]");
+            sort = selectSql.getOrder();
+            logger.debug("query[" + query + "],order[" + sort + "]");
             IndexImpl indexImpl = Indexer.indexes.getIfPresent(indexName);
             if (indexImpl == null) {
                 logger.debug("索引[" + indexName + "]非运行中,IndexReader查询");
@@ -106,7 +109,8 @@ class SearchImpl {
             }
 
             logger.debug("索引[" + indexName + "]运行中,近实时查询");
-            key = Utils.md5(sql);
+            if (Searcher.max > 0) key = Utils.md5(sql);
+            else key = "";
             nrtLimit = Constants.pageCache * rowCount;
 //            if (Searcher.searches.getIfPresent(key) != null) {
 //                logger.warn("清空索引[" + indexName + "]查询[" + sql + "]缓存,重新查询");
@@ -116,7 +120,7 @@ class SearchImpl {
         }
         logger.debug("取缓存[" + key + "]分页数据");
         Triple<List<String>, List<Pair<String, Object>>, Integer> triple = Searcher.searches.getIfPresent(key);
-        if (triple == null) throw new LSException("缓存已经移除,请重新查询");
+        if (triple == null) throw new LSException("缓存[" + key + "]已经移除,请重新查询");
         List<Pair<String, Object>> cache = triple.getMiddle();
         //返回total<=pageCache*pageSize,下面错误理论不会出现
         if (cache.size() < start) throw new LSException("请求数据越界[start > cacheSize]");
@@ -159,7 +163,7 @@ class SearchImpl {
     }
 
     /**
-     * @param key      sqlId
+     * @param key      sqlId,if no cache this is empty
      * @param searcher searcher{@link IndexSearcher}
      * @return {"total":,"size":,"key":"","list":[<pullName,key>...],"cols":[f1,f2...]}
      * @throws IOException io exception
@@ -173,8 +177,10 @@ class SearchImpl {
             int totalHits = (int) results.get("total");
             List<Pair<String, Object>> list = (List<Pair<String, Object>>) results.remove("list");
             int total = Math.min(nrtLimit, totalHits);
-            Searcher.searches.put(key, Triple.of(cols, list, total));
-            Searcher.mapper.put(key, indexName);
+            if (!key.isEmpty()) {
+                Searcher.searches.put(key, Triple.of(cols, list, total));
+                Searcher.mapper.put(key, indexName);
+            }
             if (list.size() < nrtLimit && list.size() < totalHits)
                 new AfterSearch(searcher, key, scoreDoc, list.size()).start();
             List<Pair<String, Object>> _l = new ArrayList<>(rowCount);
@@ -197,7 +203,9 @@ class SearchImpl {
 
     private ScoreDoc firstSearch(IndexSearcher searcher, Map<String, Object> results) throws IOException {
         int limit = start + rowCount;
-        TopDocs topDocs = searcher.search(query, limit);
+        TopDocs topDocs;
+        if (sort == null) topDocs = searcher.search(query, limit);
+        else topDocs = searcher.search(query, limit, sort);
         ScoreDoc[] hits = topDocs.scoreDocs;
         int totalHits = Math.toIntExact(topDocs.totalHits);
         logger.debug("first search[" + indexName + "] total[" + totalHits + "] matching documents");
@@ -240,12 +248,18 @@ class SearchImpl {
 
         @Override
         public void run() {
+            if (key == null || key.isEmpty()) {
+                logger.warn("key is null or empty,so no after search");
+                return;
+            }
             try {
                 Triple<List<String>, List<Pair<String, Object>>, Integer> value = Searcher.searches.getIfPresent(key);
                 if (value == null) throw new IOException("search[" + key + "]不存在");
                 List<Pair<String, Object>> cache = value.getMiddle();
                 while (afterCount > 0) {
-                    TopDocs topDocs = searcher.searchAfter(scoreDoc, query, afterCount);
+                    TopDocs topDocs;
+                    if (sort == null) topDocs = searcher.searchAfter(scoreDoc, query, afterCount);
+                    else topDocs = searcher.searchAfter(scoreDoc, query, afterCount, sort);
                     ScoreDoc[] hits = topDocs.scoreDocs;
                     int totalHits = Math.toIntExact(topDocs.totalHits);
                     logger.debug("backstage search[" + indexName + "] total[" + totalHits +

@@ -90,7 +90,13 @@ public class SsdbPull extends Pull {
             logger.warn("pull name is null");
             return false;
         }
-        logger.info("change to [" + _pull + "]");
+        logger.info("change to [" + _pull + "] and update[" + point + "]");
+        try {
+            SqlliteUtil.update("update point set name=?,value=? where iname=?",
+                    point.getLeft(), point.getRight(), indexName);
+        } catch (SQLException e) {
+            logger.error(indexName + " update point error", e);
+        }
         if (source.getType() == Source.Type.LIST) point = Pair.of(_pull, 0);
         else point = Pair.of(_pull, "");
         return true;

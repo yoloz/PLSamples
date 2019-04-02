@@ -11,6 +11,8 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.document.LongPoint;
+import org.apache.lucene.document.NumericDocValuesField;
+import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
@@ -21,14 +23,13 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.BytesRef;
 import util.Constants;
 import util.JsonUtil;
-import util.SqlliteUtil;
 import util.Utils;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -136,7 +137,6 @@ class IndexImpl implements Runnable {
     }
 
     private void impl() throws IOException {
-        int counter = 0;
         while (pull.isRunning()) {
             try {
                 Triple<String, Object, Object> triple = this.queue.poll(blockSec, TimeUnit.SECONDS);
@@ -165,20 +165,25 @@ class IndexImpl implements Runnable {
                                 if (value instanceof Integer) i = (int) value;
                                 else i = Integer.valueOf(String.valueOf(value));
                                 doc.add(new IntPoint(name, i));
+                                doc.add(new NumericDocValuesField(name, i));
                                 break;
                             case DATE:
                                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern(field.getFormatter());
                                 LocalDateTime localDateTime = LocalDateTime.parse(String.valueOf(value), formatter);
-                                doc.add(new LongPoint(name, Long.valueOf(Utils.toNanos(localDateTime))));
+                                long dl = Long.valueOf(Utils.toNanos(localDateTime));
+                                doc.add(new LongPoint(name, dl));
+                                doc.add(new NumericDocValuesField(name, dl));
                                 break;
                             case LONG:
                                 long l;
                                 if (value instanceof Long) l = (long) value;
                                 else l = Long.valueOf(String.valueOf(value));
                                 doc.add(new LongPoint(name, l));
+                                doc.add(new NumericDocValuesField(name, l));
                                 break;
                             case STRING:
                                 doc.add(new StringField(name, String.valueOf(value), Field.Store.NO));
+                                doc.add(new SortedDocValuesField(name, new BytesRef(String.valueOf(value))));
                                 break;
                             case TEXT:
                                 doc.add(new TextField(name, String.valueOf(value), Field.Store.NO));
@@ -189,20 +194,9 @@ class IndexImpl implements Runnable {
                 doc.add(new StoredField("_key", String.valueOf(triple.getMiddle())));
                 doc.add(new StoredField("_name", triple.getLeft()));
                 indexWriter.addDocument(doc);
-
-                counter++;
-                if (counter >= 10000) {
-                    logger.debug("update [" + schema.getIndex() + "] point message");
-                    SqlliteUtil.update("update point set name=?,value=? where iname=?",
-                            triple.getLeft(), triple.getMiddle(), schema.getIndex());
-                    counter = 0;
-                }
             } catch (InterruptedException e) {
                 logger.error(schema.getIndex() + " queue error", e);
-            } catch (SQLException e) {
-                logger.error(schema.getIndex() + " update point error", e);
             }
-
         }
     }
 

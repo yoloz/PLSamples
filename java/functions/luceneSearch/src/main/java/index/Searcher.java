@@ -10,7 +10,6 @@ import com.google.common.cache.RemovalListeners;
 import util.Constants;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,7 +22,7 @@ import java.util.concurrent.Executors;
  */
 public class Searcher {
 
-    private static final int max = Constants.searchCache * Constants.totalIndex;
+    static final int max = Constants.searchCache * Constants.totalIndex;
 
     //sqlId<==>indexName
     static final Map<String, String> mapper = new ConcurrentHashMap<>(max);
@@ -39,7 +38,7 @@ public class Searcher {
             .build();
 
     public static Map<String, Object> search(Object... params) throws LSException, IOException {
-        if (params == null) throw new LSException("搜索条件[" + Arrays.toString(params) + "]为空");
+        if (params == null) throw new LSException("搜索条件为空");
         SearchImpl searchImpl = new SearchImpl(params);
         return searchImpl.search();
     }

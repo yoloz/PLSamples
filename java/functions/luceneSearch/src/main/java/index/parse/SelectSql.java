@@ -25,6 +25,7 @@ import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Limit;
+import net.sf.jsqlparser.statement.select.OrderByElement;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.SelectBody;
@@ -38,6 +39,8 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.WildcardQuery;
 import util.Utils;
@@ -81,10 +84,6 @@ public class SelectSql {
 
     private final Map<String, Pair<Field.Type, String>> colMap = new HashMap<>(5);
 
-    private List<String> cols;
-    private Pair<Integer, Integer> limit;
-    private Query query;
-
     public SelectSql(String sql) throws LSException {
         Select select;
         try {
@@ -114,18 +113,16 @@ public class SelectSql {
     }
 
     public List<String> getSelects() {
-        if (cols == null) {
-            List<SelectItem> selects = selectBody.getSelectItems();
-            cols = new ArrayList<>(selects.size());
-            if (selects.size() == 1 && selects.get(0).getClass().equals(AllColumns.class))
-                cols.addAll(colMap.keySet());
-            else for (SelectItem item : selects) {
-                SelectExpressionItem selectItem = (SelectExpressionItem) item;
-                Column col = (Column) selectItem.getExpression();
-                if (col.getTable() != null) logger.warn("discard [" + col.getTable().getName() +
-                        "] of[" + col.getTable().getName() + "." + col.getColumnName() + "]");
-                cols.add(col.getColumnName());
-            }
+        List<SelectItem> selects = selectBody.getSelectItems();
+        List<String> cols = new ArrayList<>(selects.size());
+        if (selects.size() == 1 && selects.get(0).getClass().equals(AllColumns.class))
+            cols.addAll(colMap.keySet());
+        else for (SelectItem item : selects) {
+            SelectExpressionItem selectItem = (SelectExpressionItem) item;
+            Column col = (Column) selectItem.getExpression();
+            if (col.getTable() != null) logger.warn("discard [" + col.getTable().getName() +
+                    "] of[" + col.getTable().getName() + "." + col.getColumnName() + "]");
+            cols.add(col.getColumnName());
         }
         return cols;
     }
@@ -145,42 +142,70 @@ public class SelectSql {
      * @throws LSException error
      */
     public Pair<Integer, Integer> getLimit() throws LSException {
-        if (limit == null) {
-            Limit _limit = selectBody.getLimit();
-            int _rowCount = 0, _offset = 0;
-            if (_limit != null) {
-                Expression offset = _limit.getOffset();
-                Expression rowCount = _limit.getRowCount();
-                if (offset != null) {
-                    if (!LongValue.class.equals(offset.getClass()))
-                        throw new LSException("limit offset type[" + rowCount.getClass() + "]not support");
-                    _offset = ((LongValue) offset).getBigIntegerValue().intValueExact();
-                }
-                if (rowCount != null) {
-                    if (!LongValue.class.equals(rowCount.getClass()))
-                        throw new LSException("limit rowCount type[" + rowCount.getClass() + "]not support");
-
-                    _rowCount = ((LongValue) rowCount).getBigIntegerValue().intValueExact();
-                }
+        Limit _limit = selectBody.getLimit();
+        int _rowCount = 0, _offset = 0;
+        if (_limit != null) {
+            Expression offset = _limit.getOffset();
+            Expression rowCount = _limit.getRowCount();
+            if (offset != null) {
+                if (!LongValue.class.equals(offset.getClass()))
+                    throw new LSException("limit offset type[" + rowCount.getClass() + "]not support");
+                _offset = ((LongValue) offset).getBigIntegerValue().intValueExact();
             }
-            if (_rowCount == 0) _rowCount = 15;
-            if (_offset > 0) _offset -= 1;
-            limit = Pair.of(_offset * _rowCount, _rowCount);
+            if (rowCount != null) {
+                if (!LongValue.class.equals(rowCount.getClass()))
+                    throw new LSException("limit rowCount type[" + rowCount.getClass() + "]not support");
+
+                _rowCount = ((LongValue) rowCount).getBigIntegerValue().intValueExact();
+            }
         }
-        return limit;
+        if (_rowCount == 0) _rowCount = 15;
+        if (_offset > 0) _offset -= 1;
+        return Pair.of(_offset * _rowCount, _rowCount);
     }
 
     public Query getQuery() throws LSException {
-        if (query == null) {
-            query = this.queryImpl(selectBody.getWhere());
-            if (query == null) for (Field f : schema.getFields()) {
-                if (Field.Type.STRING == f.getType()) {
-                    query = new WildcardQuery(new Term(f.getName(), "*"));
-                    break;
-                }
+        Query query = this.queryImpl(selectBody.getWhere());
+        if (query == null) for (Field f : schema.getFields()) {
+            if (Field.Type.STRING == f.getType()) {
+                query = new WildcardQuery(new Term(f.getName(), "*"));
+                break;
             }
         }
         return query;
+    }
+
+    public Sort getOrder() throws LSException {
+        List<OrderByElement> orders = selectBody.getOrderByElements();
+        SortField[] sortFields = null;
+        if (orders != null && !orders.isEmpty()) {
+            sortFields = new SortField[orders.size()];
+            for (int i = 0; i < orders.size(); i++) {
+                OrderByElement order = orders.get(i);
+                Expression expression = order.getExpression();
+                if (!expression.getClass().equals(Column.class))
+                    throw new LSException("column not support[" + expression.getClass() + "] order");
+                String col = ((Column) expression).getColumnName();
+                if (!colMap.containsKey(col)) throw new LSException("column name[" + col + "] is not defined");
+                boolean desc = !order.isAsc();
+                switch (colMap.get(col).getLeft()) {
+                    case INT:
+                        sortFields[i] = new SortField(col, SortField.Type.INT, desc);
+                        break;
+                    case DATE:
+                    case LONG:
+                        sortFields[i] = new SortField(col, SortField.Type.LONG, desc);
+                        break;
+                    case STRING:
+                        sortFields[i] = new SortField(col, SortField.Type.STRING, desc);
+                        break;
+                    default:
+                        throw new LSException("column[" + col + "] is not support to order");
+                }
+            }
+        }
+        if (sortFields != null) return new Sort(sortFields);
+        return null;
     }
 
     /**
