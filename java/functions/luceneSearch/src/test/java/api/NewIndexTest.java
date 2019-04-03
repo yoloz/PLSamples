@@ -55,6 +55,7 @@ public class NewIndexTest {
     }
 
     @Test
+    //timestamp yyyy-MM-dd'T'00:00:00.000000
     public void createListData1() throws IOException, InterruptedException {
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSSSS");
         try (SSDB ssdb = SSDBs.simple()) {

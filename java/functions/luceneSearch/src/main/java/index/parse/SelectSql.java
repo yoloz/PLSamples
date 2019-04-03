@@ -46,7 +46,6 @@ import org.apache.lucene.search.WildcardQuery;
 import util.Utils;
 
 import java.io.StringReader;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -57,7 +56,6 @@ import java.util.Map;
 /**
  * 大于,大于等于,小于,小于等于:
  * 1,要求为数值或者时间值；
- * 2,处理后会有上边界或下边界(+[-]{boundary}),这样在提交lucene搜索返回的total不准确；
  * <p>
  * 查询语句中字符值需加单引号
  * <p>
@@ -77,7 +75,7 @@ public class SelectSql {
     private final Logger logger = Logger.getLogger(SelectSql.class);
 
 
-    private final int boundary = 10000; //添加上下边界
+    //    private final int boundary = 10000; //添加上下边界
     private final PlainSelect selectBody;
     private final Schema schema;
     private final String indexName;
@@ -165,7 +163,8 @@ public class SelectSql {
     }
 
     public Query getQuery() throws LSException {
-        Query query = this.queryImpl(selectBody.getWhere());
+        Query query = null;
+        if (selectBody.getWhere() != null) query = this.queryImpl(selectBody.getWhere());
         if (query == null) for (Field f : schema.getFields()) {
             if (Field.Type.STRING == f.getType()) {
                 query = new WildcardQuery(new Term(f.getName(), "*"));
@@ -214,7 +213,6 @@ public class SelectSql {
      * @throws LSException error or not support
      */
     private Query queryImpl(Expression where) throws LSException {
-        if (where == null) return null;
         if (Parenthesis.class.equals(where.getClass())) {
             Parenthesis parenthesis = (Parenthesis) where;
             Expression pe = parenthesis.getExpression();
@@ -256,14 +254,12 @@ public class SelectSql {
             Expression right = greater.getRightExpression();
             Object or = checkValue(operator, ln, getItem(operator, right), true);
             if (or.getClass().equals(Long.class)) {
-                or = (long) or + 1;
-                if (Field.Type.INT == colMap.get(ln).getLeft())
-                    return IntPoint.newRangeQuery(ln,
-                            Integer.valueOf(String.valueOf(or)),
-                            Integer.valueOf(String.valueOf(addNum(or))));
-                else return LongPoint.newRangeQuery(ln, (long) or, (long) addNum(or));
+                if (Field.Type.INT == colMap.get(ln).getLeft()) {
+                    int _or = Integer.parseInt(String.valueOf(or));
+                    return IntPoint.newRangeQuery(ln, Math.addExact(_or, 1), Integer.MAX_VALUE);
+                } else return LongPoint.newRangeQuery(ln, Math.addExact((long) or, 1), Long.MAX_VALUE);
             } else if (or.getClass().equals(Double.class))
-                return DoublePoint.newRangeQuery(ln, ((double) or + 0.1), (double) addNum(or));
+                return DoublePoint.newRangeQuery(ln, DoublePoint.nextUp((double) or), Double.POSITIVE_INFINITY);
             else throw new LSException(or.getClass() + " [" + operator + "] is not support");
         } else if (GreaterThanEquals.class.equals(where.getClass())) {
             GreaterThanEquals greaterThanEquals = (GreaterThanEquals) where;
@@ -276,10 +272,10 @@ public class SelectSql {
                 if (Field.Type.INT == colMap.get(ln).getLeft())
                     return IntPoint.newRangeQuery(ln,
                             Integer.valueOf(String.valueOf(or)),
-                            Integer.valueOf(String.valueOf(addNum(or))));
-                else return LongPoint.newRangeQuery(ln, (long) or, (long) addNum(or));
+                            Integer.MAX_VALUE);
+                else return LongPoint.newRangeQuery(ln, (long) or, Long.MAX_VALUE);
             } else if (or.getClass().equals(Double.class))
-                return DoublePoint.newRangeQuery(ln, (double) or, (double) addNum(or));
+                return DoublePoint.newRangeQuery(ln, (double) or, Double.POSITIVE_INFINITY);
             else throw new LSException(or.getClass() + " [" + operator + "] is not support");
         } else if (MinorThan.class.equals(where.getClass())) {
             MinorThan minorThan = (MinorThan) where;
@@ -289,15 +285,14 @@ public class SelectSql {
             Expression right = minorThan.getRightExpression();
             Object or = checkValue(operator, ln, getItem(operator, right), true);
             if (or.getClass().equals(Long.class)) {
-                or = (long) or - 1;
-                if ((long) or < 0) or = 0;
-                if (Field.Type.INT == colMap.get(ln).getLeft())
+                if (Field.Type.INT == colMap.get(ln).getLeft()) {
+                    int _or = Integer.parseInt(String.valueOf(or));
                     return IntPoint.newRangeQuery(ln,
-                            Integer.valueOf(String.valueOf(minusNum(or))),
-                            Integer.valueOf(String.valueOf(or)));
-                else return LongPoint.newRangeQuery(ln, (long) minusNum(or), ((long) or));
+                            Integer.MIN_VALUE,
+                            Math.addExact(_or, -1));
+                } else return LongPoint.newRangeQuery(ln, Long.MIN_VALUE, Math.addExact((long) or, -1));
             } else if (or.getClass().equals(Double.class))
-                return DoublePoint.newRangeQuery(ln, (double) minusNum(or), ((double) or - 0.1));
+                return DoublePoint.newRangeQuery(ln, Double.NEGATIVE_INFINITY, DoublePoint.nextDown((double) or));
             else throw new LSException(or.getClass() + " [" + operator + "] is not support");
         } else if (MinorThanEquals.class.equals(where.getClass())) {
             MinorThanEquals minorThanEquals = (MinorThanEquals) where;
@@ -309,11 +304,11 @@ public class SelectSql {
             if (or.getClass().equals(Long.class)) {
                 if (Field.Type.INT == colMap.get(ln).getLeft())
                     return IntPoint.newRangeQuery(ln,
-                            Integer.valueOf(String.valueOf(minusNum(or))),
+                            Integer.MIN_VALUE,
                             Integer.valueOf(String.valueOf(or)));
-                else return LongPoint.newRangeQuery(ln, (long) minusNum(or), (long) or);
+                else return LongPoint.newRangeQuery(ln, Long.MIN_VALUE, (long) or);
             } else if (or.getClass().equals(Double.class))
-                return DoublePoint.newRangeQuery(ln, (double) minusNum(or), (double) or);
+                return DoublePoint.newRangeQuery(ln, Double.NEGATIVE_INFINITY, (double) or);
             else throw new LSException(or.getClass() + " [" + operator + "] is not support");
         } else if (Between.class.equals(where.getClass())) {
             Between between = (Between) where;
@@ -392,33 +387,33 @@ public class SelectSql {
         else return or;
     }
 
-    private Object addNum(Object object) throws LSException {
-        Class clazz = object.getClass();
-        if (Long.class.equals(clazz)) {
-            return ((long) object) + boundary;
-        } else if (Double.class.equals(clazz)) {
-            BigDecimal b1 = BigDecimal.valueOf((double) object);
-            BigDecimal b2 = new BigDecimal(String.valueOf(boundary));
-            return b1.add(b2);
-        } else throw new LSException(clazz + " 加法暂未实现");
-    }
-
-    private Object minusNum(Object object) throws LSException {
-        Class clazz = object.getClass();
-        if (Long.class.equals(clazz)) {
-            long l1 = (long) object;
-            if (l1 <= boundary) return 0;
-            else return l1 - boundary;
-        } else if (Double.class.equals(clazz)) {
-            double d1 = (double) object;
-            if (d1 <= boundary) return 0.0;
-            else {
-                BigDecimal b1 = BigDecimal.valueOf((double) object);
-                BigDecimal b2 = new BigDecimal(String.valueOf(boundary));
-                return b1.subtract(b2);
-            }
-        } else throw new LSException(clazz + " 减法暂未实现");
-    }
+//    private Object addNum(Object object) throws LSException {
+//        Class clazz = object.getClass();
+//        if (Long.class.equals(clazz)) {
+//            return ((long) object) + boundary;
+//        } else if (Double.class.equals(clazz)) {
+//            BigDecimal b1 = BigDecimal.valueOf((double) object);
+//            BigDecimal b2 = new BigDecimal(String.valueOf(boundary));
+//            return b1.add(b2);
+//        } else throw new LSException(clazz + " 加法暂未实现");
+//    }
+//
+//    private Object minusNum(Object object) throws LSException {
+//        Class clazz = object.getClass();
+//        if (Long.class.equals(clazz)) {
+//            long l1 = (long) object;
+//            if (l1 <= boundary) return 0;
+//            else return l1 - boundary;
+//        } else if (Double.class.equals(clazz)) {
+//            double d1 = (double) object;
+//            if (d1 <= boundary) return 0.0;
+//            else {
+//                BigDecimal b1 = BigDecimal.valueOf((double) object);
+//                BigDecimal b2 = new BigDecimal(String.valueOf(boundary));
+//                return b1.subtract(b2);
+//            }
+//        } else throw new LSException(clazz + " 减法暂未实现");
+//    }
 
     private Object getItem(String operator, Expression item)
             throws LSException {
