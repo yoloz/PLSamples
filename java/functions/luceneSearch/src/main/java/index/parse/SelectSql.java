@@ -38,6 +38,7 @@ import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
@@ -165,12 +166,7 @@ public class SelectSql {
     public Query getQuery() throws LSException {
         Query query = null;
         if (selectBody.getWhere() != null) query = this.queryImpl(selectBody.getWhere());
-        if (query == null) for (Field f : schema.getFields()) {
-            if (Field.Type.STRING == f.getType()) {
-                query = new WildcardQuery(new Term(f.getName(), "*"));
-                break;
-            }
-        }
+        if (query == null) query = new MatchAllDocsQuery();
         return query;
     }
 
