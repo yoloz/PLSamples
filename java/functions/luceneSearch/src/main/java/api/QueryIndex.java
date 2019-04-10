@@ -31,9 +31,10 @@ public class QueryIndex extends HttpServlet {
         String error = "";
         Map<String, Object> results = null;
         try {
-            if (map.isEmpty() || !map.containsKey("key"))
+            if (map.isEmpty() || !map.containsKey("sql"))
                 throw new LSException("query params=>[" + request + "] error");
-            results = Searcher.search(map.get("key"), map.get("offset"), map.get("limit"));
+            results = Searcher.search(String.valueOf(map.get("sql")),
+                    Long.parseLong(String.valueOf(map.getOrDefault("key", "-1"))));
             results.put("success", true);
         } catch (Exception e) {
             logger.error("query [" + request + "] error", e);

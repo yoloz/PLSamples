@@ -1,8 +1,11 @@
 package index;
 
+import bean.Pair;
 import bean.Triple;
 import bean.LSException;
 import bean.Schema;
+import index.nrt.ControlledRealTimeThread;
+import index.nrt.SearcherLifetimeManager;
 import index.pull.Pull;
 import index.pull.SsdbPull;
 import org.apache.log4j.Logger;
@@ -18,7 +21,6 @@ import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.search.ControlledRealTimeReopenThread;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.store.Directory;
@@ -61,7 +63,9 @@ class IndexImpl implements Runnable {
     private final Path indexPath;
     private Pull pull;
 
-    private ControlledRealTimeReopenThread<IndexSearcher> crtThread;
+    private SearcherLifetimeManager searcherLifetimeManager;
+    private ControlledRealTimeThread controlledRealTimeThread;
+    private long generation;
     private PerDayCommit perDayCommit;
 
 
@@ -104,20 +108,46 @@ class IndexImpl implements Runnable {
         logger.info("close index[" + schema.getIndex() + "]...");
         if (this.pull != null) this.pull.close();
         try {
-            if (crtThread != null) crtThread.close();
+            //if (searcherManager != null) searcherManager.close();
+            //all searcher release at searcherLifetimeManager close
+            if (searcherLifetimeManager != null) searcherLifetimeManager.close();
+            if (controlledRealTimeThread != null) controlledRealTimeThread.close();
             if (perDayCommit != null) perDayCommit.cancel();
-            if (searcherManager != null) searcherManager.close();
             if (this.indexWriter != null && this.indexWriter.isOpen()) this.indexWriter.close();
         } catch (IOException e) {
             logger.error("close[" + schema.getIndex() + "] error", e);
         }
         Indexer.indexes.invalidate(schema.getIndex());
-        this.searcherManager = null;
     }
 
-    IndexSearcher getSearcher() throws IOException {
-        if (this.searcherManager != null) return this.searcherManager.acquire();
-        else return null;
+    private IndexSearcher getSearcher() throws IOException {
+        try {
+            controlledRealTimeThread.waitForGeneration(generation);
+        } catch (InterruptedException e) {
+            throw new IOException(e);
+        }
+        return this.searcherManager.acquire();
+    }
+
+    /**
+     * 分页搜索
+     *
+     * @param version searcher token
+     * @return token, searcher
+     * @throws IOException io error
+     */
+    Pair<Long, IndexSearcher> getSearcher(long version) throws IOException {
+        IndexSearcher indexSearcher;
+        if (version < 0) {
+            indexSearcher = getSearcher();
+            if (searcherLifetimeManager != null)
+                version = searcherLifetimeManager.record(indexSearcher);
+        } else {
+            if (searcherLifetimeManager == null) throw new IOException("非分页模式,参数version[" + version + "]大于0");
+            indexSearcher = searcherLifetimeManager.acquire(version);
+            if (indexSearcher == null) throw new IOException("搜索[" + version + "]已经超时,请重新SQL查询");
+        }
+        return Pair.of(version, indexSearcher);
     }
 
     private void initIndex() throws IOException, LSException {
@@ -129,11 +159,14 @@ class IndexImpl implements Runnable {
         this.indexWriter = new IndexWriter(dir, iwc);
         this.searcherManager = new SearcherManager(indexWriter, false,
                 false, null);
-        crtThread = new ControlledRealTimeReopenThread<>(indexWriter, searcherManager,
-                Constants.refreshTime, 1.0);
-        crtThread.setDaemon(true);
-        crtThread.setName("update-" + schema.getIndex());
-        crtThread.start();
+        if (Constants.searchExpired > 0)
+            this.searcherLifetimeManager = new SearcherLifetimeManager();
+        else this.searcherLifetimeManager = null;
+        controlledRealTimeThread = new ControlledRealTimeThread(indexWriter, searcherManager, searcherLifetimeManager,
+                Constants.searchExpired + 1, 1.0);
+        controlledRealTimeThread.setDaemon(true);
+        controlledRealTimeThread.setName("update-" + schema.getIndex());
+        controlledRealTimeThread.start();
     }
 
     private void impl() throws IOException {
@@ -193,7 +226,7 @@ class IndexImpl implements Runnable {
                 }
                 doc.add(new StoredField("_key", String.valueOf(triple.getMiddle())));
                 doc.add(new StoredField("_name", triple.getLeft()));
-                indexWriter.addDocument(doc);
+                generation = indexWriter.addDocument(doc);
             } catch (InterruptedException e) {
                 logger.error(schema.getIndex() + " queue error", e);
             }

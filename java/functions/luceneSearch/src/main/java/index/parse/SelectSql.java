@@ -136,13 +136,13 @@ public class SelectSql {
      * <p>
      * 默认rowCount=15
      * <p>
-     * Docu @return <start,end> start会转换成offset*count
      *
+     * @return <offset,rowCount>
      * @throws LSException error
      */
     public Pair<Integer, Integer> getLimit() throws LSException {
         Limit _limit = selectBody.getLimit();
-        int _rowCount = 0, _offset = 0;
+        int _rowCount = 15, _offset = 1;
         if (_limit != null) {
             Expression offset = _limit.getOffset();
             Expression rowCount = _limit.getRowCount();
@@ -158,9 +158,9 @@ public class SelectSql {
                 _rowCount = ((LongValue) rowCount).getBigIntegerValue().intValueExact();
             }
         }
-        if (_rowCount == 0) _rowCount = 15;
-        if (_offset > 0) _offset -= 1;
-        return Pair.of(_offset * _rowCount, _rowCount);
+//        if (_offset > 0) _offset -= 1;
+//        return Pair.of(_offset * _rowCount, _rowCount);
+        return Pair.of(_offset, _rowCount);
     }
 
     public Query getQuery() throws LSException {

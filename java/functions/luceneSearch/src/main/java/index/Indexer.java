@@ -42,12 +42,6 @@ public class Indexer {
             .removalListener(RemovalListeners.asynchronous(
                     (RemovalListener<String, IndexImpl>) notify -> {
                         if (notify.getCause() != RemovalCause.EXPLICIT) notify.getValue().close();
-                        for (Map.Entry<String, String> entry : Searcher.mapper.entrySet()) {
-                            if (entry.getValue().equals(notify.getKey())) {
-                                String key = entry.getKey();
-                                Searcher.searches.invalidate(key);
-                            }
-                        }
                     },
                     Executors.newSingleThreadExecutor()))
             .build();

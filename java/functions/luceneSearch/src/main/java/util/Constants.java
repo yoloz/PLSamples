@@ -18,12 +18,10 @@ public class Constants {
     public static final Path logDir;
     public static final Path varDir;
     public static final int httpPort;
-    public static final int pageCache;
-    public static final int searchCache;
     public static final int totalIndex;
     public static final double RAMBuffer;
     public static final int perDayHour;
-    public static final double refreshTime;
+    public static final int searchExpired;
 
     public static final String logLevel;
 
@@ -48,11 +46,9 @@ public class Constants {
             indexDir = varDir.resolve("index");
         else indexDir = Paths.get(_indexDir);
         httpPort = Integer.parseInt(properties.getProperty("httpPort"));
-        pageCache = Integer.parseInt(properties.getProperty("pageCache", "10"));
-        searchCache = Integer.parseInt(properties.getProperty("searchCache", "5"));
         totalIndex = Integer.valueOf(properties.getProperty("totalIndex", "6"));
         RAMBuffer = Double.parseDouble(properties.getProperty("indexBuffer", "128"));
         perDayHour = Integer.valueOf(properties.getProperty("perDayHour", "2"));
-        refreshTime = Double.parseDouble(properties.getProperty("refreshTime", "180"));
+        searchExpired = Integer.parseInt(properties.getProperty("searchExpired", "0"));
     }
 }
