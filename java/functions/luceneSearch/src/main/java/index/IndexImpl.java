@@ -140,10 +140,8 @@ class IndexImpl implements Runnable {
         IndexSearcher indexSearcher;
         if (version < 0) {
             indexSearcher = getSearcher();
-            if (searcherLifetimeManager != null) {
+            if (searcherLifetimeManager != null)
                 version = searcherLifetimeManager.record(indexSearcher);
-                searcherLifetimeManager.release(indexSearcher);
-            }
         } else {
             if (searcherLifetimeManager == null) throw new IOException("非分页模式,参数version[" + version + "]大于0");
             indexSearcher = searcherLifetimeManager.acquire(version);

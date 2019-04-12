@@ -68,7 +68,7 @@ POST json {sql:""\[,key:\]}
 select * from test where city='hangzhou' limit 1,15(取第一页数据15条);      
 select * from test where city='hangzhou' limit 1000(取前1000数据);  
 order by,group by见下文API用例
-2. 近视时搜索分页查询`{"sql":"select * from test where city='hangzhou' limit 3,15","key":2}`
+2. 近实时搜索分页查询`{"sql":"select * from test where city='hangzhou' limit 3,15","key":2}`
 > 使用key=2(近实时搜索直接查询返回值)的searcher继续取第三页15条数据,如此可以保持total及数据不变;    
 离线(index实例未运行)分页直接搜索即可;
 
