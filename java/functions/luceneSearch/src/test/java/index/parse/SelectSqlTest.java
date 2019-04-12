@@ -48,4 +48,20 @@ public class SelectSqlTest {
             }
         }
     }
+
+    @Test
+    public void parseGroupBy() throws JSQLParserException, LSException {
+        String sql = "select * from test group by id";
+        Select select = (Select) new CCJSqlParserManager().parse(new StringReader(sql));
+        PlainSelect ps = (PlainSelect) select.getSelectBody();
+        List<Expression> groups = ps.getGroupByColumnReferences();
+        if (groups != null && !groups.isEmpty()) {
+            for (Expression expression : groups) {
+                if (!expression.getClass().equals(Column.class))
+                    throw new LSException("field not support[" + expression.getClass() + "]");
+                Column f = (Column) expression;
+                System.out.println(f.getColumnName());
+            }
+        }
+    }
 }

@@ -12,8 +12,13 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.grouping.GroupDocs;
+import org.apache.lucene.search.grouping.GroupingSearch;
+import org.apache.lucene.search.grouping.TopGroups;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.BytesRef;
 import org.nutz.ssdb4j.SSDBs;
 import org.nutz.ssdb4j.spi.Response;
 import org.nutz.ssdb4j.spi.SSDB;
@@ -75,15 +80,16 @@ class SearchImpl {
         Query query = selectSql.getQuery();
         List<String> cols = selectSql.getSelects();
         Sort sort = selectSql.getOrder();
-        logger.debug("query[" + query + "],order[" + sort + "]");
+        String group = selectSql.getGroup();
+        logger.debug("query[" + query + "],order[" + sort + "],group[" + group + "]");
         IndexImpl indexImpl = Indexer.indexes.getIfPresent(indexName);
         if (indexImpl == null) {
             logger.debug("索引[" + indexName + "]非运行中,IndexReader查询");
-            results = offSearch(indexName, query, sort, offset, rowCount);
+            results = offSearch(indexName, query, sort, group, offset, rowCount);
         } else {
             logger.debug("索引[" + indexName + "]运行中,近实时查询");
             Pair<Long, IndexSearcher> searcher = indexImpl.getSearcher(token);
-            results = nrtSearch(searcher.getRight(), query, sort, offset, rowCount);
+            results = nrtSearch(searcher.getRight(), query, sort, group, offset, rowCount);
             results.put("key", searcher.getLeft());
         }
         if (Source.Type.LIST == source.getType() || Source.Type.HASH == source.getType())
@@ -96,13 +102,15 @@ class SearchImpl {
      * @return {"total":,"list":[<pullName,key>...]}
      * @throws IOException io exception
      */
-    private Map<String, Object> offSearch(String indexName, Query query, Sort sort, int offset, int rowCount)
+    private Map<String, Object> offSearch(String indexName, Query query, Sort sort, String group,
+                                          int offset, int rowCount)
             throws IOException {
         Path indexPath = Constants.indexDir.resolve(indexName);
         Map<String, Object> results;
         try (IndexReader reader = DirectoryReader.open(FSDirectory.open(indexPath))) {
             IndexSearcher searcher = new IndexSearcher(reader);
-            results = _search(searcher, query, sort, offset, rowCount);
+            if (group == null) results = querySearch(searcher, query, sort, offset, rowCount);
+            else results = groupSearch(searcher, query, group, sort, offset, rowCount);
         }
         return results;
     }
@@ -111,25 +119,32 @@ class SearchImpl {
      * @return {"total":,"list":[<pullName,key>...]}
      * @throws IOException io exception
      */
-    private Map<String, Object> nrtSearch(IndexSearcher searcher, Query query, Sort sort, int offset, int rowCount)
+    private Map<String, Object> nrtSearch(IndexSearcher searcher, Query query, Sort sort, String group,
+                                          int offset, int rowCount)
             throws IOException {
         Map<String, Object> results;
         try {
-            results = _search(searcher, query, sort, offset, rowCount);
+            if (group == null) results = querySearch(searcher, query, sort, offset, rowCount);
+            else results = groupSearch(searcher, query, group, sort, offset, rowCount);
         } finally {
             searcher.getIndexReader().decRef();
         }
+        logger.debug("searcher ref: " + searcher.getIndexReader().getRefCount());
         return results;
     }
 
     /**
+     * 普通查询
+     *
      * @param searcher index searcher
      * @return {"total","","list":[<pull,key>...]}
      * @throws IOException io error
      */
-    private Map<String, Object> _search(IndexSearcher searcher, Query query, Sort sort, int offset, int rowCount)
+    private Map<String, Object> querySearch(IndexSearcher searcher, Query query, Sort sort, int offset, int rowCount)
             throws IOException {
         Map<String, Object> results = new HashMap<>(2);
+        List<Pair<String, String>> list = new ArrayList<>(rowCount);
+
         int prePage = (offset - 1) * rowCount;
         int curPage = offset * rowCount;
         int _count = 0;
@@ -155,73 +170,110 @@ class SearchImpl {
         } while (_count < curPage);
         ScoreDoc[] hits = topDocs.scoreDocs;
         long totalHits = topDocs.totalHits;
-        List<Pair<String, String>> list = new ArrayList<>(rowCount);
-        for (ScoreDoc hit : hits) {
-            Document doc = searcher.doc(hit.doc);
-            String pullName = doc.get("_name");
-            String key = doc.get("_key");
-            if (pullName == null || key == null) logger.warn("search [_name] is null or [_key] is null");
-            else list.add(Pair.of(pullName, key));
-        }
+        addData(searcher, hits, list);
         results.put("total", totalHits);
         results.put("list", list);
         return results;
     }
 
-//    private class AfterSearch extends Thread {
-//
-//
-//        private final IndexSearcher searcher;
-//        private final String key;
-//        private int afterCount;
-//        private ScoreDoc scoreDoc;
-//
-//        private AfterSearch(IndexSearcher searcher, String key, ScoreDoc scoreDoc, int firstCount) {
-//            this.scoreDoc = scoreDoc;
-//            this.key = key;
-//            this.searcher = searcher;
-//            this.afterCount = nrtLimit - firstCount;
-//        }
-//
-//        @Override
-//        public void run() {
-//            if (key == null || key.isEmpty()) {
-//                logger.warn("key is null or empty,so no after search");
-//                return;
-//            }
-//            try {
-//                Triple<List<String>, List<Pair<String, Object>>, Integer> value = Searcher.searches.getIfPresent(key);
-//                if (value == null) throw new IOException("search[" + key + "]不存在");
-//                List<Pair<String, Object>> cache = value.getMiddle();
-//                while (afterCount > 0) {
-//                    TopDocs topDocs;
-//                    if (sort == null) topDocs = searcher.searchAfter(scoreDoc, query, afterCount);
-//                    else topDocs = searcher.searchAfter(scoreDoc, query, afterCount, sort);
-//                    ScoreDoc[] hits = topDocs.scoreDocs;
-//                    int totalHits = Math.toIntExact(topDocs.totalHits);
-//                    logger.debug("backstage search[" + indexName + "] total[" + totalHits +
-//                            "] need[" + afterCount + "]");
-//                    for (ScoreDoc hit : hits) {
-//                        Document doc = searcher.doc(hit.doc);
-//                        String pullName = doc.get("_name");
-//                        String key = doc.get("_key");
-//                        if (pullName == null || key == null)
-//                            logger.warn("search [_name] is null or [_key] is null");
-//                        else {
-//                            if (Source.Type.LIST == source.getType())
-//                                cache.add(Pair.of(pullName, Integer.valueOf(key)));
-//                            else cache.add(Pair.of(pullName, key));
-//                        }
-//                    }
-//                    afterCount -= hits.length;
-//                    scoreDoc = hits[hits.length - 1];
-//                }
-//            } catch (IOException e) {
-//                logger.error("index[" + indexName + "] backstage search error", e);
-//            } finally {
-//                IndexImpl impl = Indexer.indexes.getIfPresent(indexName);
-//                if (impl != null) impl.releaseSearcher(searcher);
-//            }
-//        }
-//    }
+    /**
+     * 分组查询
+     *
+     * @param searcher index searcher
+     * @return {"total","","list":[<pull,key>...]}
+     * @throws IOException io error
+     */
+    private Map<String, Object> groupSearch(IndexSearcher searcher, Query query, String colName,
+                                            Sort colSort, int offset, int rowCount) throws IOException {
+        Map<String, Object> results = new HashMap<>(2);
+        List<Pair<String, String>> list = new ArrayList<>(rowCount);
+
+        TopGroups<BytesRef> topGroups = groupImpl(searcher, query, colName, colSort,
+                0, rowCount, 0);
+        int totalGroupCount = topGroups.totalGroupCount;
+        int totalHitCount = topGroups.totalHitCount;
+        if (totalHitCount > 0) {
+            GroupDocs<BytesRef> group = topGroups.groups[0];
+            long hits = group.totalHits;
+            int start = (offset - 1) * rowCount;
+            if (offset * rowCount <= hits) {
+                logger.debug("first group total[" + hits + "] start[" + start + "] to[" + offset * rowCount + "]");
+                if (start > 0) {
+                    topGroups = groupImpl(searcher, query, colName, colSort,
+                            start, rowCount, 0);
+                    group = topGroups.groups[0];
+                }
+                addData(searcher, group.scoreDocs, list);
+            } else {
+                int groupOffset = 0;
+                boolean first = true;
+                int pending;
+                do {
+                    if (first && start < hits) {
+                        topGroups = groupImpl(searcher, query, colName, colSort,
+                                start, Math.toIntExact(hits), groupOffset);
+                        group = topGroups.groups[0];
+                        addData(searcher, group.scoreDocs, list);
+                        first = false;
+                    }
+                    groupOffset += 1;
+                    pending = rowCount - list.size();
+                    logger.debug("group[" + groupOffset + "] pending[" + pending + "]");
+                    if (pending == 0) break;
+                    if (pending < 0) throw new IOException("group page logic error");
+                    topGroups = groupImpl(searcher, query, colName, colSort,
+                            0, pending, groupOffset);
+                    group = topGroups.groups[0];
+                    hits += group.totalHits;
+                    if (start < hits) addData(searcher, group.scoreDocs, list);
+                } while (groupOffset < totalGroupCount);
+            }
+        }
+        results.put("total", totalHitCount);
+        results.put("list", list);
+        return results;
+    }
+
+    private void addData(IndexSearcher searcher, ScoreDoc[] scoreDocs, List<Pair<String, String>> list)
+            throws IOException {
+        for (ScoreDoc hit : scoreDocs) {
+            Document doc = searcher.doc(hit.doc);
+            String pullName = doc.get("_name");
+            String key = doc.get("_key");
+            if (pullName == null || key == null)
+                logger.warn("search [_name] is null or [_key] is null");
+            else list.add(Pair.of(pullName, key));
+        }
+    }
+
+    private TopGroups<BytesRef> groupImpl(IndexSearcher indexSearcher, Query query,
+                                          String colName, Sort sort,
+                                          int start, int rowCount, int groupOffset) throws IOException {
+        GroupingSearch groupingSearch = new GroupingSearch(colName);
+        Sort groupSort = Sort.RELEVANCE;
+        Sort withInGroup = Sort.RELEVANCE;
+        if (sort != null) {
+            SortField[] sortFields = sort.getSort();
+            List<SortField> list = new ArrayList<>(sortFields.length);
+            for (SortField sortField : sortFields) {
+                if (colName.equals(sortField.getField())) {
+                    groupSort = new Sort(sortField);
+                } else list.add(sortField);
+            }
+            if(!list.isEmpty()){
+                SortField[] ins = new SortField[list.size()];
+                withInGroup = new Sort(list.toArray(ins));
+            }
+        }
+        groupingSearch.setGroupSort(groupSort);
+        groupingSearch.setSortWithinGroup(withInGroup);
+        groupingSearch.setFillSortFields(false);
+        groupingSearch.setCaching(rowCount, false);
+        groupingSearch.setAllGroups(true);
+        groupingSearch.setAllGroupHeads(true);
+        groupingSearch.setGroupDocsLimit(rowCount);
+        groupingSearch.setGroupDocsOffset(start);
+        return groupingSearch.search(indexSearcher, query, groupOffset, 1);
+    }
+
 }

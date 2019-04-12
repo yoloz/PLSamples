@@ -22,15 +22,16 @@ tasks.withType(JavaCompile) {
 
 dependencies {
     dependencies {
-        compile 'org.apache.lucene:lucene-core:7.6.0', 
+        compile 'org.apache.lucene:lucene-core:7.6.0',
                 'org.apache.lucene:lucene-queryparser:7.6.0',
-                'org.apache.lucene:lucene-analyzers-common:7.6.0', 
+                'org.apache.lucene:lucene-analyzers-common:7.6.0',
+                'org.apache.lucene:lucene-grouping:7.6.0',
                 'log4j:log4j:1.2.17'
         compile group: 'org.nutz', name: 'ssdb4j', version: '10.0'
         compile group: 'org.yaml', name: 'snakeyaml', version: '1.23'
         compile group: 'com.github.jsqlparser', name: 'jsqlparser', version: '1.4'
         compile group: 'org.xerial', name: 'sqlite-jdbc', version: '3.25.2'
-        compile 'org.apache.commons:commons-dbcp2:2.2.0', 
+        compile 'org.apache.commons:commons-dbcp2:2.2.0',
                 'commons-dbutils:commons-dbutils:1.7'
         compile 'com.google.code.gson:gson:2.8.5',
                 'com.google.guava:guava:27.1-jre'

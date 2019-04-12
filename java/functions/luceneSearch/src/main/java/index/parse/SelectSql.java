@@ -203,6 +203,28 @@ public class SelectSql {
         return null;
     }
 
+    public String getGroup() throws LSException {
+        List<Expression> groups = selectBody.getGroupByColumnReferences();
+        if (groups != null && !groups.isEmpty()) {
+            if (groups.size() > 1) throw new LSException("only support one group field");
+            Expression expression = groups.get(0);
+            if (!expression.getClass().equals(Column.class))
+                throw new LSException("column not support[" + expression.getClass() + "] group");
+            String col = ((Column) expression).getColumnName();
+            if (!colMap.containsKey(col)) throw new LSException("column name[" + col + "] is not defined");
+            switch (colMap.get(col).getLeft()) {
+                case INT:
+                case DATE:
+                case LONG:
+                case STRING:
+                    return col;
+                default:
+                    throw new LSException("column[" + col + "] is not support to order");
+            }
+        }
+        return null;
+    }
+
     /**
      * 遍历常见的expression
      *

@@ -4,7 +4,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -16,6 +18,23 @@ public class SearchImplTest {
 
     @After
     public void tearDown() throws Exception {
+    }
+
+    @Test
+    public void testArr() {
+        String[] s1 = new String[]{"ab", "cd", "ef"};
+        String[] s2 = new String[s1.length];
+        List<String> l1 = new ArrayList<>(s1.length);
+        int i = 0;
+        for (String s : s1) {
+            if (!"cd".equals(s)) {
+                s2[i] = s;
+                l1.add(s);
+                i += 1;
+            }
+        }
+        System.out.println(s2.length+"=="+Arrays.toString(s2));
+        System.out.println(l1.size()+"=="+Arrays.toString(l1.toArray()));
     }
 
     @Test

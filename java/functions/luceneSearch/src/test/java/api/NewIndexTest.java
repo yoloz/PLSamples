@@ -98,6 +98,29 @@ public class NewIndexTest {
         }
     }
 
+    @Test
+    public void createListData3() throws IOException, InterruptedException {
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSSSS");
+        try (SSDB ssdb = SSDBs.simple()) {
+            Object[] values = new Object[100];
+            int j = 0;
+            while (j < 100) {
+                for (int i = 0; i < 10; i++) {
+                    Map<String, Object> value = new HashMap<>(6);
+                    LocalDateTime lt = LocalDateTime.now();
+                    value.put("city", "hz_" + j);
+                    value.put("time", lt.format(dateTimeFormatter));
+                    value.put("index", j * 10 + i);
+                    value.put("timestamp", Utils.toNanos(lt));
+                    values[i] = toJson(value);
+                }
+                j += 1;
+                ssdb.qpush_back("listTest", values);
+                Thread.sleep(1000);
+            }
+        }
+    }
+
     private String toJson(Map<String, Object> map) {
         if (map == null || map.isEmpty()) return "{}";
         else {
