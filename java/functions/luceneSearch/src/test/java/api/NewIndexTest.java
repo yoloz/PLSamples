@@ -42,7 +42,7 @@ public class NewIndexTest {
                     LocalDateTime lt = LocalDateTime.now();
                     value.put("city", "hz" + (j * 100 + i));
                     value.put("company", "北京三维力控科技有限公司");
-                    value.put("english", "Analysis is one of the main causes of slow indexing.");
+                    value.put("english", "Analysis is one of the main causes of slow Indexing.");
                     value.put("time", lt.format(dateTimeFormatter));
                     value.put("index", j * 100 + i);
                     value.put("timestamp", Utils.toNanos(lt));

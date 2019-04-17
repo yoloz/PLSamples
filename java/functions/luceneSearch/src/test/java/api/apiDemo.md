@@ -3,6 +3,8 @@
 ```
 curl localhost:12580/create -X POST -d "CREATE TABLE test(index int,city string,company text,english text,time date('uuuu-MM-dd'T'HH:mm:ss.SSSSSS'),timestamp long) name=listTest addr='127.0.0.1:8888' type=list"
 
+curl localhost:12580/create -X POST -d "CREATE TABLE test(index int,city string,company text,english text,time date('uuuu-MM-dd'T'HH:mm:ss.SSSSSS'),timestamp long) name=listTest addr='127.0.0.1:8888' type=list analyser=StandardAnalyserIgnoreCase"
+
 curl localhost:12580/stop -X POST -d "test"
 
 curl localhost:12580/start -X POST -d "test"

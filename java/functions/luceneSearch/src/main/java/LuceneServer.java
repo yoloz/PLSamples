@@ -1,4 +1,5 @@
 import api.DelAllIndex;
+import api.GetAllIndex;
 import api.NewIndex;
 import api.QueryIndex;
 import api.StartIndex;
@@ -41,6 +42,7 @@ public class LuceneServer {
         handler.addServletWithMapping(QueryIndex.class, "/query");
         handler.addServletWithMapping(StartIndex.class, "/start");
         handler.addServletWithMapping(StopIndex.class, "/stop");
+        handler.addServletWithMapping(GetAllIndex.class, "/getAll");
         handler.addServletWithMapping(DelAllIndex.class, "/delAll");
         handler.addServletWithMapping(UpdateAnalyser.class, "/updateAnalyser");
         httpServer.start();

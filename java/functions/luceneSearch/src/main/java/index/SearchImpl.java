@@ -3,6 +3,7 @@ package index;
 import bean.LSException;
 import bean.Pair;
 import bean.Source;
+import bean.Triple;
 import index.parse.SelectSql;
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
@@ -28,6 +29,7 @@ import util.JsonUtil;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +39,7 @@ class SearchImpl {
     private final Logger logger = Logger.getLogger(SearchImpl.class);
 
     private final String sql;
-    private long token;   //分页searcher
+    private long token;   //近实时搜索分页searcher
 
 
     SearchImpl(String sql, long token) {
@@ -47,26 +49,52 @@ class SearchImpl {
 
     @SuppressWarnings("unchecked")
     private void fromSsdb(Map<String, Object> results, List<String> cols, Source source) throws IOException {
-        List<Pair<String, String>> _datas = (List<Pair<String, String>>) results.remove("list");
+        List<Object> _datas = (List<Object>) results.remove("list");
         List<Map<String, Object>> dm = new ArrayList<>(_datas.size());
         try (SSDB ssdb = SSDBs.simple(source.getIp(), source.getPort(), SSDBs.DEFAULT_TIMEOUT)) {
             Response response;
-            for (Pair<String, String> pair : _datas) {
+            for (Object object : _datas) {
+                String name, key;
+                long count = 0;
+                if (object instanceof Pair) {
+                    name = ((Pair<String, String>) object).getLeft();
+                    key = ((Pair<String, String>) object).getRight();
+                } else if (object instanceof Triple) {
+                    name = ((Triple<String, String, Long>) object).getLeft();
+                    key = ((Triple<String, String, Long>) object).getMiddle();
+                    count = ((Triple<String, String, Long>) object).getRight();
+                } else throw new IOException("results element[" + object.getClass() + "] is not support");
                 if (Source.Type.HASH == source.getType())
-                    response = ssdb.hget(pair.getLeft(), pair.getRight());
+                    response = ssdb.hget(name, key);
                 else if (Source.Type.LIST == source.getType())
-                    response = ssdb.qget(pair.getLeft(), Integer.parseInt(pair.getRight()));
+                    response = ssdb.qget(name, Integer.parseInt(key));
                 else throw new IOException("type[" + source.getType() + "] is not support");
                 if (response.datas.size() > 0) {
                     Map<String, Object> map = new HashMap<>(cols.size());
                     String value = new String(response.datas.get(0), SSDBs.DEFAULT_CHARSET);
                     Map<String, Object> _m = JsonUtil.toMap(value);
-                    for (String col : cols) if (_m.containsKey(col)) map.put(col, _m.get(col));
+                    for (String col : cols) map.put(col, _m.getOrDefault(col, "null"));
+                    if (count > 0) map.put(createCountName(map, "count"), count);
                     dm.add(map);
                 }
             }
         }
         results.put("results", dm);
+    }
+
+    /**
+     * 分组查询返回的组内数据量字段名称
+     * <p>
+     * 默认count,如果组名也是count,则返回_count,以此递归
+     *
+     * @return countName
+     */
+    private String createCountName(Map<String, Object> map, String name) {
+        if (map.containsKey(name)) {
+            name = "_" + name;
+            return createCountName(map, name);
+        }
+        return name;
     }
 
     Map<String, Object> search() throws LSException, IOException {
@@ -82,6 +110,7 @@ class SearchImpl {
         Sort sort = selectSql.getOrder();
         String group = selectSql.getGroup();
         logger.debug("query[" + query + "],order[" + sort + "],group[" + group + "]");
+        if (group != null) cols = Collections.singletonList(group);
         IndexImpl indexImpl = Indexer.indexes.getIfPresent(indexName);
         if (indexImpl == null) {
             logger.debug("索引[" + indexName + "]非运行中,IndexReader查询");
@@ -110,7 +139,7 @@ class SearchImpl {
         try (IndexReader reader = DirectoryReader.open(FSDirectory.open(indexPath))) {
             IndexSearcher searcher = new IndexSearcher(reader);
             if (group == null) results = querySearch(searcher, query, sort, offset, rowCount);
-            else results = groupSearch(searcher, query, group, sort, offset, rowCount);
+            else results = groupSearch(searcher, query, group, sort);
         }
         return results;
     }
@@ -125,7 +154,7 @@ class SearchImpl {
         Map<String, Object> results;
         try {
             if (group == null) results = querySearch(searcher, query, sort, offset, rowCount);
-            else results = groupSearch(searcher, query, group, sort, offset, rowCount);
+            else results = groupSearch(searcher, query, group, sort);
         } finally {
             searcher.getIndexReader().decRef();
         }
@@ -178,9 +207,45 @@ class SearchImpl {
 
     /**
      * 分组查询
+     * <p>
+     * 返回具体分组及分组内总数量,如:
+     * groupName count
+     * a       100
+     * b        20
      *
      * @param searcher index searcher
-     * @return {"total","","list":[<pull,key>...]}
+     * @return {"total":"","list":[<pull,key,count>...]}
+     * @throws IOException io error
+     */
+    private Map<String, Object> groupSearch(IndexSearcher searcher, Query query, String colName, Sort colSort)
+            throws IOException {
+        Map<String, Object> results = new HashMap<>(2);
+        TopGroups<BytesRef> topGroups = groupImpl(searcher, query, colName, colSort,
+                0, 1, 0);
+        int totalGroupCount = topGroups.totalGroupCount;
+        List<Triple<String, String, Long>> list = new ArrayList<>(totalGroupCount);
+        int groupOffset = 0;
+        do {
+            if (groupOffset > 0) topGroups = groupImpl(searcher, query, colName, colSort,
+                    0, 1, groupOffset);
+            GroupDocs<BytesRef> group = topGroups.groups[0];
+            long hits = group.totalHits;
+            if (hits > 0) {
+                Pair<String, String> pair = getData(searcher, group.scoreDocs[0]);
+                if (pair != null) list.add(Triple.of(pair.getLeft(), pair.getRight(), hits));
+            }
+            groupOffset += 1;
+        } while (groupOffset < totalGroupCount);
+        results.put("total", totalGroupCount);
+        results.put("list", list);
+        return results;
+    }
+
+    /**
+     * 分组查询
+     *
+     * @param searcher index searcher
+     * @return {"total":"","list":[<pull,key>...]}
      * @throws IOException io error
      */
     private Map<String, Object> groupSearch(IndexSearcher searcher, Query query, String colName,
@@ -234,15 +299,21 @@ class SearchImpl {
         return results;
     }
 
+    private Pair<String, String> getData(IndexSearcher searcher, ScoreDoc scoreDoc) throws IOException {
+        Document doc = searcher.doc(scoreDoc.doc);
+        String pullName = doc.get("_name");
+        String key = doc.get("_key");
+        if (pullName == null || key == null) {
+            logger.warn("search [_name] is null or [_key] is null");
+            return null;
+        } else return Pair.of(pullName, key);
+    }
+
     private void addData(IndexSearcher searcher, ScoreDoc[] scoreDocs, List<Pair<String, String>> list)
             throws IOException {
         for (ScoreDoc hit : scoreDocs) {
-            Document doc = searcher.doc(hit.doc);
-            String pullName = doc.get("_name");
-            String key = doc.get("_key");
-            if (pullName == null || key == null)
-                logger.warn("search [_name] is null or [_key] is null");
-            else list.add(Pair.of(pullName, key));
+            Pair<String, String> pair = getData(searcher, hit);
+            if (pair != null) list.add(pair);
         }
     }
 
@@ -260,7 +331,7 @@ class SearchImpl {
                     groupSort = new Sort(sortField);
                 } else list.add(sortField);
             }
-            if(!list.isEmpty()){
+            if (!list.isEmpty()) {
                 SortField[] ins = new SortField[list.size()];
                 withInGroup = new Sort(list.toArray(ins));
             }

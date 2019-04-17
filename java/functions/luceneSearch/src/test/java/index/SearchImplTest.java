@@ -6,7 +6,9 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.*;
 
@@ -18,6 +20,27 @@ public class SearchImplTest {
 
     @After
     public void tearDown() throws Exception {
+    }
+
+    @Test
+    public void testCountName() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("count", "");
+        assertEquals("_count", createCountName(map, "count"));
+        map.put("_count", "");
+        assertEquals("__count", createCountName(map, "count"));
+        map.put("__count", "");
+        assertEquals("___count", createCountName(map, "count"));
+        map.put("___count", "");
+        assertEquals("____count", createCountName(map, "count"));
+    }
+
+    private String createCountName(Map<String, Object> map, String name) {
+        if (map.containsKey(name)) {
+            name = "_" + name;
+            return createCountName(map, name);
+        }
+        return name;
     }
 
     @Test
@@ -33,8 +56,8 @@ public class SearchImplTest {
                 i += 1;
             }
         }
-        System.out.println(s2.length+"=="+Arrays.toString(s2));
-        System.out.println(l1.size()+"=="+Arrays.toString(l1.toArray()));
+        System.out.println(s2.length + "==" + Arrays.toString(s2));
+        System.out.println(l1.size() + "==" + Arrays.toString(l1.toArray()));
     }
 
     @Test

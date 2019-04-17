@@ -36,7 +36,7 @@ public class Indexer {
     }
 
     //<indexName,indexImpl>,运行索引实例映射
-    static final Cache<String, IndexImpl> indexes = CacheBuilder
+    public static final Cache<String, IndexImpl> indexes = CacheBuilder
             .newBuilder()
             .maximumSize(Constants.totalIndex)
             .removalListener(RemovalListeners.asynchronous(

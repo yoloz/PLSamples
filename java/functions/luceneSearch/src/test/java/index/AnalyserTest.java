@@ -1,5 +1,6 @@
 package index;
 
+import index.analyser.StandardAnalyserIgnoreCase;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -21,10 +22,24 @@ public class AnalyserTest {
     }
 
     @Test
+    public void standAnalyserIgnoreCaseTest() {
+        String text = "user:admin";
+        text = "zhang张三";
+        text = "Fea后台";
+        try {
+            Analyzer standardAnalyzer = new StandardAnalyserIgnoreCase();
+            TokenStream ts = standardAnalyzer.tokenStream("", text);
+            doToken(ts);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
     public void standAnalyserTest() {
         String text = "user:admin";
         text = "zhang张三";
-        text = "FEA后台";
+        text = "Fea后台";
         try {
             Analyzer standardAnalyzer = new StandardAnalyzer();
             TokenStream ts = standardAnalyzer.tokenStream("", text);

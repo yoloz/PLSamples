@@ -38,6 +38,7 @@ searchExpired=0  #近实时搜索的有效期(即搜索存活多久)默认为0(�
 conf/analyser.properties
 ```
 StandardAnalyzer=org.apache.lucene.analysis.standard.StandardAnalyzer
+StandardAnalyserIgnoreCase=index.analyser.StandardAnalyserIgnoreCase
 ```
 > * key大小写不敏感;
 > * 映射只对更新后的创建起作用,先前的已经创建的不影响；
@@ -52,6 +53,7 @@ StandardAnalyzer=org.apache.lucene.analysis.standard.StandardAnalyzer
  /query|查询
  /start|启动
  /stop|停止
+ /getAll|获取创建的索引
  /delAll|删除
  /updateAnalyser|更新分析器
 
@@ -77,8 +79,12 @@ order by,group by见下文API用例
 {"total":1000,"results":\[{}...\],"success":true}
 2. 索引运行中  
 {"total":1000,"results":\[{}...\],"key":2,"success":true}
-> total为此次搜索匹配的总数;  
-key为此次的searcher,分页展示时继续使用同一searcher,非分页模式返回-1;
+3. 分组查询  
+{"total":3,"results":\[{"groupName":"","count":200}...\],"success":true}  
+{"total":3,"results":\[{"groupName":"","count":200}...\],"key":2,"success":true}  
+> total为此次搜索匹配的总数,分组查询中为总组数;  
+key为此次的searcher,分页展示时继续使用同一searcher,非分页模式返回-1,在索引运行时才有;    
+分组查询中仅返回分组列及组内数据量;    
 
 * /start
 
@@ -89,6 +95,11 @@ POST indexName
 
 POST indexName  
 返回：{"success":true}
+
+* /getAll
+
+GET  
+返回：{"success":true,"indexes":\["a",...\],"running":\["b",...\]}
 
 * /delAll
 
@@ -104,7 +115,7 @@ POST
 
 * 创建:
 ```
-curl localhost:12580/create -X POST -d "CREATE TABLE test(index int,city string,company text,time date('uuuu-MM-dd'T'HH:mm:ss.SSSSSS'),timestamp long) name=listTest addr='127.0.0.1:8888' type=list [analyser=StandardAnalyzer]"
+curl localhost:12580/create -X POST -d "CREATE TABLE test(index int,city string,company text,time date('uuuu-MM-dd'T'HH:mm:ss.SSSSSS'),timestamp long) name=listTest addr='127.0.0.1:8888' type=list analyser=StandardAnalyserIgnoreCase"
 
 curl localhost:12580/create -X POST -d "CREATE TABLE test(index int,city string,company text,time date('uuuu-MM-dd'T'HH:mm:ss.SSSSSS'),timestamp long) name='list*' addr='127.0.0.1:8888' type=list"
 ```
@@ -116,7 +127,7 @@ type:list或hash;
 
 * 停止:
 
-`curl localhost:12580/stop -X POST -d "test"`create操作是不停止的,这个请求可以停止索引写和读并将数据写进磁盘;
+`curl localhost:12580/stop -X POST -d "test"`create操作是不停止的,这个请求可以停止索引并将数据写进磁盘;
 
 * 启动:
 
