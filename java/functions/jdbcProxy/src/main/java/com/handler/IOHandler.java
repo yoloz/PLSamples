@@ -4,7 +4,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.log4j.Logger;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
@@ -14,7 +13,6 @@ import java.sql.SQLException;
 
 public class IOHandler {
 
-    private static final Logger logger = Logger.getLogger(IOHandler.class);
 
     /**
      * request jdbc connection
@@ -48,7 +46,6 @@ public class IOHandler {
             JdbcHandler.wrapResultSetMeta(rsMeta, i, buf);
         }
         ctx.write(buf);
-        logger.info("rsMetaOkP ref:" + buf.refCnt());
     }
 
     public static void rsRowOkP(ChannelHandlerContext ctx, ResultSet rs)
@@ -65,12 +62,10 @@ public class IOHandler {
                 }
             }
             ctx.write(buf);
-            logger.info("rsRowOkP ref:" + buf.refCnt());
         }
         ByteBuf buf = Unpooled.buffer(1);
         buf.writeByte(0xff);
         ctx.write(buf);
-        logger.info("rsRowOkP ref:" + buf.refCnt());
     }
 
     /**
@@ -81,7 +76,6 @@ public class IOHandler {
         buf.writeByte(0x00);
         buf.writeInt(code);
         ctx.write(buf);
-        logger.info("updateOkP ref:" + buf.refCnt());
     }
 
     /**
@@ -91,7 +85,6 @@ public class IOHandler {
         ByteBuf buf = Unpooled.buffer(1);
         buf.writeByte(0x00);
         ctx.write(buf);
-        logger.info("connOkP ref:" + buf.refCnt());
     }
 
     /**
@@ -106,7 +99,6 @@ public class IOHandler {
         buf.writeInt(e.length);
         buf.writeBytes(e);
         ctx.write(buf);
-        logger.info("errorP ref:" + buf.refCnt());
     }
 
 }
