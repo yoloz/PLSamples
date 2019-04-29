@@ -15,6 +15,8 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * 连接: cmd+categoryLength+category+usrLength+username+pwdLength+pwd
@@ -34,17 +36,20 @@ import java.sql.SQLException;
 public class JPServerHandler extends ChannelInboundHandlerAdapter {
 
     private final Logger logger = Logger.getLogger(JPServerHandler.class);
-    private Connection conn;
+    private final ConcurrentMap<String, Connection> connects = new ConcurrentHashMap<>();
 
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
+        String addr = ctx.channel().remoteAddress().toString();
         ByteBuf m = (ByteBuf) msg;
         while (m.isReadable()) {
             short cmd = m.readUnsignedByte();
             if (cmd == 1) {
                 try {
-                    conn = IOHandler.requestConnect(m);
+                    Connection conn = IOHandler.requestConnect(m);
+                    if (connects.containsKey(addr)) closeConn(addr);
+                    connects.put(addr, conn);
                     IOHandler.connOkP(ctx);
                 } catch (SQLException e) {
                     logger.error(e.getMessage(), e);
@@ -56,7 +61,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                 m.readerIndex(m.readerIndex() + sqlength);
                 if (cmd == 2) {
                     try {
-                        int u = JdbcHandler.update(conn, sql);
+                        int u = JdbcHandler.update(connects.get(addr), sql);
                         IOHandler.updateOkP(ctx, u);
                     } catch (SQLException e) {
                         logger.error(e.getMessage(), e);
@@ -66,7 +71,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                     ResultSet rs = null;
                     ByteBuf buf = Unpooled.buffer();
                     try {
-                        rs = JdbcHandler.query(conn, sql);
+                        rs = JdbcHandler.query(connects.get(addr), sql);
                         buf.writeByte(0x00);
                         ResultSetMetaData md = rs.getMetaData();
                         int colCount = md.getColumnCount();
@@ -98,24 +103,22 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        closeConn();
+        closeConn(ctx.channel().remoteAddress().toString());
     }
 
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         logger.error(cause.getMessage(), cause);
-        closeConn();
+        closeConn(ctx.channel().remoteAddress().toString());
         ctx.close();
     }
 
-    /**
-     * close jdbc connection
-     */
-    private void closeConn() {
-        if (conn != null) try {
-            conn.close();
+    private void closeConn(String key) {
+        try {
+            if (connects.containsKey(key)) connects.get(key).close();
         } catch (SQLException ignore) {
         }
     }
+
 }
