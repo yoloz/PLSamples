@@ -120,7 +120,7 @@ public class ClientTest {
                         else System.out.println("value: " + readString(in, l));
                     }
                 } else if (cmd == (byte) 0xff) break;
-                else throw new IOException("cmd is not defined[" + in.readByte() + "]");
+                else throw new IOException("cmd is not defined[" + cmd + "]");
             }
         } else {
             int errorLength = in.readInt();
