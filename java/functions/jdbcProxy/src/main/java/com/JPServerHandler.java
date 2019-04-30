@@ -116,7 +116,8 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
 
     private void closeConn(String key) {
         try {
-            if (connects.containsKey(key)) connects.get(key).close();
+            Connection conn = connects.remove(key);
+            if (conn != null) conn.close();
         } catch (SQLException ignore) {
         }
     }
