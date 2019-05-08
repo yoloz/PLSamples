@@ -43,7 +43,7 @@ public class VerifySqlTest {
 
     @Before
     public void setUp() throws Exception {
-        verifySql = new VerifySql(null, null, null, null);
+        verifySql = new VerifySql(null, null);
         parseSelect = verifySql.getClass().getDeclaredMethod("parseSelect", Select.class);
         parseSelect.setAccessible(true);
         parseSubSelect = verifySql.getClass().getDeclaredMethod("parseSelect", SubSelect.class);

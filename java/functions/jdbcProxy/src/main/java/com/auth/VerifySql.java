@@ -79,15 +79,14 @@ public class VerifySql {
             for (String key : opm.keySet()) {
                 List<String> privs = authority.getPrivilege(key);
                 if (privs == null) return false;
-                if (!privs.contains(key)) return false;
+                if (!privs.contains(opm.get(key))) return false;
             }
         }
         return true;
     }
 
     private List<String> getAllCol(String tableName) throws JSQLParserException {
-        try (PreparedStatement ps = connect.prepareStatement("select * from ? where 1=0")) {
-            ps.setString(1, tableName);
+        try (PreparedStatement ps = connect.prepareStatement("select * from " + tableName + " where 1=0")) {
             ResultSet rs = ps.executeQuery();
             ResultSetMetaData rsmd = rs.getMetaData();
             int cols = rsmd.getColumnCount();
@@ -98,7 +97,7 @@ public class VerifySql {
             rs.close();
             return list;
         } catch (SQLException e) {
-            throw new JSQLParserException(e);
+            throw new JSQLParserException(e.getMessage(), e);
         }
     }
 

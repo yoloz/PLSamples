@@ -90,7 +90,6 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
             }
         }
         m.release();
-        logger.info("channelRead ref count[" + m.refCnt() + "]");
     }
 
     @Override

@@ -24,13 +24,14 @@ public class AuthorityTest {
 
     @Test
     public void getTablePriv() {
-        List<String> list = authority.getTablePriv("ciisource");
+        List<String> list = authority.getPrivilege("ciisource");
         System.out.println(Arrays.toString(list.toArray()));
     }
 
     @Test
     public void getColumnPriv() {
-        List<String> list = authority.getColumnPriv("ds_json");
+        List<String> list = authority.getPrivilege("ds_json");
         System.out.println(Arrays.toString(list.toArray()));
     }
+
 }
