@@ -1,12 +1,12 @@
 package com.handler;
 
+import com.source.Connect;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -17,7 +17,7 @@ public class IOHandler {
     /**
      * request jdbc connection
      */
-    public static Connection requestConnect(ByteBuf buf) throws SQLException {
+    public static Connect requestConnect(ByteBuf buf) throws SQLException {
         int cl = buf.readUnsignedShort();
         String keyWord = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), cl), StandardCharsets.UTF_8);
         buf.readerIndex(buf.readerIndex() + cl);
@@ -33,7 +33,7 @@ public class IOHandler {
         int prl = buf.readInt();
         String properties = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), prl), StandardCharsets.UTF_8);
         buf.readerIndex(buf.readerIndex() + prl);
-        return JdbcHandler.getConnection(keyWord, userName, pwd, database, properties);
+        return JdbcHandler.getConnect(keyWord, userName, pwd, database, properties);
     }
 
     /**

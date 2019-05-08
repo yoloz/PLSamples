@@ -1,0 +1,31 @@
+- db: fea_flow
+  tb: ciisource
+  user: lsjcj
+  table_priv:
+    - insert
+    - delete
+    - alter
+    - select
+    - update
+    - createindex
+    - createtable
+    - createview
+    - execute
+    - grant
+    - truncate
+  columns:
+    ds_name:
+      - select
+      - insert
+      - update
+      - references
+    ds_type:
+      - select
+      - insert
+      - update
+      - references
+    ds_json:
+      - select
+      - insert
+      - update
+      - references

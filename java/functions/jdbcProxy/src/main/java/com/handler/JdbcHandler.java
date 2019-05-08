@@ -1,5 +1,6 @@
 package com.handler;
 
+import com.source.Connect;
 import com.source.Jdbc;
 import com.source.Source;
 import io.netty.buffer.ByteBuf;
@@ -14,7 +15,7 @@ import java.sql.SQLException;
 
 public class JdbcHandler {
 
-    static Connection getConnection(String keyword, String user, String pwd, String db, String properties)
+    static Connect getConnect(String keyword, String user, String pwd, String db, String properties)
             throws SQLException {
         Jdbc jdbc = Source.mapper.get(keyword);
         if (jdbc == null) throw new SQLException("category[" + keyword + "] is not defined");
@@ -23,7 +24,8 @@ public class JdbcHandler {
             jdbc.setProperties(properties);
             try {
                 Class.forName(jdbc.getDriver());
-                return DriverManager.getConnection(jdbc.toUrl(), user, pwd);
+                Connection connection = DriverManager.getConnection(jdbc.toUrl(), user, pwd);
+                return new Connect(connection, db, user);
             } catch (ClassNotFoundException e) {
                 throw new SQLException(e.getMessage());
             }
