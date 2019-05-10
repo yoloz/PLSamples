@@ -1,6 +1,6 @@
 package com;
 
-import com.auth.VerifySql;
+import com.auth.SqlAuth;
 import com.handler.IOHandler;
 import com.handler.JdbcHandler;
 import com.source.Connect;
@@ -61,9 +61,9 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                 int sqlength = m.readInt();
                 String sql = new String(ByteBufUtil.getBytes(m, m.readerIndex(), sqlength), StandardCharsets.UTF_8);
                 m.readerIndex(m.readerIndex() + sqlength);
-                VerifySql verifySql = new VerifySql(connects.get(addr), sql);
+                SqlAuth sqlAuth = new SqlAuth(connects.get(addr), sql);
                 try {
-                    if (verifySql.check()) {
+                    if (sqlAuth.check()) {
                         if (cmd == 2) {
                             int u = JdbcHandler.update(connects.get(addr).getConnection(), sql);
                             IOHandler.updateOkP(ctx, u);
