@@ -55,29 +55,26 @@ public class JdbcHandler {
     }
 
     static void wrapResultSetMeta(ResultSetMetaData metaData, int index, ByteBuf buf) throws SQLException {
-        byte[] catalogName = metaData.getCatalogName(index).getBytes(StandardCharsets.UTF_8);
-        buf.writeShort(catalogName.length);
-        buf.writeBytes(catalogName);
-        byte[] schemaName = metaData.getSchemaName(index).getBytes(StandardCharsets.UTF_8);
-        buf.writeShort(schemaName.length);
-        buf.writeBytes(schemaName);
-        byte[] tableName = metaData.getTableName(index).getBytes(StandardCharsets.UTF_8);
-        buf.writeShort(tableName.length);
-        buf.writeBytes(tableName);
-        byte[] columnLabel = metaData.getColumnLabel(index).getBytes(StandardCharsets.UTF_8);
-        buf.writeShort(columnLabel.length);
-        buf.writeBytes(columnLabel);
-        byte[] columnName = metaData.getColumnName(index).getBytes(StandardCharsets.UTF_8);
-        buf.writeShort(columnName.length);
-        buf.writeBytes(columnName);
-        byte[] columnTypeName = metaData.getColumnTypeName(index).getBytes(StandardCharsets.UTF_8);
-        buf.writeShort(columnTypeName.length);
-        buf.writeBytes(columnTypeName);
+        wrapString2Bytes(metaData.getCatalogName(index), buf);
+        wrapString2Bytes(metaData.getSchemaName(index), buf);
+        wrapString2Bytes(metaData.getTableName(index), buf);
+        wrapString2Bytes(metaData.getColumnLabel(index), buf);
+        wrapString2Bytes(metaData.getColumnName(index), buf);
+        wrapString2Bytes(metaData.getColumnTypeName(index), buf);
         //number
         buf.writeInt(metaData.getColumnDisplaySize(index));
         buf.writeInt(metaData.getPrecision(index));
         buf.writeInt(metaData.getScale(index));
         buf.writeInt(metaData.getColumnType(index));
+    }
+
+    private static void wrapString2Bytes(String str, ByteBuf buf) {
+        if (str == null) buf.writeShort(~0);
+        else {
+            byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
+            buf.writeShort(bytes.length);
+            buf.writeBytes(bytes);
+        }
     }
 
 }

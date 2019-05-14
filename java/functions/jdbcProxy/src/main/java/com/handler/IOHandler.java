@@ -52,7 +52,7 @@ public class IOHandler {
             throws SQLException {
         while (rs.next()) {
             ByteBuf buf = Unpooled.buffer();
-            buf.writeByte(0x7f);
+            buf.writeByte(0x7e);
             for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
                 byte[] bytes = rs.getBytes(i);
                 if (bytes == null) buf.writeInt(~0);
@@ -64,7 +64,7 @@ public class IOHandler {
             ctx.write(buf);
         }
         ByteBuf buf = Unpooled.buffer(1);
-        buf.writeByte(0xff);
+        buf.writeByte(0x7f);
         ctx.write(buf);
     }
 

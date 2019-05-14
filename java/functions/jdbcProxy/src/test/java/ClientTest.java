@@ -33,9 +33,9 @@ public class ClientTest {
     @Test
     public void testConnect() throws IOException {
         byte[] keyword = "mysql2".getBytes(StandardCharsets.UTF_8);
-        byte[] user = "user".getBytes(StandardCharsets.UTF_8);
-        byte[] pwd = "pwd".getBytes(StandardCharsets.UTF_8);
-        byte[] db = "dbname".getBytes(StandardCharsets.UTF_8);
+        byte[] user = "lsjcj".getBytes(StandardCharsets.UTF_8);
+        byte[] pwd = "ciilsjcj".getBytes(StandardCharsets.UTF_8);
+        byte[] db = "fea_flow".getBytes(StandardCharsets.UTF_8);
         byte[] pro = "useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&zeroDateTimeBehavior=CONVERT_TO_NULL"
                 .getBytes(StandardCharsets.UTF_8);
         DataInputStream in = new DataInputStream(socket.getInputStream());
@@ -73,7 +73,7 @@ public class ClientTest {
         DataOutputStream out = new DataOutputStream(socket.getOutputStream());
 
         ByteBuffer buffer = ByteBuffer.allocate(1024);
-        byte[] sql = "SELECT * FROM test.new_table".getBytes(StandardCharsets.UTF_8);
+        byte[] sql = "show keys from bthost from fea_flow".getBytes(StandardCharsets.UTF_8);
 
         buffer.put((byte) 0x03);
         buffer.putInt(sql.length);
@@ -112,14 +112,14 @@ public class ClientTest {
             System.out.println("resultSetRow========");
             while (true) {
                 byte cmd = in.readByte();
-                if (cmd == (byte) 0x7f) {
+                if (cmd == (byte) 0x7e) {
                     for (int i = 0; i < colCount; i++) {
                         int l = in.readInt();
                         if (l == ~0) System.out.println("value is null");
                             //todo 根据上述元数据类型转换，临时string输出
                         else System.out.println("value: " + readString(in, l));
                     }
-                } else if (cmd == (byte) 0xff) break;
+                } else if (cmd == (byte) 0x7f) break;
                 else throw new IOException("cmd is not defined[" + cmd + "]");
             }
         } else {
@@ -132,6 +132,7 @@ public class ClientTest {
     }
 
     private String readString(InputStream in, int length) throws IOException {
+        if (length == ~0) return null;
         byte[] bytes = new byte[length];
         in.read(bytes, 0, length);
         return new String(bytes, StandardCharsets.UTF_8);
