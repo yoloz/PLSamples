@@ -3,7 +3,7 @@ package com;
 import com.auth.SqlAuth;
 import com.handler.IOHandler;
 import com.handler.JdbcHandler;
-import com.source.Connect;
+import com.jdbc.bean.WrapConnect;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -38,7 +38,7 @@ import java.util.concurrent.ConcurrentMap;
 public class JPServerHandler extends ChannelInboundHandlerAdapter {
 
     private final Logger logger = Logger.getLogger(JPServerHandler.class);
-    private final ConcurrentMap<String, Connect> connects = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, WrapConnect> connects = new ConcurrentHashMap<>();
 
 
     @Override
@@ -49,7 +49,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
             short cmd = m.readUnsignedByte();
             if (cmd == 1) {
                 try {
-                    Connect conn = IOHandler.requestConnect(m);
+                    WrapConnect conn = IOHandler.requestConnect(m);
                     if (connects.containsKey(addr)) closeConn(addr);
                     connects.put(addr, conn);
                     IOHandler.connOkP(ctx);
@@ -116,7 +116,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void closeConn(String key) {
-        Connect conn = connects.remove(key);
+        WrapConnect conn = connects.remove(key);
         if (conn != null) conn.close();
     }
 

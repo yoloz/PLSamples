@@ -2,7 +2,7 @@ package com.auth;
 
 import com.JPServer;
 import com.parse.SQLParse;
-import com.source.Connect;
+import com.jdbc.bean.WrapConnect;
 import net.sf.jsqlparser.JSQLParserException;
 import org.yaml.snakeyaml.Yaml;
 
@@ -26,10 +26,10 @@ public class SqlAuth {
     private String sql;
 
 
-    public SqlAuth(Connect connect, String sql) {
-        this.connect = connect.getConnection();
-        this.db = connect.getDb();
-        this.user = connect.getUser();
+    public SqlAuth(WrapConnect wrapConnect, String sql) {
+        this.connect = wrapConnect.getConnection();
+        this.db = wrapConnect.getDb();
+        this.user = wrapConnect.getUser();
         this.sql = sql;
     }
 

@@ -1,7 +1,7 @@
 package com.handler;
 
-import com.source.Connect;
-import com.source.Jdbc;
+import com.jdbc.bean.WrapConnect;
+import com.jdbc.bean.DataSource;
 import com.source.Source;
 import io.netty.buffer.ByteBuf;
 
@@ -15,17 +15,17 @@ import java.sql.SQLException;
 
 public class JdbcHandler {
 
-    static Connect getConnect(String keyword, String user, String pwd, String db, String properties)
+    static WrapConnect getConnect(String keyword, String user, String pwd, String db, String properties)
             throws SQLException {
-        Jdbc jdbc = Source.mapper.get(keyword);
-        if (jdbc == null) throw new SQLException("category[" + keyword + "] is not defined");
+        DataSource dataSource = Source.mapper.get(keyword);
+        if (dataSource == null) throw new SQLException("category[" + keyword + "] is not defined");
         else {
-            jdbc.setDatabase(db);
-            jdbc.setProperties(properties);
+            dataSource.setDatabase(db);
+            dataSource.setProperties(properties);
             try {
-                Class.forName(jdbc.getDriver());
-                Connection connection = DriverManager.getConnection(jdbc.toUrl(), user, pwd);
-                return new Connect(connection, db, user);
+                Class.forName(dataSource.getDriver());
+                Connection connection = DriverManager.getConnection(dataSource.toUrl(), user, pwd);
+                return new WrapConnect(connection, db, user);
             } catch (ClassNotFoundException e) {
                 throw new SQLException(e.getMessage());
             }

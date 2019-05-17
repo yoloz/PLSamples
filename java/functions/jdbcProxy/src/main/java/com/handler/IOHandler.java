@@ -1,6 +1,6 @@
 package com.handler;
 
-import com.source.Connect;
+import com.jdbc.bean.WrapConnect;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -17,7 +17,7 @@ public class IOHandler {
     /**
      * request jdbc connection
      */
-    public static Connect requestConnect(ByteBuf buf) throws SQLException {
+    public static WrapConnect requestConnect(ByteBuf buf) throws SQLException {
         int cl = buf.readUnsignedShort();
         String keyWord = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), cl), StandardCharsets.UTF_8);
         buf.readerIndex(buf.readerIndex() + cl);

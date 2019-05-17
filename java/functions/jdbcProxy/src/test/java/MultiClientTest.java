@@ -146,6 +146,7 @@ public class MultiClientTest {
         }
 
         private String readString(InputStream in, int length) throws IOException {
+            if (length == ~0) return null;
             byte[] bytes = new byte[length];
             in.read(bytes, 0, length);
             return new String(bytes, StandardCharsets.UTF_8);

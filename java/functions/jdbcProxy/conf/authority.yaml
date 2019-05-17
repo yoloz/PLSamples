@@ -1,31 +1,10 @@
-- db: fea_flow
-  tb: ciisource
+- fn: fea_flow
+  fn_allpriv: false
+  sn: ciisource
+  sn_allpriv: false
+  sn_priv: [insert,delete,alter,select,update,createindex,createtable,createview,execute,grant,truncate,show]
+  select: [all]
+  update: [ds_name,ds_type,ds_json]
+  insert: [ds_name,ds_type,ds_json]
+  references: [ds_id]
   user: lsjcj
-  table_priv:
-    - insert
-    - delete
-    - alter
-    - select
-    - update
-    - createindex
-    - createtable
-    - createview
-    - execute
-    - grant
-    - truncate
-  columns:
-    ds_name:
-      - select
-      - insert
-      - update
-      - references
-    ds_type:
-      - select
-      - insert
-      - update
-      - references
-    ds_json:
-      - select
-      - insert
-      - update
-      - references
