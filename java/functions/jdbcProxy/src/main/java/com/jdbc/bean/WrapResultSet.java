@@ -109,10 +109,11 @@ public class WrapResultSet implements AutoCloseable {
         return this.resultSet.getFetchSize();
     }
 
-    public void next(ChannelHandlerContext out) throws SQLException {
+    public void next(boolean first, ChannelHandlerContext out) throws SQLException {
         int fetchSize = getFetchSize();
         if (fetchSize == 0) fetchSize = this.wrapStatement.getFetchSize();
         int colCount = this.resultSet.getMetaData().getColumnCount();
+        if (!first) out.write(writeByte((byte) 0x00));
         for (int i = 0; i < fetchSize; i++) {
             if (this.resultSet.next()) {
                 ByteBuf buf = Unpooled.buffer();
@@ -140,9 +141,7 @@ public class WrapResultSet implements AutoCloseable {
                 out.write(buf);
             }
         }
-        ByteBuf buf = Unpooled.buffer(1);
-        buf.writeByte(0x7f);
-        out.write(buf);
+        out.write(writeByte((byte) 0x7f));
     }
 
     @Override

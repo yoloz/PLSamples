@@ -40,7 +40,7 @@ public class WrapStatement implements AutoCloseable {
         rsMap.put(rsId, wrs);
         out.write(writeShortStr(OK, rsId));
         wrs.getMetaData(out);
-        wrs.next(out);
+        wrs.next(true, out);
     }
 
     public WrapResultSet getResultSet(String resultSetId) {
@@ -54,7 +54,7 @@ public class WrapStatement implements AutoCloseable {
         rsMap.put(rsId, wrs);
         out.write(writeShortStr(OK, rsId));
         wrs.getMetaData(out);
-        wrs.next(out);
+        wrs.next(true, out);
     }
 
     public int executeUpdate(String sql) throws SQLException {
@@ -96,7 +96,7 @@ public class WrapStatement implements AutoCloseable {
         rsMap.put(rsId, wrs);
         out.write(writeShortStr(OK, rsId));
         wrs.getMetaData(out);
-        wrs.next(out);
+        wrs.next(true, out);
     }
 
     public int[] executeBatch(String[] sqls) throws SQLException {
