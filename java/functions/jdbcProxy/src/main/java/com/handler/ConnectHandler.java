@@ -15,17 +15,17 @@ public class ConnectHandler {
         if ("setAutoCommit".equals(mName)) {
             String bool = readByteLen(src);
             connect.setAutoCommit("true".equals(bool));
-            out.write(writeCmd(OK));
+            out.write(writeByte(OK));
         } else if ("setUser".equals(mName)) {
             String name = readByteLen(src);
             connect.setUser(name);
-            out.write(writeCmd(OK));
+            out.write(writeByte(OK));
         } else if ("commit".equals(mName)) {
             connect.commit();
-            out.write(writeCmd(OK));
+            out.write(writeByte(OK));
         } else if ("rollback".equals(mName)) {
             connect.rollback();
-            out.write(writeCmd(OK));
+            out.write(writeByte(OK));
         } else if ("createStatement".equals(mName)) {
             short pc = src.readUnsignedByte();
             String stmtId;
@@ -41,7 +41,7 @@ public class ConnectHandler {
                 int resultSetHoldability = src.readInt();
                 stmtId = connect.createStatement(resultSetType, resultSetConcurrency, resultSetHoldability);
             } else throw new SQLException("createStatement param num[" + pc + "] is not exist");
-            out.write(writeCmdShortStr(OK, stmtId));
+            out.write(writeShortStr(OK, stmtId));
         } else if ("createPreparedStatement".equals(mName)) {
             short pc = src.readUnsignedByte();
             String stmtId;
@@ -73,7 +73,7 @@ public class ConnectHandler {
                 int resultSetHoldability = src.readInt();
                 stmtId = connect.createPreparedStatement(sql, resultSetType, resultSetConcurrency, resultSetHoldability);
             } else throw new SQLException("createPreparedStatement methodLength[" + pc + "] is not exit");
-            out.write(writeCmdShortStr(OK, stmtId));
+            out.write(writeShortStr(OK, stmtId));
         } else throw new SQLException("connectMethod[" + mName + "] is not support");
     }
 }

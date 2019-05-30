@@ -14,30 +14,30 @@ public class ResultSetHandler {
             throws SQLException {
         String mName = IOHandler.readByteLen(src);
         if ("getCursorName".equals(mName)) {
-            out.write(writeCmdShortStr(OK, resultSet.getCursorName()));
+            out.write(writeShortStr(OK, resultSet.getCursorName()));
         } else if ("isLast".equals(mName)) {
-            out.write(writeCmdShortStr(OK, resultSet.isLast() ? "true" : "false"));
+            out.write(writeShortStr(OK, resultSet.isLast() ? "true" : "false"));
         } else if ("beforeFirst".equals(mName)) {
             resultSet.beforeFirst();
-            out.write(writeCmd(OK));
+            out.write(writeByte(OK));
         } else if ("afterLast".equals(mName)) {
             resultSet.afterLast();
-            out.write(writeCmd(OK));
+            out.write(writeByte(OK));
         } else if ("first".equals(mName)) {
-            out.write(writeCmdShortStr(OK, resultSet.first() ? "true" : "false"));
+            out.write(writeShortStr(OK, resultSet.first() ? "true" : "false"));
         } else if ("last".equals(mName)) {
-            out.write(writeCmdShortStr(OK, resultSet.last() ? "true" : "false"));
+            out.write(writeShortStr(OK, resultSet.last() ? "true" : "false"));
         } else if ("getRow".equals(mName)) {
-            out.write(writeCmdInt(OK, resultSet.getRow()));
+            out.write(writeInt(OK, resultSet.getRow()));
         } else if ("absolute".equals(mName)) {
             boolean bool = resultSet.absolute(src.readInt());
-            out.write(writeCmdShortStr(OK, bool ? "true" : "false"));
+            out.write(writeShortStr(OK, bool ? "true" : "false"));
         } else if ("relative".equals(mName)) {
             boolean bool = resultSet.relative(src.readInt());
-            out.write(writeCmdShortStr(OK, bool ? "true" : "false"));
+            out.write(writeShortStr(OK, bool ? "true" : "false"));
         } else if ("setFetchSize".equals(mName)) {
             resultSet.setFetchSize(src.readInt());
-            out.write(writeCmd(OK));
+            out.write(writeByte(OK));
         } else if ("next".equals(mName)) {
             resultSet.next(out);
         } else if ("close".equals(mName)) {

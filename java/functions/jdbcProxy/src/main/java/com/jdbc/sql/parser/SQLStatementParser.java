@@ -488,6 +488,9 @@ public class SQLStatementParser extends SQLStatementParsers {
         } else if (expr instanceof SQLAllColumnExpr) {
             if (tables.size() > 1) throw new ParserException("column need table prefix");
             List<String> cols = getAllCol(tables.get(0));
+            for (String col : cols) {
+                tables.get(0).addCol(col, operator);
+            }
         } else if (expr instanceof SQLAggregateExpr) {
             SQLAggregateExpr aggregateExpr = (SQLAggregateExpr) expr;
             List<SQLExpr> arguments = aggregateExpr.getArguments();

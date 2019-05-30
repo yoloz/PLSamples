@@ -40,7 +40,7 @@ public class DbAuth {
             Set<String> operators = sqlInfo.getOperators();
             authTable(operators, uk, dk, tbName);
             Map<SqlInfo.PairName, Set<String>> cols = sqlInfo.getCols();
-            for (SqlInfo.PairName pairName : cols.keySet()) {
+            if (cols != null) for (SqlInfo.PairName pairName : cols.keySet()) {
                 authColumn(cols.get(pairName), uk, dk, tbName, pairName.getName());
             }
         }

@@ -46,7 +46,7 @@ public class StatementHandler {
                     } else throw new SQLException("executeUpdate[array] type[" + type + "] error");
                 }
             }
-            out.write(writeCmdInt(OK, count));
+            out.write(writeInt(OK, count));
         } else if ("execute".equals(mName)) {
             short pc = src.readUnsignedByte();
             String sql = readIntLen(src);
@@ -69,7 +69,7 @@ public class StatementHandler {
                     } else throw new SQLException("executeUpdate[array] type[" + type + "] error");
                 }
             }
-            out.write(writeCmdShortStr(OK, bool ? "true" : "false"));
+            out.write(writeShortStr(OK, bool ? "true" : "false"));
         } else if ("getGeneratedKeys".equals(mName)) {
             statement.getGeneratedKeys(out);
         } else if ("executeBatch".equals(mName)) {
@@ -77,13 +77,13 @@ public class StatementHandler {
             short type = src.readUnsignedByte();
             if (1 != type) throw new SQLException("executeBatch param type[" + type + "] error");
             int[] code = statement.executeBatch(readIntLen(arrSize, src));
-            out.write(writeCmdInt(OK, code));
+            out.write(writeInt(OK, code));
         } else if ("setFetchDirection".equals(mName)) {
             statement.setFetchDirection(src.readInt());
-            out.write(writeCmd(OK));
+            out.write(writeByte(OK));
         } else if ("setFetchSize".equals(mName)) {
             statement.setFetchSize(src.readInt());
-            out.write(writeCmd(OK));
+            out.write(writeByte(OK));
         } else if ("getResultSet".equals(mName)) {
             statement.getResultSet(out);
         } else if ("close".equals(mName)) {

@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.handler.IOHandler.OK;
-import static com.handler.IOHandler.writeCmdShortStr;
+import static com.handler.IOHandler.writeShortStr;
 
 public class WrapStatement implements AutoCloseable {
 
@@ -38,7 +38,7 @@ public class WrapStatement implements AutoCloseable {
         String rsId = this.id + COUNTER.incrementAndGet();
         WrapResultSet wrs = new WrapResultSet(this, rsId, rs);
         rsMap.put(rsId, wrs);
-        out.write(writeCmdShortStr(OK, rsId));
+        out.write(writeShortStr(OK, rsId));
         wrs.getMetaData(out);
         wrs.next(out);
     }
@@ -52,7 +52,7 @@ public class WrapStatement implements AutoCloseable {
         String rsId = this.id + COUNTER.incrementAndGet();
         WrapResultSet wrs = new WrapResultSet(this, rsId, rs);
         rsMap.put(rsId, wrs);
-        out.write(writeCmdShortStr(OK, rsId));
+        out.write(writeShortStr(OK, rsId));
         wrs.getMetaData(out);
         wrs.next(out);
     }
@@ -94,7 +94,7 @@ public class WrapStatement implements AutoCloseable {
         String rsId = this.id + COUNTER.incrementAndGet();
         WrapResultSet wrs = new WrapResultSet(this, rsId, rs);
         rsMap.put(rsId, wrs);
-        out.write(writeCmdShortStr(OK, rsId));
+        out.write(writeShortStr(OK, rsId));
         wrs.getMetaData(out);
         wrs.next(out);
     }

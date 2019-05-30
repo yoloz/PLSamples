@@ -44,7 +44,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                                 database, properties);
                         if (connects.containsKey(address)) closeConn(address);
                         connects.put(address, conn);
-                        out.write(writeCmd(OK));
+                        out.write(writeByte(OK));
                         break;
                     case 3:
                         ConnectHandler.handler(connects.get(address), src, out);
@@ -67,7 +67,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                 }
             } catch (SQLException e) {
                 logger.error(address, e);
-                out.write(writeCmdShortStr(ERROR, e.getMessage()));
+                out.write(writeShortStr(ERROR, e.getMessage()));
             }
         }
         src.release();

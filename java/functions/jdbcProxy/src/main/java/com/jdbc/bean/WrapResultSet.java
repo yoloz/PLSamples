@@ -40,7 +40,9 @@ public class WrapResultSet implements AutoCloseable {
         String uk = wrapConnect.getDbKey() + wrapConnect.getUser();
         String dk = uk + wrapConnect.getDbName();
         ResultSetMetaData rsMeta = this.resultSet.getMetaData();
-        for (int i = 1; i <= rsMeta.getColumnCount(); i++) {
+        int colCount = rsMeta.getColumnCount();
+        out.write(writeShort(colCount));
+        for (int i = 1; i <= colCount; i++) {
             String colName = rsMeta.getColumnName(i);
             String tbName = rsMeta.getTableName(i);
             if (!DbAuth.selectCol(uk, dk, tbName, colName))

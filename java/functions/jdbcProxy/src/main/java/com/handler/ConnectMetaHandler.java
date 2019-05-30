@@ -12,6 +12,6 @@ public class ConnectMetaHandler {
 
     public static void handler(DatabaseMetaData metaData, ByteBuf src, ChannelHandlerContext out) throws SQLException {
         throw new SQLException("connectionDataMeta is developing");
-//        out.write(writeCmd(OK));
+//        out.write(writeByte(OK));
     }
 }

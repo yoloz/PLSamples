@@ -58,13 +58,18 @@ public class IOHandler {
         return arr;
     }
 
-    public static ByteBuf writeCmd(byte cmd) {
+    public static ByteBuf writeByte(byte cmd) {
         ByteBuf buf = Unpooled.buffer(1);
         buf.writeByte(cmd);
         return buf;
     }
 
-    public static ByteBuf writeCmdShortStr(byte cmd, String str) {
+    public static ByteBuf writeShort(int num){
+        ByteBuf buf = Unpooled.buffer(2);
+        buf.writeShort(num);
+        return buf;
+    }
+    public static ByteBuf writeShortStr(byte cmd, String str) {
         byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
         ByteBuf buf = Unpooled.buffer(3 + bytes.length);
         buf.writeByte(cmd);
@@ -73,14 +78,14 @@ public class IOHandler {
         return buf;
     }
 
-    public static ByteBuf writeCmdInt(byte cmd, int code) {
+    public static ByteBuf writeInt(byte cmd, int code) {
         ByteBuf buf = Unpooled.buffer(5);
         buf.writeByte(cmd);
         buf.writeInt(code);
         return buf;
     }
 
-    public static ByteBuf writeCmdInt(byte cmd, int[] code) {
+    public static ByteBuf writeInt(byte cmd, int[] code) {
         ByteBuf buf = Unpooled.buffer();
         buf.writeByte(cmd);
         for (int value : code) {
