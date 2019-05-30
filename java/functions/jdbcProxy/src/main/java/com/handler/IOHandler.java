@@ -1,104 +1,104 @@
 package com.handler;
 
-import com.jdbc.bean.WrapConnect;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandlerContext;
 
 import java.nio.charset.StandardCharsets;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
 
 public class IOHandler {
 
+    public final static byte OK = (byte) 0x0;
+    public final static byte ERROR = (byte) 0x1;
 
-    /**
-     * request jdbc connection
-     */
-    public static WrapConnect requestConnect(ByteBuf buf) throws SQLException {
-        int cl = buf.readUnsignedShort();
-        String keyWord = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), cl), StandardCharsets.UTF_8);
-        buf.readerIndex(buf.readerIndex() + cl);
-        int ul = buf.readUnsignedShort();
-        String userName = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), ul), StandardCharsets.UTF_8);
-        buf.readerIndex(buf.readerIndex() + ul);
-        int pl = buf.readUnsignedShort();
-        String pwd = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), pl), StandardCharsets.UTF_8);
-        buf.readerIndex(buf.readerIndex() + pl);
-        int dbl = buf.readUnsignedShort();
-        String database = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), dbl), StandardCharsets.UTF_8);
-        buf.readerIndex(buf.readerIndex() + dbl);
-        int prl = buf.readInt();
-        String properties = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), prl), StandardCharsets.UTF_8);
-        buf.readerIndex(buf.readerIndex() + prl);
-        return JdbcHandler.getConnect(keyWord, userName, pwd, database, properties);
+    public static String readByteLen(ByteBuf buf) {
+        short length = buf.readUnsignedByte();
+        String str = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), length), StandardCharsets.UTF_8);
+        buf.readerIndex(buf.readerIndex() + length);
+        return str;
     }
 
-    /**
-     * response resultSetMeta
-     */
-    public static void rsMetaOkP(ChannelHandlerContext ctx, ResultSetMetaData rsMeta)
-            throws SQLException {
-        ByteBuf buf = Unpooled.buffer();
-        for (int i = 1; i <= rsMeta.getColumnCount(); i++) {
-            JdbcHandler.wrapResultSetMeta(rsMeta, i, buf);
-        }
-        ctx.write(buf);
+    public static String readShortLen(ByteBuf buf) {
+        int length = buf.readUnsignedShort();
+        String str = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), length), StandardCharsets.UTF_8);
+        buf.readerIndex(buf.readerIndex() + length);
+        return str;
     }
 
-    public static void rsRowOkP(ChannelHandlerContext ctx, ResultSet rs)
-            throws SQLException {
-        while (rs.next()) {
-            ByteBuf buf = Unpooled.buffer();
-            buf.writeByte(0x7e);
-            for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
-                byte[] bytes = rs.getBytes(i);
-                if (bytes == null) buf.writeInt(~0);
-                else {
-                    buf.writeInt(bytes.length);
-                    buf.writeBytes(bytes);
-                }
-            }
-            ctx.write(buf);
+
+    public static String readIntLen(ByteBuf buf) {
+        int length = buf.readInt();
+        String str = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), length), StandardCharsets.UTF_8);
+        buf.readerIndex(buf.readerIndex() + length);
+        return str;
+    }
+
+
+    public static int[] readInt(int size, ByteBuf buf) {
+        int[] arr = new int[size];
+        for (int i = 0; i < size; i++) {
+            arr[i] = buf.readInt();
         }
+        return arr;
+    }
+
+    public static String[] readIntLen(int size, ByteBuf buf) {
+        String[] arr = new String[size];
+        for (int i = 0; i < size; i++) {
+            arr[i] = readIntLen(buf);
+        }
+        return arr;
+    }
+
+    public static String[] readShortLen(int size, ByteBuf buf) {
+        String[] arr = new String[size];
+        for (int i = 0; i < size; i++) {
+            arr[i] = readShortLen(buf);
+        }
+        return arr;
+    }
+
+    public static ByteBuf writeCmd(byte cmd) {
         ByteBuf buf = Unpooled.buffer(1);
-        buf.writeByte(0x7f);
-        ctx.write(buf);
+        buf.writeByte(cmd);
+        return buf;
     }
 
-    /**
-     * response DML&DDL
-     */
-    public static void updateOkP(ChannelHandlerContext ctx, int code) {
+    public static ByteBuf writeCmdShortStr(byte cmd, String str) {
+        byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
+        ByteBuf buf = Unpooled.buffer(3 + bytes.length);
+        buf.writeByte(cmd);
+        buf.writeShort(bytes.length);
+        buf.writeBytes(bytes);
+        return buf;
+    }
+
+    public static ByteBuf writeCmdInt(byte cmd, int code) {
         ByteBuf buf = Unpooled.buffer(5);
-        buf.writeByte(0x00);
+        buf.writeByte(cmd);
         buf.writeInt(code);
-        ctx.write(buf);
+        return buf;
     }
 
+    public static ByteBuf writeCmdInt(byte cmd, int[] code) {
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeByte(cmd);
+        for (int value : code) {
+            buf.writeInt(value);
+        }
+        return buf;
+    }
     /**
-     * response connect
+     * length -1 represent str is null
      */
-    public static void connOkP(ChannelHandlerContext ctx) {
-        ByteBuf buf = Unpooled.buffer(1);
-        buf.writeByte(0x00);
-        ctx.write(buf);
+    public static void writeShortString(String str, ByteBuf buf) {
+        if (str == null) buf.writeShort(~0);
+        else {
+            byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
+            buf.writeShort(bytes.length);
+            buf.writeBytes(bytes);
+        }
     }
 
-    /**
-     * errorP packet
-     *
-     * @param error errorP msg
-     */
-    public static void errorP(ChannelHandlerContext ctx, String error) {
-        byte[] e = error.getBytes(StandardCharsets.UTF_8);
-        ByteBuf buf = Unpooled.buffer(5 + e.length);
-        buf.writeByte(0x01);
-        buf.writeInt(e.length);
-        buf.writeBytes(e);
-        ctx.write(buf);
-    }
 
 }

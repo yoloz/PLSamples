@@ -1,0 +1,10 @@
+- dbKey: mysql1
+  dbType: mysql
+  dbHost: 127.0.0.1:3306
+  driverClass: com.mysql.jdbc.Driver
+  driverPath:
+- dbKey: mysql2
+  dbType: mysql
+  dbHost: 127.0.0.1:3306
+  driverClass: com.mysql.cj.jdbc.Driver
+  driverPath:

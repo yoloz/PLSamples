@@ -21,7 +21,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.jdbc.JDBCRuntimeException;
 import com.jdbc.sql.SQLUtils;
 import com.jdbc.sql.ast.SQLDataType;
 import com.jdbc.sql.ast.SQLExpr;
@@ -56,6 +55,7 @@ import com.jdbc.sql.dialect.mysql.ast.statement.MySqlShowCreateTableStatement;
 import com.jdbc.sql.dialect.mysql.visitor.MySqlASTVisitorAdapter;
 import com.jdbc.sql.dialect.oracle.ast.stmt.OracleCreateTableStatement;
 import com.jdbc.sql.dialect.oracle.visitor.OracleASTVisitorAdapter;
+import com.jdbc.sql.parser.SQLParseException;
 import com.jdbc.sql.visitor.SQLASTVisitor;
 import com.jdbc.sql.visitor.SQLASTVisitorAdapter;
 import com.jdbc.util.JdbcConstants;
@@ -388,7 +388,7 @@ public class SchemaRepository {
 
             return buf.toString();
         } catch (IOException ex) {
-            throw new JDBCRuntimeException("exeucte command error.", ex);
+            throw new SQLParseException("exeucte command error.", ex);
         }
     }
 

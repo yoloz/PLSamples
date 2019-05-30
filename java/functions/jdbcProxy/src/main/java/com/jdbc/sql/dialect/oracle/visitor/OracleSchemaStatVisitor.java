@@ -277,8 +277,8 @@ package com.jdbc.sql.dialect.oracle.visitor;
 //        for (SQLExpr item : x.getUsing()) {
 //            if (item instanceof SQLIdentifierExpr) {
 //                String columnName = ((SQLIdentifierExpr) item).getName();
-//                String leftTable = (String) x.getLeft().getAttribute(ATTR_TABLE);
-//                String rightTable = (String) x.getRight().getAttribute(ATTR_TABLE);
+//                String leftTable = (String) x.getName().getAttribute(ATTR_TABLE);
+//                String rightTable = (String) x.getAlias().getAttribute(ATTR_TABLE);
 //                if (leftTable != null && rightTable != null) {
 //                    Relationship relationship = new Relationship();
 //                    relationship.setLeft(new Column(leftTable, columnName));

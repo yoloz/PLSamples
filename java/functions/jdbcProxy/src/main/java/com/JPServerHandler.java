@@ -1,95 +1,76 @@
 package com;
 
-import com.auth.SqlAuth;
-import com.handler.IOHandler;
-import com.handler.JdbcHandler;
+import com.handler.ConnectHandler;
+import com.handler.ConnectMetaHandler;
+import com.handler.ResultSetHandler;
+import com.handler.StatementHandler;
 import com.jdbc.bean.WrapConnect;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import net.sf.jsqlparser.JSQLParserException;
 import org.apache.log4j.Logger;
 
-import java.nio.charset.StandardCharsets;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-/**
- * 连接: cmd+categoryLength+category+usrLength+username+pwdLength+pwd
- * <p>
- * cmd+sqlLength+sql
- * <p>
- * cmd:
- * +-------------------+------------------+
- * |       cmd         |        desc      |
- * +-------------------+------------------+
- * |       0x01       |    connect      |
- * |       0x02       | update[create,update,delete]  |
- * |       0x03       |    query[select]      |
- * <p>
- */
+import static com.handler.IOHandler.*;
+
+
 @ChannelHandler.Sharable
 public class JPServerHandler extends ChannelInboundHandlerAdapter {
 
     private final Logger logger = Logger.getLogger(JPServerHandler.class);
+    //<address,connect>
     private final ConcurrentMap<String, WrapConnect> connects = new ConcurrentHashMap<>();
 
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        String addr = ctx.channel().remoteAddress().toString();
-        ByteBuf m = (ByteBuf) msg;
-        while (m.isReadable()) {
-            short cmd = m.readUnsignedByte();
-            if (cmd == 1) {
-                try {
-                    WrapConnect conn = IOHandler.requestConnect(m);
-                    if (connects.containsKey(addr)) closeConn(addr);
-                    connects.put(addr, conn);
-                    IOHandler.connOkP(ctx);
-                } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
-                    IOHandler.errorP(ctx, e.getMessage());
+    public void channelRead(ChannelHandlerContext out, Object obj) {
+        String address = out.channel().remoteAddress().toString();
+        ByteBuf src = (ByteBuf) obj;
+        while (src.isReadable()) {
+            short cmd = src.readUnsignedByte();
+            try {
+                switch (cmd) {
+                    case 2:
+                        String dbKey = readShortLen(src);
+                        String userName = readShortLen(src);
+                        String pwd = readShortLen(src);
+                        String database = readShortLen(src);
+                        String properties = readIntLen(src);
+                        WrapConnect conn = new WrapConnect(address, dbKey, userName, pwd,
+                                database, properties);
+                        if (connects.containsKey(address)) closeConn(address);
+                        connects.put(address, conn);
+                        out.write(writeCmd(OK));
+                        break;
+                    case 3:
+                        ConnectHandler.handler(connects.get(address), src, out);
+                        break;
+                    case 4:
+                        ConnectMetaHandler.handler(connects.get(address).getMetaData(), src, out);
+                        break;
+                    case 5:
+                        String stmtId = readShortLen(src);
+                        StatementHandler.handler(connects.get(address).getStatement(stmtId), src, out);
+                        break;
+                    case 6:
+                        stmtId = readShortLen(src);
+                        String rsId = readShortLen(src);
+                        ResultSetHandler.handler(connects.get(address).getStatement(stmtId).getResultSet(rsId),
+                                src, out);
+                        break;
+                    default:
+                        logger.error("cmd[" + cmd + "] is not defined");
                 }
-            } else {
-                int sqlength = m.readInt();
-                String sql = new String(ByteBufUtil.getBytes(m, m.readerIndex(), sqlength), StandardCharsets.UTF_8);
-                m.readerIndex(m.readerIndex() + sqlength);
-                SqlAuth sqlAuth = new SqlAuth(connects.get(addr), sql);
-                try {
-                    if (sqlAuth.check()) {
-                        if (cmd == 2) {
-                            int u = JdbcHandler.update(connects.get(addr).getConnection(), sql);
-                            IOHandler.updateOkP(ctx, u);
-                        } else if (cmd == 3) {
-                            ByteBuf buf = Unpooled.buffer();
-                            ResultSet rs = JdbcHandler.query(connects.get(addr).getConnection(), sql);
-                            buf.writeByte(0x00);
-                            ResultSetMetaData md = rs.getMetaData();
-                            int colCount = md.getColumnCount();
-                            buf.writeShort(colCount);
-                            ctx.write(buf);
-                            IOHandler.rsMetaOkP(ctx, md);
-                            IOHandler.rsRowOkP(ctx, rs);
-                            try {
-                                rs.close();
-                            } catch (SQLException ignored) {
-                            }
-                        } else IOHandler.errorP(ctx, "cmd[" + cmd + "] is not support");
-                    } else IOHandler.errorP(ctx, "no permission to execute sql[" + sql + "]");
-                } catch (JSQLParserException | SQLException e) {
-                    logger.error(e.getMessage(), e);
-                    IOHandler.errorP(ctx, e.getMessage());
-                }
+            } catch (SQLException e) {
+                logger.error(address, e);
+                out.write(writeCmdShortStr(ERROR, e.getMessage()));
             }
         }
-        m.release();
+        src.release();
     }
 
     @Override
@@ -104,14 +85,16 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        closeConn(ctx.channel().remoteAddress().toString());
+        String address = ctx.channel().remoteAddress().toString();
+        closeConn(address);
     }
 
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        logger.error(cause.getMessage(), cause);
-        closeConn(ctx.channel().remoteAddress().toString());
+        String address = ctx.channel().remoteAddress().toString();
+        logger.error(address, cause);
+        closeConn(address);
         ctx.close();
     }
 

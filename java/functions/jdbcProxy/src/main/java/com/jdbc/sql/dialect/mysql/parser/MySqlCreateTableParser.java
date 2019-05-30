@@ -618,6 +618,16 @@ public class MySqlCreateTableParser extends SQLCreateTableParser {
         if (lexer.token() == (Token.AS)) {
             lexer.nextToken();
         }
+        if (lexer.token() == (Token.LPAREN)) {
+            lexer.nextToken();
+
+            if (lexer.token() == Token.SELECT) {
+                SQLSelect query = new MySqlSelectParser(this.exprParser).select();
+                stmt.setSelect(query);
+            } else throw new ParserException("TODO. " + lexer.info());
+
+            accept(Token.RPAREN);
+        }
 
         if (lexer.token() == (Token.SELECT)) {
             SQLSelect query = new MySqlSelectParser(this.exprParser).select();

@@ -1,0 +1,63 @@
+---
+#user auth
+- dbkey: mysql2
+  user: lsjcj
+  priv: [createuser,createdatabase,select,insert,update,delete,createtable,createview,
+              createindex,drop,index,alter,show]
+- dbkey: mysql2
+  user: test
+  priv: []
+...
+---
+#db auth
+- dbkey: mysql2
+  user: test
+  db: mysql
+  priv: [select,show]
+- dbkey: mysql2
+  user: test
+  db: fea_flow
+  priv: []
+...
+---
+#table auth
+- dbkey: mysql2
+  user: test
+  db: fea_flow
+  tb: ciisource
+  tb_priv: [select,insert,update,delete,create,drop,alter,createview,showview,createindex]
+  col_priv: []
+- dbkey: mysql2
+  user: test
+  db: fea_flow
+  tb: lgjob
+  tb_priv: [select,insert,update,delete,create,drop,alter,createview,showview,createindex]
+  col_priv: [select,insert,update]
+...
+---
+#column auth
+- dbkey: mysql2
+  user: test
+  db: fea_flow
+  tb: ciisource
+  cn: ds_id
+  priv: [select,insert,update]
+- dbkey: mysql2
+  user: test
+  db: fea_flow
+  tb: ciisource
+  cn: ds_name
+  priv: [select,insert,update]
+- dbkey: mysql2
+  user: test
+  db: fea_flow
+  tb: ciisource
+  cn: ds_type
+  priv: [select,insert,update]
+- dbkey: mysql2
+  user: test
+  db: fea_flow
+  tb: ciisource
+  cn: ds_json
+  priv: [select,insert,update]
+...

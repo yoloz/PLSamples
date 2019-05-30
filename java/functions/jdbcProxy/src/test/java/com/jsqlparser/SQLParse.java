@@ -1,6 +1,6 @@
-package com.parse;
+package com.jsqlparser;
 
-import net.sf.jsqlparser.JSQLParserException;
+/*import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.Function;
 import net.sf.jsqlparser.expression.Parenthesis;
@@ -54,22 +54,22 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Set;*/
 
 /**
  * 对SQL语句拆解取出其中表,列信息及对应的操作
  */
 public class SQLParse {
 
-    private Connection connect;
+   /* private Connection connect;
 
     public SQLParse(Connection connect) {
         this.connect = connect;
     }
 
-    /**
+    *//**
      * <tableName,<tableName|columnName,operation|[operations]>>
-     */
+     *//*
     public Map<String, Map<String, Object>> getOperation(String sql) throws JSQLParserException {
         Statement stmt = CCJSqlParserUtil.parse(new StringReader(sql));
         Map<String, Map<String, Object>> map = new HashMap<>();
@@ -332,10 +332,10 @@ public class SQLParse {
         return map;
     }
 
-    /**
+    *//**
      * one table may be has multi operation
      * last object can be string or set
-     */
+     *//*
     @SuppressWarnings("unchecked")
     private void copyMap(Map<String, Map<String, Object>> src,
                          Map<String, Map<String, Object>> dst) {
@@ -381,5 +381,5 @@ public class SQLParse {
     private String getClassName(Class clazz) {
         String fullName = clazz.getName();
         return fullName.substring(fullName.lastIndexOf(".") + 1);
-    }
+    }*/
 }

@@ -128,7 +128,7 @@ last_value
 lateral
 lead
 leading
-left
+name
 like
 like_regex
 limit
@@ -190,7 +190,7 @@ regr_syy
 result
 return
 returning
-right
+alias
 row_number
 scope
 select

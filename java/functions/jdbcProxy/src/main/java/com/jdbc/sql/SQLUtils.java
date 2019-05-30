@@ -18,7 +18,6 @@ package com.jdbc.sql;
 import java.util.List;
 import java.util.Map;
 
-import com.jdbc.JDBCRuntimeException;
 import com.jdbc.sql.ast.SQLExpr;
 import com.jdbc.sql.ast.SQLName;
 import com.jdbc.sql.ast.SQLObject;
@@ -53,6 +52,7 @@ import com.jdbc.sql.dialect.sqlserver.visitor.SQLServerOutputVisitor;
 import com.jdbc.sql.parser.Lexer;
 import com.jdbc.sql.parser.ParserException;
 import com.jdbc.sql.parser.SQLExprParser;
+import com.jdbc.sql.parser.SQLParseException;
 import com.jdbc.sql.parser.SQLParserFeature;
 import com.jdbc.sql.parser.SQLParserUtils;
 import com.jdbc.sql.parser.SQLStatementParser;
@@ -480,7 +480,7 @@ public class SQLUtils {
         }
 
         return new SchemaStatVisitor();*/
-        throw new JDBCRuntimeException("stat visitor is not support");
+        throw new SQLParseException("stat visitor is not support");
     }
 
     public static List<SQLStatement> parseStatements(String sql, String dbType) {

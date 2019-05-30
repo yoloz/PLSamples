@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import com.jdbc.JDBCRuntimeException;
 import com.jdbc.sql.SQLUtils;
 import com.jdbc.sql.ast.SQLExpr;
 import com.jdbc.sql.ast.SQLObject;
@@ -50,7 +49,6 @@ import com.jdbc.sql.ast.expr.SQLNullExpr;
 import com.jdbc.sql.ast.expr.SQLNumericLiteralExpr;
 import com.jdbc.sql.ast.expr.SQLQueryExpr;
 import com.jdbc.sql.ast.expr.SQLUnaryExpr;
-import com.jdbc.sql.ast.expr.SQLUnaryOperator;
 import com.jdbc.sql.ast.expr.SQLValuableExpr;
 import com.jdbc.sql.ast.expr.SQLVariantRefExpr;
 import com.jdbc.sql.ast.statement.SQLExprTableSource;
@@ -62,6 +60,7 @@ import com.jdbc.sql.dialect.mysql.visitor.MySqlEvalVisitorImpl;
 import com.jdbc.sql.dialect.oracle.visitor.OracleEvalVisitor;
 import com.jdbc.sql.dialect.postgresql.visitor.PGEvalVisitor;
 import com.jdbc.sql.dialect.sqlserver.visitor.SQLServerEvalVisitor;
+import com.jdbc.sql.parser.SQLParseException;
 import com.jdbc.sql.visitor.functions.Ascii;
 import com.jdbc.sql.visitor.functions.Bin;
 import com.jdbc.sql.visitor.functions.BitLength;
@@ -149,7 +148,7 @@ public class SQLEvalVisitorUtils {
 
             if (value == null) {
                 if (throwError && !sqlObject.getAttributes().containsKey(EVAL_VALUE)) {
-                    throw new JDBCRuntimeException("eval error : " + SQLUtils.toSQLString(sqlObject, dbType));
+                    throw new SQLParseException("eval error : " + SQLUtils.toSQLString(sqlObject, dbType));
                 }
             }
         }
@@ -1242,7 +1241,7 @@ public class SQLEvalVisitorUtils {
             return ((Number) val).intValue();
         }
 
-        throw new JDBCRuntimeException("cast error");
+        throw new SQLParseException("cast error");
     }
 
     @SuppressWarnings("rawtypes")
@@ -1381,7 +1380,7 @@ public class SQLEvalVisitorUtils {
             return castToDate((String) val);
         }
 
-        throw new JDBCRuntimeException("can cast to date");
+        throw new SQLParseException("can cast to date");
     }
 
     public static Date castToDate(String text) {
@@ -1400,7 +1399,7 @@ public class SQLEvalVisitorUtils {
         try {
             return new SimpleDateFormat(format).parse(text);
         } catch (ParseException e) {
-            throw new JDBCRuntimeException("format : " + format + ", value : " + text, e);
+            throw new SQLParseException("format : " + format + ", value : " + text, e);
         }
     }
 

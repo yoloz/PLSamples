@@ -1,0 +1,6 @@
+- dbkey: mysql2
+  user: test
+  db: fea_flow
+  tb: ciisource
+  cn: ds_type
+  val: kafka

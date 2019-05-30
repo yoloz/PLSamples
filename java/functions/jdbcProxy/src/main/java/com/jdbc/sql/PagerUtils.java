@@ -17,7 +17,6 @@ package com.jdbc.sql;
 
 import java.util.List;
 
-import com.jdbc.JDBCRuntimeException;
 import com.jdbc.sql.ast.SQLExpr;
 import com.jdbc.sql.ast.SQLLimit;
 import com.jdbc.sql.ast.SQLObject;
@@ -55,6 +54,7 @@ import com.jdbc.sql.dialect.oracle.visitor.OracleASTVisitorAdapter;
 import com.jdbc.sql.dialect.postgresql.ast.stmt.PGSelectQueryBlock;
 import com.jdbc.sql.dialect.sqlserver.ast.SQLServerSelectQueryBlock;
 import com.jdbc.sql.dialect.sqlserver.ast.SQLServerTop;
+import com.jdbc.sql.parser.SQLParseException;
 import com.jdbc.util.JdbcConstants;
 import com.jdbc.util.JdbcUtils;
 
@@ -658,7 +658,7 @@ public class PagerUtils {
             return visitor.unorderedLimitCount > 0;
         }
 
-        throw new JDBCRuntimeException("not supported. dbType : " + dbType);
+        throw new SQLParseException("not supported. dbType : " + dbType);
     }
 
     private static class MySqlUnorderedLimitDetectVisitor extends MySqlASTVisitorAdapter {

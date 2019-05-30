@@ -315,7 +315,7 @@ public class SchemaStatVisitor extends SQLASTVisitorAdapter {
 
         SQLObject parent = expr.getParent();
         if (parent instanceof SQLSelectOrderByItem) {
-            SQLOrderingSpecification type = ((SQLSelectOrderByItem) parent).getType();
+            SQLOrderingSpecification type = ((SQLSelectOrderByItem) parent).getDbType();
             column.getAttributes().put("orderBy.type", type);
         }
 
@@ -533,8 +533,8 @@ public class SchemaStatVisitor extends SQLASTVisitorAdapter {
         }
 
         final SQLBinaryOperator op = x.getOperator();
-        final SQLExpr left = x.getLeft();
-        final SQLExpr right = x.getRight();
+        final SQLExpr left = x.getName();
+        final SQLExpr right = x.getAlias();
 
         switch (op) {
             case Equality:
@@ -1048,7 +1048,7 @@ public class SchemaStatVisitor extends SQLASTVisitorAdapter {
     }
 
     public boolean visit(SQLJoinTableSource x) {
-        SQLTableSource left = x.getLeft(), right = x.getRight();
+        SQLTableSource left = x.getName(), right = x.getAlias();
 
         left.accept(this);
         right.accept(this);
@@ -1418,8 +1418,8 @@ public class SchemaStatVisitor extends SQLASTVisitorAdapter {
 
         if (tableSource instanceof SQLJoinTableSource) {
             SQLJoinTableSource join = (SQLJoinTableSource) tableSource;
-            statAllColumn(x, join.getLeft());
-            statAllColumn(x, join.getRight());
+            statAllColumn(x, join.getName());
+            statAllColumn(x, join.getAlias());
         }
     }
 

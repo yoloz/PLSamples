@@ -881,7 +881,7 @@ public class OracleOutputVisitor extends SQLASTOutputVisitor implements OracleAS
 //    @Override
 //    public boolean visit(VersionsFlashbackQueryClause x) {
 //        print0(ucase ? "VERSIONS BETWEEN " : "versions between ");
-//        print0(x.getType().name());
+//        print0(x.getDbType().name());
 //        print(' ');
 //        x.getBegin().accept(this);
 //        print0(ucase ? " AND " : " and ");
@@ -897,7 +897,7 @@ public class OracleOutputVisitor extends SQLASTOutputVisitor implements OracleAS
 //    @Override
 //    public boolean visit(AsOfFlashbackQueryClause x) {
 //        print0(ucase ? "AS OF " : "as of ");
-//        print0(x.getType().name());
+//        print0(x.getDbType().name());
 //        print0(" (");
 //        x.getExpr().accept(this);
 //        print(')');

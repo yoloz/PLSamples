@@ -15,19 +15,31 @@
  */
 package com.jdbc.sql.parser;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
-import com.jdbc.bean.SQLInfo;
+import com.jdbc.bean.SqlInfo;
 import com.jdbc.sql.ast.SQLExpr;
 import com.jdbc.sql.ast.SQLOrderBy;
 import com.jdbc.sql.ast.SQLStatement;
+import com.jdbc.sql.ast.expr.SQLAggregateExpr;
 import com.jdbc.sql.ast.expr.SQLAllColumnExpr;
+import com.jdbc.sql.ast.expr.SQLBetweenExpr;
 import com.jdbc.sql.ast.expr.SQLBinaryOpExpr;
+import com.jdbc.sql.ast.expr.SQLCharExpr;
 import com.jdbc.sql.ast.expr.SQLIdentifierExpr;
 import com.jdbc.sql.ast.expr.SQLInSubQueryExpr;
+import com.jdbc.sql.ast.expr.SQLIntegerExpr;
+import com.jdbc.sql.ast.expr.SQLMethodInvokeExpr;
+import com.jdbc.sql.ast.expr.SQLNumberExpr;
 import com.jdbc.sql.ast.expr.SQLPropertyExpr;
+import com.jdbc.sql.ast.expr.SQLQueryExpr;
 import com.jdbc.sql.ast.expr.SQLVariantRefExpr;
 import com.jdbc.sql.ast.statement.*;
 import com.jdbc.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
@@ -37,6 +49,10 @@ import org.apache.log4j.Logger;
 public class SQLStatementParser extends SQLStatementParsers {
 
     private final Logger logger = Logger.getLogger(SQLStatementParser.class);
+
+    private String defaultDbName = "";
+    private Connection conn;
+    private List<SqlInfo> sqlInfoList;
 
     public SQLStatementParser(String sql) {
         super(sql);
@@ -50,11 +66,19 @@ public class SQLStatementParser extends SQLStatementParsers {
         super(exprParser);
     }
 
-    protected SQLStatementParser(Lexer lexer, String dbType) {
+    public SQLStatementParser(Lexer lexer, String dbType) {
         super(lexer, dbType);
     }
 
-    public void break2SQLInfo(Map<String, SQLInfo> sMap) {
+    public void setConn(Connection conn) {
+        this.conn = conn;
+    }
+
+    public void setDefaultDbName(String defaultDbName) {
+        this.defaultDbName = defaultDbName;
+    }
+
+    public List<SqlInfo> parseToSQLInfo() {
         if ("select @@session.tx_read_only".equals(lexer.text)
                 && lexer.token == Token.SELECT) {
             SQLSelect select = new SQLSelect();
@@ -64,10 +88,10 @@ public class SQLStatementParser extends SQLStatementParsers {
 
             SQLSelectStatement stmt = new SQLSelectStatement(select);
 
-            //todo
+            parseSelect(stmt.getSelect());
 
             lexer.reset(29, '\u001A', Token.EOF);
-            return;
+            return sqlInfoList;
         }
 
         for (; ; ) {
@@ -78,7 +102,7 @@ public class SQLStatementParser extends SQLStatementParsers {
                 case ELSE:
                 case WHEN:
                     if (lexer.isKeepComments() && lexer.hasComment()) lexer.readAndResetComments();
-                    return;
+                    return sqlInfoList;
                 case SEMI: {
                     int line0 = lexer.getLine();
                     lexer.nextToken();
@@ -90,32 +114,48 @@ public class SQLStatementParser extends SQLStatementParsers {
                 }
                 case WITH: {
                     SQLSelectStatement stmt = (SQLSelectStatement) parseWith();
-                    //todo
+                    logger.info("statement[" + stmt.getClass() + "] todo authentication");
                     continue;
                 }
                 case SELECT: {
                     SQLSelectStatement stmt = (SQLSelectStatement) parseSelect();
-                    parseSelectStatement(sMap, stmt.getSelect());
+                    parseSelect(stmt.getSelect());
                     continue;
                 }
                 case UPDATE: {
-                    SQLStatement stmt = parseUpdateStatement();
-                    //todo
+                    SQLUpdateStatement stmt = parseUpdateStatement();
+                    List<SqlInfo> list = new ArrayList<>(1);
+                    parseTable(stmt.getTableSource(), "update", list);
+                    if (!list.isEmpty()) {
+                        List<SQLUpdateSetItem> updateSetItems = stmt.getItems();
+                        for (SQLUpdateSetItem item : updateSetItems) {
+                            parseColumn(item.getColumn(), null, list, "update");
+                            parseColumn(item.getValue(), null, list, "update");
+                        }
+                        parseWhere(stmt.getWhere(), list);
+                    }
                     continue;
                 }
                 case CREATE: {
-                    SQLStatement stmt = parseCreate();
-                    parseCreateStatement(sMap, stmt);
+                    parseCreateStatement(parseCreate());
                     continue;
                 }
                 case INSERT: {
-                    SQLStatement stmt = parseInsert();
-                    //todo
+                    SQLInsertStatement stmt = (SQLInsertStatement) parseInsert();
+                    List<SQLExpr> columns = stmt.getColumns();
+                    List<SqlInfo> list = new ArrayList<>(1);
+                    parseTable(stmt.getTableSource(), "insert", list);
+                    if (!list.isEmpty() && columns != null) for (SQLExpr column : columns) {
+                        parseColumn(column, null, list, "insert");
+                    }
+                    parseSelect(stmt.getQuery());
                     continue;
                 }
                 case DELETE: {
-                    SQLStatement stmt = parseDeleteStatement();
-                    //todo
+                    SQLDeleteStatement stmt = parseDeleteStatement();
+                    List<SqlInfo> list = new ArrayList<>(1);
+                    parseTable(stmt.getTableSource(), "delete", list);
+                    if (!list.isEmpty()) parseWhere(stmt.getWhere(), list);
                     continue;
                 }
                 case EXPLAIN: {
@@ -130,18 +170,17 @@ public class SQLStatementParser extends SQLStatementParsers {
                 }
                 case ALTER: {
                     SQLAlterTableStatement stmt = (SQLAlterTableStatement) parseAlter();
-                    String fn = Objects.toString(stmt.getSchema(), "");
-                    SQLInfo info = sMap.getOrDefault(fn, new SQLInfo());
-                    info.setFn(fn);
-                    String tb = stmt.getTableName();
-                    SQLInfo.SInfo sInfo = info.getSl(tb);
-                    sInfo.addOperates("alter");
-                    if (!sMap.containsKey(fn)) sMap.put(fn, info);
+                    String dbName = Objects.toString(stmt.getSchema(), defaultDbName);
+                    SqlInfo sqlInfo = addTableInfo(dbName, stmt.getTableName());
+                    sqlInfo.addOperator("alter");
                     continue;
                 }
                 case TRUNCATE: {
-                    SQLStatement stmt = parseTruncate();
-                    //todo
+                    SQLTruncateStatement stmt = (SQLTruncateStatement) parseTruncate();
+                    List<SQLExprTableSource> exprTableSources = stmt.getTableSources();
+                    for (SQLExprTableSource tableSource : exprTableSources) {
+                        parseTable(tableSource, "truncate", null);
+                    }
                     continue;
                 }
                 case USE: {
@@ -206,7 +245,7 @@ public class SQLStatementParser extends SQLStatementParsers {
                 }
                 case DROP: {
                     SQLStatement stmt = parseDrop();
-                    //todo
+                    parseDropStatement(stmt);
                     continue;
                 }
                 case COMMENT: {
@@ -320,7 +359,7 @@ public class SQLStatementParser extends SQLStatementParsers {
                 if (lexer.token == Token.SELECT) {
                     lexer.reset(markBp, markChar, Token.LPAREN);
                     SQLStatement stmt = parseSelect();
-                    //todo
+                    parseSelect(((SQLSelectStatement) stmt).getSelect());
                     continue;
                 } else {
                     throw new ParserException("TODO " + lexer.info());
@@ -334,163 +373,230 @@ public class SQLStatementParser extends SQLStatementParsers {
         }
     }
 
-    private void parseCreateStatement(Map<String, SQLInfo> map, SQLStatement stmt) {
-        SQLInfo info;
+    private void parseCreateStatement(SQLStatement stmt) {
         if (stmt instanceof SQLCreateTableStatement) {
             SQLCreateTableStatement createTableStatement = (SQLCreateTableStatement) stmt;
-
+            parseTable(createTableStatement.getTableSource(), "createtable", null);
+//            List<SQLTableElement> tableElements = createTableStatement.getTableElementList();
+//            for (SQLTableElement element : tableElements) {
+//                if (element instanceof SQLColumnDefinition) {
+//                    SQLColumnDefinition columnDefinition = (SQLColumnDefinition) element;
+//                    parseColumn(columnDefinition.getName(), null, tableInfo, "createtable");
+//                } else throw new ParserException("SQLTableElement[" + stmt.getClass() + "] todo...");
+//            }
+            parseSelect(createTableStatement.getSelect());
         } else if (stmt instanceof SQLCreateIndexStatement) {
             SQLCreateIndexStatement createIndexStatement = (SQLCreateIndexStatement) stmt;
-            String fn = Objects.toString(createIndexStatement.getSchema(), "");
-            info = map.getOrDefault(fn, new SQLInfo());
-            info.setFn(fn);
-            String sn = createIndexStatement.getTableName();
-            SQLInfo.SInfo sInfo = info.getSl(sn);
-            sInfo.addOperates("createindex");
-            if (!map.containsKey(fn)) map.put(fn, info);
+            String dbName = Objects.toString(createIndexStatement.getSchema(), defaultDbName);
+            SqlInfo sqlInfo = addTableInfo(dbName, createIndexStatement.getTableName());
+            sqlInfo.addOperator("createindex");
         } else if (stmt instanceof SQLCreateViewStatement) {
-
+            SQLCreateViewStatement createViewStatement = (SQLCreateViewStatement) stmt;
+            parseTable(createViewStatement.getTableSource(), "createview", null);
+            parseSelect(createViewStatement.getSubQuery());
         } else if (stmt instanceof SQLCreateDatabaseStatement) {
-
+            logger.info("statement[" + stmt.getClass() + "] todo");
         } else if (stmt instanceof SQLCreateUserStatement) {
-
+            logger.info("statement[" + stmt.getClass() + "] todo");
         } else throw new ParserException("statement[" + stmt.getClass() + "] todo...");
     }
 
-    private void parseSelectStatement(Map<String, SQLInfo> map, SQLSelect select) {
-        SQLSelectQuery query = select.getQuery();
-        if (query != null) {
-            if (query instanceof SQLSelectQueryBlock) {
-                SQLSelectQueryBlock sq = (SQLSelectQueryBlock) query;
-                SQLTableSource tb = sq.getFrom();
-                if (tb != null) {
-                    String fn;
-                    SQLInfo sqlInfo;
-                    SQLInfo.SInfo sInfo;
-                    if (tb instanceof SQLExprTableSource) {
-                        String alias = tb.getAlias();
-                        SQLExprTableSource exprTableSource = (SQLExprTableSource) tb;
-                        fn = Objects.toString(exprTableSource.getSchema(), "");
-                        sqlInfo = map.getOrDefault(fn, new SQLInfo());
-                        sqlInfo.setFn(fn);
-                        SQLExpr expr = ((SQLExprTableSource) tb).getExpr();
-                        if (expr instanceof SQLIdentifierExpr) {
-                            String sn = ((SQLIdentifierExpr) expr).getName();
-                            sInfo = sqlInfo.getSl(sn);
-                        } else throw new ParserException("SQLExprTableSource expr[" + expr.getClass() + "] todo...");
-                        sInfo.setAlias(alias);
-                        sInfo.addOperates("select");
-                    } else throw new ParserException("tableSource[" + tb.getClass() + "] todo...");
-                    List<SQLSelectItem> items = sq.getSelectList();
-                    if (items != null) {
-                        for (SQLSelectItem item : items) {
-                            String alias = item.getAlias();
-                            SQLExpr expr = item.getExpr();
-                            if (expr instanceof SQLIdentifierExpr) {
-                                String cn = ((SQLIdentifierExpr) expr).getName();
-                                SQLInfo.ColInfo colInfo = sInfo.getCol(cn);
-                                colInfo.setAlias(alias);
-                                colInfo.addOperates("select");
-                            } else if (expr instanceof SQLAllColumnExpr) {
-
-                            } else throw new ParserException("SQLSelectItem expr[" +
-                                    expr.getClass() + "] todo...");
-                        }
-                    }
-                    SQLOrderBy order = sq.getOrderBy();
-                    if (order != null) {
-                        List<SQLSelectOrderByItem> selectOrderByItems = order.getItems();
-                        for (SQLSelectOrderByItem selectOrderByItem : selectOrderByItems) {
-                            SQLExpr expr = selectOrderByItem.getExpr();
-                            if (expr instanceof SQLIdentifierExpr) {
-                                String cn = ((SQLIdentifierExpr) expr).getName();
-                                SQLInfo.ColInfo colInfo = sInfo.getCol(cn);
-                                colInfo.addOperates("select");
-                            } else throw new ParserException("SQLSelectItem expr[" +
-                                    expr.getClass() + "] todo...");
-                        }
-                    }
-                    SQLExpr where = sq.getWhere();
-                    if (where != null) {
-//                        String cn = parseSQLExpr(where, map, "SQLSelectQueryWhere");
-//                        SQLInfo.ColInfo colInfo = sInfo.getCol(cn);
-//                        colInfo.setCn(cn);
-//                        colInfo.addOperates("select");
-//                        sInfo.addCol(colInfo);
-                    }
-                    if (!map.containsKey(fn)) map.put(fn, sqlInfo);
-                }
-            } else if (query instanceof SQLUnionQuery) {
-
-            } else throw new ParserException("select query[" + query.getClass() + "] todo...");
-        }
+    private void parseDropStatement(SQLStatement stmt) {
+        if (stmt instanceof SQLDropTableStatement) {
+            SQLDropTableStatement dropTableStatement = (SQLDropTableStatement) stmt;
+            List<SQLExprTableSource> exprTableSources = dropTableStatement.getTableSources();
+            for (SQLExprTableSource tableSource : exprTableSources) {
+                parseTable(tableSource, "drop", null);
+            }
+        } else if (stmt instanceof SQLDropIndexStatement) {
+            logger.info("statement[" + stmt.getClass() + "] todo");
+        } else if (stmt instanceof SQLDropViewStatement) {
+            logger.info("statement[" + stmt.getClass() + "] todo");
+        } else if (stmt instanceof SQLDropDatabaseStatement) {
+            logger.info("statement[" + stmt.getClass() + "] todo");
+        } else if (stmt instanceof SQLDropUserStatement) {
+            logger.info("statement[" + stmt.getClass() + "] todo");
+        } else throw new ParserException("statement[" + stmt.getClass() + "] todo...");
     }
 
+    private void parseSelect(SQLSelect select) {
+        if (select == null) return;
+        SQLSelectQuery query = select.getQuery();
+        if (query instanceof SQLSelectQueryBlock) {
+            SQLSelectQueryBlock selectQueryBlock = (SQLSelectQueryBlock) query;
+            List<SqlInfo> list = new ArrayList<>(1);
+            parseTable(selectQueryBlock.getFrom(), "select", list);
+            if (!list.isEmpty()) {
+                List<SQLSelectItem> items = selectQueryBlock.getSelectList();
+                if (items != null) {
+                    for (SQLSelectItem item : items) {
+                        parseColumn(item.getExpr(), item.getAlias(), list, "select");
+                    }
+                }
+                SQLOrderBy order = selectQueryBlock.getOrderBy();
+                if (order != null) {
+                    List<SQLSelectOrderByItem> selectOrderByItems = order.getItems();
+                    for (SQLSelectOrderByItem selectOrderByItem : selectOrderByItems) {
+                        parseColumn(selectOrderByItem.getExpr(), null, list, "select");
+                    }
+                }
+                parseWhere(selectQueryBlock.getWhere(), list);
+            }
+        } else if (query instanceof SQLUnionQuery) {
+            logger.info("statement[" + query.getClass() + "] todo");
+        } else throw new ParserException("select query[" + query.getClass() + "] todo...");
+    }
 
-//    private void parseWhere(SQLExpr expr, Map<String, SQLInfo> sMap,String s, String flag) {
-//       if (expr instanceof SQLInSubQueryExpr) {
-//            SQLInSubQueryExpr sqlInSubQueryExpr = (SQLInSubQueryExpr) expr;
-//            SQLSelect select = sqlInSubQueryExpr.getSubQuery();
-//            parseSelectStatement(sMap, select);
-////             break2Str(sqlInSubQueryExpr.getExpr(), sMap, flag);
-//        } else if (expr instanceof SQLBinaryOpExpr) {
-//            SQLBinaryOpExpr sqlBinaryOpExpr = (SQLBinaryOpExpr) expr;
-//            return null;
-//        } else throw new ParserException(flag + " SQLExpr[" + expr.getClass() + "] todo...");
-//    }
+    private void parseColumn(SQLExpr expr, String alias, List<SqlInfo> tables, String operator) {
+        if (expr == null) return;
+        if (expr instanceof SQLIdentifierExpr) {
+            if (tables.size() > 1) throw new ParserException("column need table prefix");
+            String cn = ((SQLIdentifierExpr) expr).getName();
+            tables.get(0).addCol(cn, alias, operator);
+        } else if (expr instanceof SQLPropertyExpr) {
+            SQLPropertyExpr propertyExpr = (SQLPropertyExpr) expr;
+            String cn = propertyExpr.getName();
+            String owner = Objects.toString(propertyExpr.getOwnernName(), "");
+            String dbName = defaultDbName;
+            String tb;
+            if (owner.contains(".")) {
+                int i = owner.indexOf(".");
+                dbName = owner.substring(0, i);
+                tb = owner.substring(i + 1);
+            } else tb = owner;
+            boolean newTable = true;
+            for (SqlInfo table : tables) {
+                if (!dbName.isEmpty()) {
+                    if (table.getDbName().equals(dbName) && (table.getName().equals(tb)
+                            || table.getAlias().equals(tb))) {
+                        newTable = false;
+                        table.addCol(cn, operator);
+                        break;
+                    }
+                } else {
+                    if (table.getName().equals(tb) || table.getAlias().equals(tb)) {
+                        newTable = false;
+                        table.addCol(cn, operator);
+                        break;
+                    }
+                }
+            }
+            if (newTable) {
+                SqlInfo sqlInfo = addTableInfo(dbName, tb);
+                sqlInfo.addCol(cn, operator);
+            }
+        } else if (expr instanceof SQLAllColumnExpr) {
+            if (tables.size() > 1) throw new ParserException("column need table prefix");
+            List<String> cols = getAllCol(tables.get(0));
+        } else if (expr instanceof SQLAggregateExpr) {
+            SQLAggregateExpr aggregateExpr = (SQLAggregateExpr) expr;
+            List<SQLExpr> arguments = aggregateExpr.getArguments();
+            for (SQLExpr argument : arguments) {
+                parseColumn(argument, null, tables, operator);
+            }
+        } else if (expr instanceof SQLQueryExpr) {
+            parseSelect(((SQLQueryExpr) expr).getSubQuery());
+        } else if (expr instanceof SQLNumberExpr || expr instanceof SQLIntegerExpr || expr instanceof SQLCharExpr) {
+            //ignore value
+        } else throw new ParserException("Column expr[" + expr.getClass() + "] todo...");
+    }
 
-//    private void parseWhere(SQLExpr expr,  tb, Map<String, SQLInfo> map) {
-//        if (expr == null) return;
-//        Class clazz = expr.getClass();
-//        if (Parenthesis.class.equals(clazz)) {
-//            Parenthesis parenthesis = (Parenthesis) expr;
-//            SQLExpr pe = parenthesis.getExpression();
-//            parseWhere(pe, tb, map);
-//        } else if (AndExpression.class.equals(clazz)) {
-//            AndExpression and = (AndExpression) expr;
-//            parseWhere(and.getLeftExpression(), tb, map);
-//            parseWhere(and.getRightExpression(), tb, map);
-//        } else if (OrExpression.class.equals(clazz)) {
-//            OrExpression or = (OrExpression) expr;
-//            parseWhere(or.getLeftExpression(), tb, map);
-//            parseWhere(or.getRightExpression(), tb, map);
-//        } else {
-//            SQLExpr left;
-//            SQLExpr right;
-//            if (.class.equals(clazz)) {
-//                left = ((EqualsTo) expr).getLeftExpression();
-//                right = ((EqualsTo) expr).getRightExpression();
-//            } else if (GreaterThan.class.equals(clazz)) {
-//                left = ((GreaterThan) expr).getLeftExpression();
-//                right = ((GreaterThan) expr).getRightExpression();
-//            } else if (GreaterThanEquals.class.equals(clazz)) {
-//                left = ((GreaterThanEquals) expr).getLeftExpression();
-//                right = ((GreaterThanEquals) expr).getRightExpression();
-//            } else if (MinorThan.class.equals(clazz)) {
-//                left = ((MinorThan) expr).getLeftExpression();
-//                right = ((MinorThan) expr).getRightExpression();
-//            } else if (MinorThanEquals.class.equals(clazz)) {
-//                left = ((MinorThanEquals) expr).getLeftExpression();
-//                right = ((MinorThanEquals) expr).getRightExpression();
-//            } else if (LikeExpression.class.equals(clazz)) {
-//                left = ((LikeExpression) expr).getLeftExpression();
-//                right = ((LikeExpression) expr).getRightExpression();
-//            } else if (Between.class.equals(clazz)) {
-//                left = ((Between) expr).getLeftExpression();
-//                right = null;
-//            } else if (InExpression.class.equals(clazz)) {
-//                left = ((InExpression) expr).getLeftExpression();
-//                ItemsList rl = ((InExpression) expr).getRightItemsList();
-//                if (rl instanceof SubSelect) right = (SubSelect) rl;
-//                else throw new JSQLParserException("in condition[" + rl.getClass() + "] is not support");
-//            } else throw new JSQLParserException("where condition[" + expr.getClass() + "] is not support");
-//
-//            if (left instanceof Column) copyMap(map, parseColumn(tb, "select", (Column) left));
-//            else if (left instanceof Function) copyMap(map, parseFunction(left, tb));
-//            else throw new JSQLParserException("where left expression[" + left.getClass() + "] is not support");
-//
-//            if (right instanceof SubSelect) copyMap(map, parseSelect((SubSelect) right));
-//            else if (right instanceof Column) copyMap(map, parseColumn(tb, "select", (Column) right));
-//        }
-//    }
+    private void parseTable(SQLTableSource tableSource, String operator, List<SqlInfo> list) {
+        if (tableSource instanceof SQLExprTableSource) {
+            String alias = tableSource.getAlias();
+            SQLExprTableSource exprTableSource = (SQLExprTableSource) tableSource;
+            String dbName = exprTableSource.getSchema();
+            String tbName;
+            SQLExpr expr = ((SQLExprTableSource) tableSource).getExpr();
+            if (expr instanceof SQLIdentifierExpr) {
+                tbName = ((SQLIdentifierExpr) expr).getName();
+            } else if (expr instanceof SQLPropertyExpr) {
+                SQLPropertyExpr propertyExpr = (SQLPropertyExpr) expr;
+                dbName = propertyExpr.getOwnernName();
+                tbName = propertyExpr.getName();
+            } else throw new ParserException("SQLExprTableSource expr[" + expr.getClass() + "] todo...");
+            SqlInfo sqlInfo = addTableInfo(Objects.toString(dbName, defaultDbName), tbName, alias);
+            sqlInfo.addOperator(operator);
+            if (list != null) list.add(sqlInfo);
+        } else if (tableSource instanceof SQLSubqueryTableSource) {
+            parseSelect(((SQLSubqueryTableSource) tableSource).getSelect());
+        } else if (tableSource instanceof SQLJoinTableSource) {
+            SQLJoinTableSource joinTableSource = (SQLJoinTableSource) tableSource;
+            parseTable(joinTableSource.getLeft(), operator, list);
+            parseTable(joinTableSource.getRight(), operator, list);
+        } else throw new ParserException("SQLTableSource[" + tableSource.getClass() + "] todo...");
+    }
+
+    private void parseWhere(SQLExpr expr, List<SqlInfo> tables) {
+        if (expr == null) return;
+        if (expr instanceof SQLBinaryOpExpr) {
+            SQLBinaryOpExpr sqlBinaryOpExpr = (SQLBinaryOpExpr) expr;
+            SQLExpr left = sqlBinaryOpExpr.getLeft();
+            if (left != null) parseWhere(left, tables);
+            SQLExpr right = sqlBinaryOpExpr.getRight();
+            if (right != null) parseWhere(right, tables);
+        } else if (expr instanceof SQLIdentifierExpr) {
+            parseColumn(expr, null, tables, "select");
+        } else if (expr instanceof SQLBetweenExpr) {
+            SQLBetweenExpr sqlBetweenExpr = (SQLBetweenExpr) expr;
+            SQLExpr testExpr = sqlBetweenExpr.getTestExpr();
+            if (testExpr != null) parseWhere(testExpr, tables);
+            SQLExpr beginExpr = sqlBetweenExpr.getBeginExpr();
+            if (beginExpr != null) parseWhere(beginExpr, tables);
+            SQLExpr endExpr = sqlBetweenExpr.getEndExpr();
+            if (endExpr != null) parseWhere(endExpr, tables);
+        } else if (expr instanceof SQLInSubQueryExpr) {
+            SQLInSubQueryExpr sqlInSubQueryExpr = (SQLInSubQueryExpr) expr;
+            SQLExpr subExpr = sqlInSubQueryExpr.getExpr();
+            if (subExpr != null) parseWhere(subExpr, tables);
+            SQLSelect select = sqlInSubQueryExpr.getSubQuery();
+            if (select != null) parseSelect(select);
+        } else if (expr instanceof SQLQueryExpr) {
+            parseSelect(((SQLQueryExpr) expr).getSubQuery());
+        } else if (expr instanceof SQLMethodInvokeExpr) {
+            SQLMethodInvokeExpr methodInvokeExpr = (SQLMethodInvokeExpr) expr;
+            List<SQLExpr> exprs = methodInvokeExpr.getParameters();
+            if (exprs != null) for (SQLExpr sqlExpr : exprs) {
+                parseColumn(sqlExpr, null, tables, "select");
+            }
+        } else if (expr instanceof SQLPropertyExpr) {
+            parseColumn(expr, null, tables, "select");
+        } else if (expr instanceof SQLNumberExpr || expr instanceof SQLIntegerExpr || expr instanceof SQLCharExpr) {
+            //ignore value
+        } else throw new ParserException("where SQLExpr[" + expr.getClass() + "] todo...");
+    }
+
+    private SqlInfo addTableInfo(String dbName, String name) {
+        return addTableInfo(dbName, name, name);
+    }
+
+    private SqlInfo addTableInfo(String dbName, String name, String alias) {
+        if (sqlInfoList == null) sqlInfoList = new ArrayList<>(1);
+        for (SqlInfo sqlInfo : sqlInfoList) {
+            if (sqlInfo.getDbName().equals(dbName)) {
+                String _name = sqlInfo.getName();
+                String _alias = sqlInfo.getAlias();
+                if (_name.equals(name) || _alias.equals(name)) return sqlInfo;
+            }
+        }
+        SqlInfo info = new SqlInfo(dbName, name, alias);
+        sqlInfoList.add(info);
+        return info;
+    }
+
+    private List<String> getAllCol(SqlInfo sqlInfo) {
+        try (PreparedStatement ps = conn.prepareStatement("select * from " + sqlInfo.toString() + " where 1=0")) {
+            ResultSet rs = ps.executeQuery();
+            ResultSetMetaData rsmd = rs.getMetaData();
+            int cols = rsmd.getColumnCount();
+            List<String> list = new ArrayList<>(cols);
+            for (int i = 1; i <= cols; i++) {
+                list.add(rsmd.getColumnName(i));
+            }
+            rs.close();
+            return list;
+        } catch (SQLException e) {
+            throw new ParserException("get all column info error", e);
+        }
+    }
 }

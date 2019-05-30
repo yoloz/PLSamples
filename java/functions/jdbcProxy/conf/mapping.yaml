@@ -1,8 +1,0 @@
-- keyword: mysql1
-  type: mysql
-  host: 127.0.0.1:3306
-  driver: com.mysql.jdbc.Driver
-- keyword: mysql2
-  type: mysql
-  host: 127.0.0.1:3306
-  driver: com.mysql.cj.jdbc.Driver

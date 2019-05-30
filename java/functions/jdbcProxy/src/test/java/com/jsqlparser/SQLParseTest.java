@@ -1,6 +1,6 @@
-package com.parse;
+package com.jsqlparser;
 
-import net.sf.jsqlparser.JSQLParserException;
+/*import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Column;
@@ -32,11 +32,11 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotNull;*/
 
 public class SQLParseTest {
 
-    private SQLParse sqlParse;
+   /* private SQLParse sqlParse;
     private Method copyMap;
     private Method parseSelect;
     private Method parseSubSelect;
@@ -247,5 +247,5 @@ public class SQLParseTest {
                 copyMap.invoke(sqlParse, map, parseSubSelect.invoke(sqlParse, (SubSelect) exp));
         }
         assertEquals(1, update.getColumns().size());
-    }
+    }*/
 }

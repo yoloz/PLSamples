@@ -1,77 +1,25 @@
 package com.parse;
 
-import com.jdbc.bean.SQLInfo;
-import com.jdbc.sql.ast.SQLStatement;
+import com.jdbc.bean.SqlInfo;
 import com.jdbc.sql.parser.Lexer;
 import com.jdbc.sql.parser.SQLParserUtils;
 import com.jdbc.sql.parser.SQLStatementParser;
 import com.jdbc.util.JdbcConstants;
-import com.util.Utils;
-import net.sf.jsqlparser.JSQLParserException;
-import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.parser.CCJSqlParserUtil;
-import net.sf.jsqlparser.schema.Column;
-import net.sf.jsqlparser.schema.Table;
-import net.sf.jsqlparser.statement.Statement;
-import net.sf.jsqlparser.statement.create.index.CreateIndex;
-import net.sf.jsqlparser.statement.create.table.CreateTable;
-import net.sf.jsqlparser.statement.create.view.CreateView;
-import net.sf.jsqlparser.statement.delete.Delete;
-import net.sf.jsqlparser.statement.drop.Drop;
-import net.sf.jsqlparser.statement.insert.Insert;
-import net.sf.jsqlparser.statement.select.Select;
-import net.sf.jsqlparser.statement.select.SelectBody;
-import net.sf.jsqlparser.statement.select.SubSelect;
-import net.sf.jsqlparser.statement.truncate.Truncate;
-import net.sf.jsqlparser.statement.update.Update;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.StringReader;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
+
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class SqlParseTest {
 
-    Map<String, SQLInfo> map;
-    private SQLParse sqlParse;
-    private Method copyMap;
-    private Method parseSelect;
-    private Method parseSubSelect;
-    private Method parseSelectBody;
-    private Method parseColumn;
-    private Method parseWhere;
-    private Method getClassName;
 
     @Before
     public void setUp() throws Exception {
-        map = new HashMap<>();
-        sqlParse = new SQLParse(null);
-        copyMap = sqlParse.getClass().getDeclaredMethod("copyMap", Map.class, Map.class);
-        copyMap.setAccessible(true);
-        parseSelect = sqlParse.getClass().getDeclaredMethod("parseSelect", Select.class);
-        parseSelect.setAccessible(true);
-        parseSubSelect = sqlParse.getClass().getDeclaredMethod("parseSelect", SubSelect.class);
-        parseSubSelect.setAccessible(true);
-        parseSelectBody = sqlParse.getClass().getDeclaredMethod("parseSelectBody", SelectBody.class);
-        parseSelectBody.setAccessible(true);
-        parseColumn = sqlParse.getClass().getDeclaredMethod("parseColumn", Table.class, String.class, Column[].class);
-        parseColumn.setAccessible(true);
-        parseWhere = sqlParse.getClass().getDeclaredMethod("parseWhere", Expression.class, Table.class, Map.class);
-        parseWhere.setAccessible(true);
-        getClassName = sqlParse.getClass().getDeclaredMethod("getClassName", Class.class);
-        getClassName.setAccessible(true);
     }
 
     @After
@@ -79,202 +27,157 @@ public class SqlParseTest {
     }
 
     @Test
-    public void testMergeMap() throws InvocationTargetException, IllegalAccessException {
-        Map<String, Map<String, Object>> map = new HashMap<>();
-        Map<String, Map<String, String>> m1 = new HashMap<>();
-        Map<String, String> _m1 = new HashMap<>();
-        _m1.put("1k", "1v");
-        m1.put("1", _m1);
-        copyMap.invoke(sqlParse, map, m1);
-        Map<String, Map<String, Set<String>>> m2 = new HashMap<>();
-        Map<String, Set<String>> _m2 = new HashMap<>();
-        Set<String> s2 = new HashSet<>();
-        s2.add("s1");
-        s2.add("s2");
-        _m2.put("2k", s2);
-        m2.put("2", _m2);
-        copyMap.invoke(sqlParse, map, m2);
-        Map<String, Map<String, String>> m3 = new HashMap<>();
-        Map<String, String> _m3 = new HashMap<>();
-        _m3.put("3k", "3v");
-        m3.put("1", _m3);
-        copyMap.invoke(sqlParse, map, m3);
-        System.out.println(map);
-    }
-
-    @Test
-    public void testAlter() throws JSQLParserException, InvocationTargetException, IllegalAccessException {
+    public void testAlter() {
         String sql = "ALTER TABLE Persons ADD Birthday date";
-//        sql = "ALTER TABLE Persons ALTER COLUMN Birthday year";
-//        sql = "ALTER TABLE Persons DROP COLUMN Birthday";
+        sql = "ALTER TABLE Persons ALTER COLUMN Birthday year";
+        sql = "ALTER TABLE db.Persons DROP COLUMN Birthday";
         SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
-        parser.break2SQLInfo(map);
-        assertEquals(1, map.size());
-        assertEquals("Persons", map.get("").getSl().get(0).getSn());
-        assertTrue(map.get("").getSl().get(0).getOperates().contains("alter"));
+        List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();
+        assertEquals(1, sqlInfoList.size());
+        assertEquals("Persons", sqlInfoList.get(0).getName());
+        assertTrue(sqlInfoList.get(0).getOperators().contains("alter"));
     }
 
     @Test
-    public void testCreateIndex() throws JSQLParserException, InvocationTargetException, IllegalAccessException {
+    public void testCreateIndex() {
         String sql = "CREATE INDEX PersonIndex ON Person (LastName DESC)";
         sql = "CREATE INDEX PersonIndex ON Person (LastName,FirstName)";
-        sql = "CREATE UNIQUE INDEX PersonIndex ON Person (LastName,FirstName)";
+        sql = "CREATE UNIQUE INDEX PersonIndex ON db.Person (LastName,FirstName)";
         SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
-        parser.break2SQLInfo(map);
-        assertEquals("Person", map.get("").getSl().get(0).getSn());
-//        assertEquals("createindex",list.get(0).getSl().get(0).getOperates().get(0));
+        List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();
+        assertEquals("Person", sqlInfoList.get(0).getName());
+        assertTrue(sqlInfoList.get(0).getOperators().contains("createindex"));
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testCreateTable() throws JSQLParserException, InvocationTargetException, IllegalAccessException {
+    public void testCreateTable() {
         String sql = "CREATE TABLE Persons (Id_P int,LastName varchar(255),FirstName varchar(255)," +
                 "Address varchar(255),City varchar(255))";
+        sql = "CREATE TABLE Persons AS SELECT id, address, city, state, zip FROM companies WHERE id1> 1000";
         sql = "CREATE TABLE Persons AS (SELECT id, address, city, state, zip FROM companies WHERE id1> 1000)";
-        sql = "CREATE TABLE Persons AS (SELECT id, address FROM (select id, address from companies WHERE id1 > 1000))";
-        Statement stmt = CCJSqlParserUtil.parse(new StringReader(sql));
-        String operate = ((String) getClassName.invoke(sqlParse, stmt.getClass())).toLowerCase();
-        assertEquals("createtable", operate);
-        CreateTable createTable = (CreateTable) stmt;
-        Select select = createTable.getSelect();
-        Map<String, Map<String, String>> map = (Map<String, Map<String, String>>) parseSelect.invoke(sqlParse, select);
-        assertEquals("Persons", createTable.getTable().getName());
+        sql = "CREATE TABLE Persons AS (SELECT id, address FROM (select id, address from db.companies WHERE id1 > 1000))";
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
+//        SQLStatement stmt = parser.parseCreate();
+        List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();
+        assertEquals("Persons", sqlInfoList.get(0).getName());
+        assertEquals(3, sqlInfoList.get(1).getCols().size());
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testCreateView() throws JSQLParserException, InvocationTargetException, IllegalAccessException {
+    public void testCreateView() {
         String sql = "CREATE VIEW ProductsView AS SELECT ProductName,UnitPrice FROM Products " +
                 "WHERE UnitPrice>(SELECT AVG(UnitPrice) FROM Products)";
         sql = "CREATE VIEW ProductsView AS SELECT ProductName,UnitPrice FROM Products " +
                 "WHERE UnitPrice1>(SELECT AVG(UnitPrice) FROM Products1)";
-        Statement stmt = CCJSqlParserUtil.parse(new StringReader(sql));
-        String operate = ((String) getClassName.invoke(sqlParse, stmt.getClass())).toLowerCase();
-        assertEquals("createview", operate);
-        CreateView createView = (CreateView) stmt;
-        Select select = createView.getSelect();
-        Map<String, Map<String, String>> map = (Map<String, Map<String, String>>) parseSelect.invoke(sqlParse, select);
-        assertEquals("ProductsView", createView.getView().getName());
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
+//        SQLStatement stmt = parser.parseCreate();
+        List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();
+        assertTrue(sqlInfoList.get(0).getOperators().contains("createview"));
+        assertEquals("ProductsView", sqlInfoList.get(0).getAlias());
+        assertEquals(3, sqlInfoList.size());
     }
 
     @Test
-    public void testDelete() throws JSQLParserException, InvocationTargetException, IllegalAccessException {
+    public void testDelete() {
         String sql = "DELETE FROM Person WHERE LastName = 'Wilson' ";
         sql = "delete from Person where S_date not in " +
                 "(select e2.maxdt from" +
-                "(select Order_Id,Product_Id,Amt,MAX(S_date) as maxdt from Exam" +
+                "(select Order_Id as oid,Product_Id,Amt,MAX(S_date) as maxdt from Exam" +
                 " group by Order_Id,Product_Id,Amt) as e2)";
-        Statement stmt = CCJSqlParserUtil.parse(new StringReader(sql));
-        String operate = ((String) getClassName.invoke(sqlParse, stmt.getClass())).toLowerCase();
-        assertEquals("delete", operate);
-        Delete delete = (Delete) stmt;
-        assertEquals("Person", delete.getTable().getName());
-        Map<String, Map<String, String>> map = new HashMap<>();
-        Map<String, String> _m = new HashMap<>(1);
-        _m.put(delete.getTable().getName(), operate);
-        map.put(delete.getTable().getName(), _m);
-        parseWhere.invoke(sqlParse, delete.getWhere(), delete.getTable(), map);
-        assertEquals(2, map.size());
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
+//        SQLStatement stmt = parser.parseDeleteStatement();
+        List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();
+        assertEquals(2, sqlInfoList.size());
+        assertEquals("Exam", sqlInfoList.get(1).getName());
+        assertTrue(sqlInfoList.get(0).getOperators().contains("delete"));
+        assertTrue(sqlInfoList.get(1).getOperators().contains("select"));
     }
 
     @Test
-    public void testDrop() throws JSQLParserException, InvocationTargetException, IllegalAccessException {
-        String sql = "DROP TABLE Customer;";
-        Statement stmt = CCJSqlParserUtil.parse(new StringReader(sql));
-        String operate = ((String) getClassName.invoke(sqlParse, stmt.getClass())).toLowerCase();
-        assertEquals("drop", operate);
-        Drop drop = (Drop) stmt;
-        assertEquals("Customer", drop.getName().getName());
+    public void testDrop() {
+        String sql = "DROP TABLE Customer";
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
+//        SQLStatement stmt = parser.parseDrop();
+        List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();
+        assertEquals(1, sqlInfoList.size());
+        assertEquals("Customer", sqlInfoList.get(0).getName());
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testInsert() throws JSQLParserException, InvocationTargetException, IllegalAccessException {
+    public void testInsert() {
         String sql = "INSERT INTO Store_Information (Store_Name, Sales, Txn_Date) VALUES ('Los Angeles', 900, 'Jan-10-1999')";
         sql = "INSERT INTO Store_Information (Store_Name, Sales, Txn_Date) " +
                 "SELECT store_name, Sales, Txn_Date FROM Sales_Information " +
                 "WHERE Year(Txn_Date1) = 1998";
-        Statement stmt = CCJSqlParserUtil.parse(new StringReader(sql));
-        String operate = ((String) getClassName.invoke(sqlParse, stmt.getClass())).toLowerCase();
-        assertEquals("insert", operate);
-        Insert insert = (Insert) stmt;
-        assertEquals("Store_Information", insert.getTable().getName());
-        if (insert.getSelect() != null) {
-            Map<String, Map<String, String>> map = (Map<String, Map<String, String>>) parseSelect.invoke(sqlParse, insert.getSelect());
-            assertEquals(1, map.size());
-        }
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
+//        SQLStatement stmt = parser.parseInsert();
+        List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();
+        assertEquals(2, sqlInfoList.size());
+        assertEquals("Sales_Information", sqlInfoList.get(1).getName());
+        assertTrue(sqlInfoList.get(0).getOperators().contains("insert"));
+        assertTrue(sqlInfoList.get(1).getOperators().contains("select"));
+
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testSelect() throws JSQLParserException, InvocationTargetException, IllegalAccessException {
-        String sql = "select * from test where date between '2019-02-28T09:43:10.224000' and '2019-02-28T09:43:10.225000'";
-//        sql = "select * from test where date > '2019-02-28T09:43:10.224000'";
-//        sql = "select * from test where index between 10 and 20";
-//        sql = "select * from test where dd between 10.2 and 20.3";
-//        sql = "select * from test where col1=2";
-//        sql = "select * from test where col2='北京'";
-//        sql = "select * from test where col2 like '北京'";
-//        sql = "select * from test where col1 like '北京' and date > '2019-02-28T09:43:10.224000'";
-//        sql = "select * from test where col1 like '北京' or date > '2019-02-28T09:43:10.224000'";
-//        sql = "select * from test where (col3='test')";
-//        sql = "select * from test where (col3='test' and col1 like 'a?b')";
-//        sql = "select * from test where (col3='test' and col1 like 'a?b') or date>'2019-02-28T09:43:10.224000'";
-//        sql = "select * from test where (col3='test' and col1 like 'a?b') or" +
-//                " (col2>3 and date>'2019-02-28T09:43:10.224000')";
-//        sql = "select * from test where (col3='test' and col1 like 'a?b') or " +
-//                "(col2>3 or date>'2019-02-28T09:43:10.224000')";
-//        sql = "select * from test where (col3='test' and col1 like 'a?b') or " +
-//                "(col2>3 or date>'2019-02-28T09:43:10.224000') and col4='北京'";
-//        sql = "select * from test where (col3='test' and col1 like 'a?b') or " +
-//                "(col2>3 or date>'2019-02-28T09:43:10.224000') and (col5<=5.3)";
-//        sql = "select * from test";
-//        sql = "SELECT id,name,time FROM table1 WHERE id2 IN (SELECT id3 FROM table2 WHERE name2 like 'z%')";
-        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.DB2);
-        SQLStatement stmt = parser.parseSelect();
-        parser.break2SQLInfo(map);
-        assertEquals(1, map.size());
+    public void testSelect() {
+        String sql = "select * from test where (col3='test')";
+        sql = "select * from test where col1 like '北京' and date > '2019-02-28T09:43:10.224000'";
+        sql = "select * from test where col1 like '北京' or date > '2019-02-28T09:43:10.224000'";
+        sql = "select * from test where date between '2019-02-28T09:43:10.224000' and '2019-02-28T09:43:10.225000'";
+        sql = "select * from test where date > '2019-02-28T09:43:10.224000'";
+        sql = "select * from test where index between 10 and 20";
+        sql = "select * from test where dd between 10.2 and 20.3";
+        sql = "select * from test where col1=2";
+        sql = "select * from test where col2='北京'";
+        sql = "select * from test where col2 like '北京'";
+        sql = "select * from test where (col3='test' and col1 like 'a?b')";
+        sql = "select * from test where (col3='test' and col1 like 'a?b') or date>'2019-02-28T09:43:10.224000'";
+        sql = "select * from test where (col3='test' and col1 like 'a?b') or" +
+                " (col2>3 and date>'2019-02-28T09:43:10.224000')";
+        sql = "select * from test where (col3='test' and col1 like 'a?b') or " +
+                "(col2>3 or date>'2019-02-28T09:43:10.224000')";
+        sql = "select * from test where (col3='test' and col1 like 'a?b') or " +
+                "(col2>3 or date>'2019-02-28T09:43:10.224000') and col4='北京'";
+        sql = "select * from test where (col3='test' and col1 like 'a?b') or " +
+                "(col2>3 or date>'2019-02-28T09:43:10.224000') and (col5<=5.3)";
+        sql = "SELECT id,name,time FROM table1 WHERE id2 IN (SELECT id3 FROM table2 WHERE name2 like 'z%')";
+        sql = "SELECT T1.NAME,T2.CLASS FROM DB1.T1,DB2.T2 WHERE DB1.T1.ID=DB2.T2.ID";
+        sql = "SELECT t1.NAME,t2.CLASS FROM DB1.T1 as t1,DB2.T2 as t2 WHERE t1.ID=t2.ID";
+        sql = "SELECT T1.NAME,t2.CLASS FROM DB1.T1 as t1,DB2.T2 as t2 WHERE t1.ID=DB2.T2.ID";
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
+//        SQLStatement stmt = parser.parseSelect();
+        List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();
+        assertEquals(2, sqlInfoList.size());
     }
 
 
-
     @Test
-    public void testTruncate() throws JSQLParserException, InvocationTargetException, IllegalAccessException {
+    public void testTruncate() {
         String sql = "TRUNCATE TABLE Customer";
-        Statement stmt = CCJSqlParserUtil.parse(new StringReader(sql));
-        String operate = ((String) getClassName.invoke(sqlParse, stmt.getClass())).toLowerCase();
-        assertEquals("truncate", operate);
-        Truncate truncate = (Truncate) stmt;
-        assertEquals("Customer", truncate.getTable().getName());
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
+//        SQLStatement stmt = parser.parseTruncate();
+        List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();
+        assertEquals(1, sqlInfoList.size());
+        assertTrue(sqlInfoList.get(0).getOperators().contains("truncate"));
     }
 
     @Test
-    public void testUpdate() throws JSQLParserException, InvocationTargetException, IllegalAccessException {
+    public void testUpdate() {
         String sql = "UPDATE Store_Information SET Sales = 500 WHERE Store_Name = 'Los Angeles' " +
                 "AND Txn_Date = 'Jan-08-1999';";
         sql = "update Store_Information set shop_money=(select shop_money from build_info2 where build_info2.id=Store_Information.id)" +
                 "where Store_Information.user = build_info2.user and Store_Information.user = 'test3' and shop_money =0";
-        Statement stmt = CCJSqlParserUtil.parse(new StringReader(sql));
-        String operate = ((String) getClassName.invoke(sqlParse, stmt.getClass())).toLowerCase();
-        assertEquals("update", operate);
-        Update update = (Update) stmt;
-        Table tb = update.getTables().get(0);
-        Map<String, Map<String, String>> map = new HashMap<>();
-        assertEquals("Store_Information", tb.getName());
-        Map<String, String> _m = new HashMap<>();
-        _m.put(tb.getName(), operate);
-        map.put(tb.getName(), _m);
-        List<Column> columns = update.getColumns();
-        if (columns != null) for (Column column : columns) map.get(tb.getName()).put(column.getColumnName(), operate);
-        if (update.getWhere() != null) parseWhere.invoke(sqlParse, update.getWhere(), tb, map);
-        if (update.getSelect() != null)
-            copyMap.invoke(sqlParse, map, parseSelect.invoke(sqlParse, update.getSelect()));
-        List<Expression> expressions = update.getExpressions();
-        if (expressions != null) for (Expression exp : expressions) {
-            if (exp instanceof SubSelect)
-                copyMap.invoke(sqlParse, map, parseSubSelect.invoke(sqlParse, (SubSelect) exp));
-        }
-        assertEquals(1, update.getColumns().size());
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
+//        SQLStatement stmt = parser.parseUpdateStatement();
+        parser.setDefaultDbName("test");
+        List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();
+        assertEquals(2, sqlInfoList.size());
+        assertTrue(sqlInfoList.get(0).getOperators().contains("update"));
     }
 
     @Test
@@ -283,7 +186,7 @@ public class SqlParseTest {
         SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
         Lexer lexer = parser.getLexer();
         assertEquals("SHOW", lexer.token().name);
-        parser.break2SQLInfo(map);
-        assertEquals(0, map.size());
+        List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();
+        assertEquals(0, sqlInfoList.size());
     }
 }
