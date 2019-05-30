@@ -42,6 +42,7 @@ public class ResultSetHandler {
             resultSet.next(false, out);
         } else if ("close".equals(mName)) {
             resultSet.close();
+            out.write(writeByte(OK));
         } else throw new SQLException("statementMethod[" + mName + "] is not support");
     }
 }

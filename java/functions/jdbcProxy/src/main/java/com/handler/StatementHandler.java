@@ -88,6 +88,7 @@ public class StatementHandler {
             statement.getResultSet(out);
         } else if ("close".equals(mName)) {
             statement.close();
+            out.write(writeByte(OK));
         } else throw new SQLException("statementMethod[" + mName + "] is not support");
     }
 
