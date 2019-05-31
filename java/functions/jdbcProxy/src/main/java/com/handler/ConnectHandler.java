@@ -42,11 +42,11 @@ public class ConnectHandler {
                 stmtId = connect.createStatement(resultSetType, resultSetConcurrency, resultSetHoldability);
             } else throw new SQLException("createStatement param num[" + pc + "] is not exist");
             out.write(writeShortStr(OK, stmtId));
-        } else if ("createPreparedStatement".equals(mName)) {
+        } else if ("prepareStatement".equals(mName)) {
             short pc = src.readUnsignedByte();
             String stmtId;
             String sql = readIntLen(src);
-            if (1 == pc) stmtId = connect.createPreparedStatement(sql);
+            if (1 == pc) stmtId = connect.prepareStatement(sql);
             else if (2 == pc) {
                 int arrSize = src.readUnsignedShort();
                 short type = src.readUnsignedByte();

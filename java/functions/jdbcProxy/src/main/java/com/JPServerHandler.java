@@ -61,7 +61,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                         break;
                     case 7:
                         stmtId = readShortLen(src);
-                        PreparedStatementHandler.handler(connects.get(address).getPrepareStatement(stmtId),
+                        PrepareStatementHandler.handler(connects.get(address).getPrepareStatement(stmtId),
                                 src, out);
                     default:
                         logger.error("cmd[" + cmd + "] is not defined");

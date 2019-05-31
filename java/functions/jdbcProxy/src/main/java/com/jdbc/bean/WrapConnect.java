@@ -140,7 +140,7 @@ public class WrapConnect implements Closeable {
         return stmtId;
     }
 
-    public String createPreparedStatement(String sql) throws SQLException {
+    public String prepareStatement(String sql) throws SQLException {
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql);
         String stmtId = this.id + COUNTER.incrementAndGet();
         WrapStatement wrs = new WrapStatement(this, stmtId, stmt);

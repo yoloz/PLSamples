@@ -8,7 +8,7 @@ import java.sql.*;
 
 import static com.handler.IOHandler.*;
 
-public class PreparedStatementHandler {
+public class PrepareStatementHandler {
 
     public static void handler(WrapPrepareStatement statement, ByteBuf src, ChannelHandlerContext out)
             throws SQLException {
