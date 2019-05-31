@@ -12,7 +12,7 @@ public class IOHandler {
     public final static byte ERROR = (byte) 0x1;
 
     public static String readByteLen(ByteBuf buf) {
-        short length = buf.readUnsignedByte();
+        short length = buf.readByte();
         String str = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), length), StandardCharsets.UTF_8);
         buf.readerIndex(buf.readerIndex() + length);
         return str;

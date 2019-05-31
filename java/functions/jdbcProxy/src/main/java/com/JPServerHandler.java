@@ -27,10 +27,14 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext out, Object obj) {
         String address = out.channel().remoteAddress().toString();
         ByteBuf src = (ByteBuf) obj;
-        while (src.isReadable()) {
-            short cmd = src.readUnsignedByte();
+        boolean finish = false;
+        while (!finish && src.isReadable()) {
+            short cmd = src.readByte();
             try {
                 switch (cmd) {
+                    case ~0:
+                        finish = true;
+                        break;
                     case 2:
                         String dbKey = readShortLen(src);
                         String userName = readShortLen(src);

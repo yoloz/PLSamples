@@ -1,5 +1,6 @@
 package com.jdbc;
 
+import io.netty.channel.RecvByteBufAllocator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -13,9 +14,22 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.*;
 
+/**
+ * The {@link RecvByteBufAllocator} that automatically increases and
+ * decreases the predicted buffer size on feed back.
+ * <p>
+ * It gradually increases the expected number of readable bytes if the previous
+ * read fully filled the allocated buffer.  It gradually decreases the expected
+ * number of readable bytes if the read operation was not able to fill a certain
+ * amount of the allocated buffer two times consecutively.  Otherwise, it keeps
+ * returning the same prediction.
+ * <p>
+ * 所以这里客户端在内容不足1024的时候填充到1024
+ */
+
 public class ClientTest {
 
-    Socket socket = null;
+    private Socket socket = null;
 
     @Before
     public void setUp() throws Exception {
@@ -24,9 +38,27 @@ public class ClientTest {
 
     @After
     public void tearDown() throws Exception {
-
         if (socket != null) socket.close();
     }
+
+    private byte[] filling(ByteBuffer buffer) {
+        byte[] bytes = new byte[1024];
+        int wid = buffer.position();
+        System.arraycopy(buffer.array(), 0, bytes, 0, wid);
+        if (wid < 1024) for (int i = wid; i < 1024; i++) {
+            bytes[i] = (byte) ~0;
+        }
+        return bytes;
+    }
+
+//    @Test
+//    public void testFilling() {
+//        ByteBuffer buffer = ByteBuffer.allocate(4);
+//        buffer.putInt(2);
+//        byte[] bytes = filling(buffer);
+//        assertEquals(2, bytes2Int(bytes));
+//        assertEquals(1024, bytes.length);
+//    }
 
     /**
      * jdbc:mysql2://host:port/dbname?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&zeroDateTimeBehavior=CONVERT_TO_NULL
@@ -53,8 +85,7 @@ public class ClientTest {
         buffer.put(db);
         buffer.putInt(pro.length);
         buffer.put(pro);
-        byte[] bytes = new byte[buffer.position()];
-        System.arraycopy(buffer.array(), 0, bytes, 0, buffer.position());
+        byte[] bytes = filling(buffer);
         out.write(bytes);
         out.flush();
         buffer.clear();
@@ -75,29 +106,27 @@ public class ClientTest {
         byte[] methodName, outBytes;
         short result;
 
-        methodName = "setUser".getBytes(StandardCharsets.UTF_8);
-        tempBuffer.put((byte) 0x03);
-        tempBuffer.put((byte) methodName.length);
-        tempBuffer.put(methodName);
-        byte[] user = "test".getBytes(StandardCharsets.UTF_8);
-        tempBuffer.put((byte) user.length);
-        tempBuffer.put(user);
-        outBytes = new byte[tempBuffer.position()];
-        System.arraycopy(tempBuffer.array(), 0, outBytes, 0, tempBuffer.position());
-        out.write(outBytes);
-        out.flush();
-        tempBuffer.clear();
-        result = in.readByte();
-        if (0 == result) System.out.println("setUser[test] success");
-        else System.out.println("setUser[test] failure: " + readShortString(in));
+//        methodName = "setUser".getBytes(StandardCharsets.UTF_8);
+//        tempBuffer.put((byte) 0x03);
+//        tempBuffer.put((byte) methodName.length);
+//        tempBuffer.put(methodName);
+//        byte[] user = "test".getBytes(StandardCharsets.UTF_8);
+//        tempBuffer.put((byte) user.length);
+//        tempBuffer.put(user);
+//        outBytes = filling(tempBuffer);
+//        out.write(outBytes);
+//        out.flush();
+//        tempBuffer.clear();
+//        result = in.readByte();
+//        if (0 == result) System.out.println("setUser[test] success");
+//        else System.out.println("setUser[test] failure: " + readShortString(in));
 
         methodName = "createStatement".getBytes(StandardCharsets.UTF_8);
         tempBuffer.put((byte) 0x03);
         tempBuffer.put((byte) methodName.length);
         tempBuffer.put(methodName);
         tempBuffer.put((byte) 0);
-        outBytes = new byte[tempBuffer.position()];
-        System.arraycopy(tempBuffer.array(), 0, outBytes, 0, tempBuffer.position());
+        outBytes = filling(tempBuffer);
         out.write(outBytes);
         out.flush();
         tempBuffer.clear();
@@ -110,8 +139,24 @@ public class ClientTest {
 
         if (stmtId != null) {
             byte[] stmt = stmtId.getBytes(StandardCharsets.UTF_8);
+
+            methodName = "setFetchSize".getBytes(StandardCharsets.UTF_8);
+            tempBuffer.put((byte) 0x05);
+            tempBuffer.putShort((short) stmt.length);
+            tempBuffer.put(stmt);
+            tempBuffer.put((byte) methodName.length);
+            tempBuffer.put(methodName);
+            tempBuffer.putInt(2);
+            outBytes = filling(tempBuffer);
+            out.write(outBytes);
+            out.flush();
+            tempBuffer.clear();
+            result = in.readByte();
+            if (0 == result) System.out.println("setFetchSize success");
+            else System.out.println("setFetchSize failure: " + readShortString(in));
+
             methodName = "executeQuery".getBytes(StandardCharsets.UTF_8);
-            byte[] sql = "select * from lgservice".getBytes(StandardCharsets.UTF_8);
+            byte[] sql = "select * from lgjob".getBytes(StandardCharsets.UTF_8);
             tempBuffer.put((byte) 0x05);
             tempBuffer.putShort((short) stmt.length);
             tempBuffer.put(stmt);
@@ -119,15 +164,16 @@ public class ClientTest {
             tempBuffer.put(methodName);
             tempBuffer.putInt(sql.length);
             tempBuffer.put(sql);
-            outBytes = new byte[tempBuffer.position()];
-            System.arraycopy(tempBuffer.array(), 0, outBytes, 0, tempBuffer.position());
+            outBytes = filling(tempBuffer);
             out.write(outBytes);
             out.flush();
             tempBuffer.clear();
             result = in.readByte();
             if (result == 0) {
                 System.out.println("executeQuery success");
-                System.out.println("resultSet: " + readShortString(in));
+                String rsId = readShortString(in);
+                assert rsId != null;
+                System.out.println("resultSet: " + rsId);
                 System.out.println("**********RSMeta**********");
                 short colCount = in.readShort();
                 for (int i = 0; i < colCount; i++) {
@@ -158,7 +204,65 @@ public class ClientTest {
                     else throw new IOException("cmd is not defined[" + cmd + "]");
                 }
                 System.out.println("**********RSRow**********");
+
+                while (true) {
+                    methodName = "next".getBytes(StandardCharsets.UTF_8);
+                    tempBuffer.put((byte) 0x06);
+                    tempBuffer.putShort((short) stmt.length);
+                    tempBuffer.put(stmt);
+                    byte[] rs = rsId.getBytes(StandardCharsets.UTF_8);
+                    tempBuffer.putShort((short) rs.length);
+                    tempBuffer.put(rs);
+                    tempBuffer.put((byte) methodName.length);
+                    tempBuffer.put(methodName);
+                    outBytes = filling(tempBuffer);
+                    out.write(outBytes);
+                    out.flush();
+                    tempBuffer.clear();
+                    result = in.readByte();
+                    if (0 == result) {
+                        boolean first = true;
+                        byte fb = in.readByte();
+                        if (fb == (byte) 0x7f) break;
+                        System.out.println("**********RSRow**********");
+                        while (true) {
+                            byte cmd;
+                            if (first) cmd = fb;
+                            else cmd = in.readByte();
+                            if (cmd == (byte) 0x7e) {
+                                for (int i = 0; i < colCount; i++) {
+                                    System.out.print("val:[" + readIntString(in));
+                                    if (i != colCount - 1) System.out.print("],");
+                                    else System.out.print("]");
+                                }
+                                System.out.println();
+                            } else if (cmd == (byte) 0x7f) break;
+                            else throw new IOException("cmd is not defined[" + cmd + "]");
+                            first = false;
+                        }
+                        System.out.println("**********RSRow**********");
+                    } else System.out.println("[" + rsId + "] next failure: " + readShortString(in));
+                }
+
             } else System.out.println("executeQuery failure: " + readShortString(in));
+
+            methodName = "executeUpdate".getBytes(StandardCharsets.UTF_8);
+            tempBuffer.put((byte) 0x05);
+            tempBuffer.putShort((short) stmt.length);
+            tempBuffer.put(stmt);
+            tempBuffer.put((byte) methodName.length);
+            tempBuffer.put(methodName);
+            tempBuffer.put((byte) 0x01);
+            sql = "delete from test where name='test2'".getBytes(StandardCharsets.UTF_8);
+            tempBuffer.putInt(sql.length);
+            tempBuffer.put(sql);
+            outBytes = filling(tempBuffer);
+            out.write(outBytes);
+            out.flush();
+            tempBuffer.clear();
+            result = in.readByte();
+            if (0 == result) System.out.println("executeUpdate success[" + in.readInt() + "]");
+            else System.out.println("executeUpdate failure: " + readShortString(in));
         }
     }
 
@@ -175,8 +279,7 @@ public class ClientTest {
         buffer.put((byte) methodName.length);
         buffer.put(methodName);
         buffer.put((byte) 0);
-        byte[] bytes = new byte[buffer.position()];
-        System.arraycopy(buffer.array(), 0, bytes, 0, buffer.position());
+        byte[] bytes = filling(buffer);
         out.write(bytes);
         out.flush();
         buffer.clear();
@@ -216,8 +319,7 @@ public class ClientTest {
         buffer.put((byte) 0x01);
         buffer.putInt(sql.length);
         buffer.put(sql);
-        byte[] bytes = new byte[buffer.position()];
-        System.arraycopy(buffer.array(), 0, bytes, 0, buffer.position());
+        byte[] bytes = filling(buffer);
         out.write(bytes);
         out.flush();
         buffer.clear();
