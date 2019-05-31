@@ -42,6 +42,12 @@ public class IOHandler {
         return arr;
     }
 
+    public static byte[] readBytes(int size, ByteBuf buf) {
+        byte[] bytes = ByteBufUtil.getBytes(buf, buf.readerIndex(), size);
+        buf.readerIndex(buf.readerIndex() + size);
+        return bytes;
+    }
+
     public static String[] readIntLen(int size, ByteBuf buf) {
         String[] arr = new String[size];
         for (int i = 0; i < size; i++) {
@@ -64,11 +70,12 @@ public class IOHandler {
         return buf;
     }
 
-    public static ByteBuf writeShort(int num){
+    public static ByteBuf writeShort(int num) {
         ByteBuf buf = Unpooled.buffer(2);
         buf.writeShort(num);
         return buf;
     }
+
     public static ByteBuf writeShortStr(byte cmd, String str) {
         byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
         ByteBuf buf = Unpooled.buffer(3 + bytes.length);
@@ -93,6 +100,7 @@ public class IOHandler {
         }
         return buf;
     }
+
     /**
      * length -1 represent str is null
      */

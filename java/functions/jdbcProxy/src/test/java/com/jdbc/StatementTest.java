@@ -2,13 +2,9 @@ package com.jdbc;
 
 import org.junit.Test;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.HashMap;
-import java.util.Map;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.Assert.*;
@@ -34,5 +30,15 @@ public class StatementTest {
         }
         assertFalse(m2.isEmpty());
         m2.clear();
+    }
+
+    @Test
+    public void timeStampTest() {
+        long epochSecond = 1518413145;//"2018-02-12 13:25:45"
+        long nanos = 99999998;
+        Instant instant = Instant.ofEpochSecond(epochSecond, nanos);
+        Timestamp ts = Timestamp.from(instant);
+        assertEquals(epochSecond, ts.toInstant().getEpochSecond());
+        assertEquals(nanos, ts.getNanos());
     }
 }

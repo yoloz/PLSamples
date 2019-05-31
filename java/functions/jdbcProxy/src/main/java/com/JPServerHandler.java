@@ -1,9 +1,6 @@
 package com;
 
-import com.handler.ConnectHandler;
-import com.handler.ConnectMetaHandler;
-import com.handler.ResultSetHandler;
-import com.handler.StatementHandler;
+import com.handler.*;
 import com.jdbc.bean.WrapConnect;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
@@ -62,6 +59,10 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                         ResultSetHandler.handler(connects.get(address).getStatement(stmtId).getResultSet(rsId),
                                 src, out);
                         break;
+                    case 7:
+                        stmtId = readShortLen(src);
+                        PreparedStatementHandler.handler(connects.get(address).getPrepareStatement(stmtId),
+                                src, out);
                     default:
                         logger.error("cmd[" + cmd + "] is not defined");
                 }

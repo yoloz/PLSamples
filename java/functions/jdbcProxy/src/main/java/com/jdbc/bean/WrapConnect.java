@@ -103,6 +103,10 @@ public class WrapConnect implements Closeable {
         return stmtMap.get(stmtId);
     }
 
+    public WrapPrepareStatement getPrepareStatement(String stmtId) {
+        return (WrapPrepareStatement) stmtMap.get(stmtId);
+    }
+
     public DatabaseMetaData getMetaData() throws SQLException {
         return this.dbConnect.getMetaData();
     }

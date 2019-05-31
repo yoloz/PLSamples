@@ -3,9 +3,7 @@ package com.jdbc.bean;
 
 import io.netty.channel.ChannelHandlerContext;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -15,9 +13,9 @@ import static com.handler.IOHandler.writeShortStr;
 
 public class WrapStatement implements AutoCloseable {
 
-    private final AtomicInteger COUNTER = new AtomicInteger(1);
+    final AtomicInteger COUNTER = new AtomicInteger(1);
 
-    private final String id;
+    final String id;
     private final WrapConnect wrapConnect;
     private final Statement statement;
 
