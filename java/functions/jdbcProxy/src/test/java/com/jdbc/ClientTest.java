@@ -71,18 +71,37 @@ public class ClientTest {
         DataInputStream in = new DataInputStream(socket.getInputStream());
         DataOutputStream out = new DataOutputStream(socket.getOutputStream());
 
-        byte[] methodName = "createStatement".getBytes(StandardCharsets.UTF_8);
-        ByteBuffer buffer = ByteBuffer.allocate(1024);
-        buffer.put((byte) 0x03);
-        buffer.put((byte) methodName.length);
-        buffer.put(methodName);
-        buffer.put((byte) 0);
-        byte[] bytes = new byte[buffer.position()];
-        System.arraycopy(buffer.array(), 0, bytes, 0, buffer.position());
-        out.write(bytes);
+        ByteBuffer tempBuffer = ByteBuffer.allocate(1024);
+        byte[] methodName, outBytes;
+        short result;
+
+        methodName = "setUser".getBytes(StandardCharsets.UTF_8);
+        tempBuffer.put((byte) 0x03);
+        tempBuffer.put((byte) methodName.length);
+        tempBuffer.put(methodName);
+        byte[] user = "test".getBytes(StandardCharsets.UTF_8);
+        tempBuffer.put((byte) user.length);
+        tempBuffer.put(user);
+        outBytes = new byte[tempBuffer.position()];
+        System.arraycopy(tempBuffer.array(), 0, outBytes, 0, tempBuffer.position());
+        out.write(outBytes);
         out.flush();
-        buffer.clear();
-        short result = in.readByte();
+        tempBuffer.clear();
+        result = in.readByte();
+        if (0 == result) System.out.println("setUser[test] success");
+        else System.out.println("setUser[test] failure: " + readShortString(in));
+
+        methodName = "createStatement".getBytes(StandardCharsets.UTF_8);
+        tempBuffer.put((byte) 0x03);
+        tempBuffer.put((byte) methodName.length);
+        tempBuffer.put(methodName);
+        tempBuffer.put((byte) 0);
+        outBytes = new byte[tempBuffer.position()];
+        System.arraycopy(tempBuffer.array(), 0, outBytes, 0, tempBuffer.position());
+        out.write(outBytes);
+        out.flush();
+        tempBuffer.clear();
+        result = in.readByte();
         String stmtId = null;
         if (result == 0) {
             stmtId = readShortString(in);
@@ -93,18 +112,18 @@ public class ClientTest {
             byte[] stmt = stmtId.getBytes(StandardCharsets.UTF_8);
             methodName = "executeQuery".getBytes(StandardCharsets.UTF_8);
             byte[] sql = "select * from lgservice".getBytes(StandardCharsets.UTF_8);
-            buffer.put((byte) 0x05);
-            buffer.putShort((short) stmt.length);
-            buffer.put(stmt);
-            buffer.put((byte) methodName.length);
-            buffer.put(methodName);
-            buffer.putInt(sql.length);
-            buffer.put(sql);
-            bytes = new byte[buffer.position()];
-            System.arraycopy(buffer.array(), 0, bytes, 0, buffer.position());
-            out.write(bytes);
+            tempBuffer.put((byte) 0x05);
+            tempBuffer.putShort((short) stmt.length);
+            tempBuffer.put(stmt);
+            tempBuffer.put((byte) methodName.length);
+            tempBuffer.put(methodName);
+            tempBuffer.putInt(sql.length);
+            tempBuffer.put(sql);
+            outBytes = new byte[tempBuffer.position()];
+            System.arraycopy(tempBuffer.array(), 0, outBytes, 0, tempBuffer.position());
+            out.write(outBytes);
             out.flush();
-            buffer.clear();
+            tempBuffer.clear();
             result = in.readByte();
             if (result == 0) {
                 System.out.println("executeQuery success");

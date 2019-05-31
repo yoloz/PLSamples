@@ -65,13 +65,16 @@ public class DbAuth {
 
     private static void authTable(Set<String> operators, String uKey, String dKey, String tbName)
             throws SQLException {
+        if (!userAuth.containsKey(uKey)) throw new SQLException("用户级[" + uKey + "]权限不足");
         String tbKey = dKey + tbName;
         for (String operator : operators) {
             if (!userAuth.get(uKey).contains(operator)) {
+                if (!dbAuth.containsKey(dKey)) throw new SQLException("数据库级[" + dKey + "]权限不足");
                 if (!dbAuth.get(dKey).contains(operator)) {
+                    if (!tbAuth.containsKey(tbKey)) throw new SQLException("表级[" + tbKey + "]权限不足");
                     List<String> tbList = tbAuth.get(tbKey).get("tb");
-                    if (!tbList.contains(operator))
-                        throw new SQLException("[" + operator + "]table[" + tbName + "] permission denied");
+                    if (tbList == null || !tbList.contains(operator))
+                        throw new SQLException("[" + operator + "]table[" + tbName + "]权限不足");
                 }
             }
         }
@@ -85,11 +88,12 @@ public class DbAuth {
             if (!"select".equals(operator)) {
                 if (!userAuth.get(uKey).contains(operator)) {
                     if (!dbAuth.get(dbKey).contains(operator)) {
-                        List<String> colList = tbAuth.get(tbKey).get("col");
-                        if (!colList.contains(operator)) {
-                            if (!colAuth.get(colKey).contains(operator))
+                        List<String> tcList = tbAuth.get(tbKey).get("col");
+                        if (tcList == null || !tcList.contains(operator)) {
+                            List<String> colList = colAuth.get(colKey);
+                            if (colList == null || !colList.contains(operator))
                                 throw new SQLException("[" + operator + "]column[" +
-                                        tbName + "." + colName + "] permission denied");
+                                        tbName + "." + colName + "]权限不足");
                         }
 
                     }

@@ -114,32 +114,31 @@ public class WrapResultSet implements AutoCloseable {
         if (fetchSize == 0) fetchSize = this.wrapStatement.getFetchSize();
         int colCount = this.resultSet.getMetaData().getColumnCount();
         if (!first) out.write(writeByte((byte) 0x00));
-        for (int i = 0; i < fetchSize; i++) {
-            if (this.resultSet.next()) {
-                ByteBuf buf = Unpooled.buffer();
-                buf.writeByte(0x7e);
-                for (int j = 1; j <= colCount; j++) {
-
-                    if (filters.containsKey(j)) {
-                        String val = this.resultSet.getString(j);
-                        if (filters.get(j).equals(val)) break;
-                    }
-                    byte[] bytes = this.resultSet.getBytes(j);
-
-                    if (cols.containsKey(j)) {
-                        Pair pair = cols.get(j);
-                        if (0 == pair.code) bytes = pair.policy.getBytes(StandardCharsets.UTF_8);
-                        else throw new SQLException("column control code[" + pair.code + "] is not defined");
-                    }
-
-                    if (bytes == null) buf.writeInt(~0);
-                    else {
-                        buf.writeInt(bytes.length);
-                        buf.writeBytes(bytes);
+        while (fetchSize > 0 && this.resultSet.next()) {
+            ByteBuf buf = Unpooled.buffer();
+            buf.writeByte(0x7e);
+            for (int j = 1; j <= colCount; j++) {
+                if (filters.containsKey(j)) {
+                    String val = this.resultSet.getString(j);
+                    if (filters.get(j).equals(val)) {
+                        buf.clear();
+                        break;
                     }
                 }
-                out.write(buf);
+                byte[] bytes = this.resultSet.getBytes(j);
+                if (cols.containsKey(j)) {
+                    Pair pair = cols.get(j);
+                    if (0 == pair.code) bytes = pair.policy.getBytes(StandardCharsets.UTF_8);
+                    else throw new SQLException("column control code[" + pair.code + "] is not defined");
+                }
+                if (bytes == null) buf.writeInt(~0);
+                else {
+                    buf.writeInt(bytes.length);
+                    buf.writeBytes(bytes);
+                }
             }
+            out.write(buf);
+            fetchSize--;
         }
         out.write(writeByte((byte) 0x7f));
     }
