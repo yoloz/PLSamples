@@ -16,7 +16,7 @@ public class ResultSetHandler {
         if ("getCursorName".equals(mName)) {
             out.write(writeShortStr(OK, resultSet.getCursorName()));
         } else if ("isLast".equals(mName)) {
-            out.write(writeShortStr(OK, resultSet.isLast() ? "true" : "false"));
+            out.write(writeShortStr(OK, resultSet.isLast()));
         } else if ("beforeFirst".equals(mName)) {
             resultSet.beforeFirst();
             out.write(writeByte(OK));
@@ -24,17 +24,15 @@ public class ResultSetHandler {
             resultSet.afterLast();
             out.write(writeByte(OK));
         } else if ("first".equals(mName)) {
-            out.write(writeShortStr(OK, resultSet.first() ? "true" : "false"));
+            out.write(writeShortStr(OK, resultSet.first()));
         } else if ("last".equals(mName)) {
-            out.write(writeShortStr(OK, resultSet.last() ? "true" : "false"));
+            out.write(writeShortStr(OK, resultSet.last()));
         } else if ("getRow".equals(mName)) {
             out.write(writeInt(OK, resultSet.getRow()));
         } else if ("absolute".equals(mName)) {
-            boolean bool = resultSet.absolute(src.readInt());
-            out.write(writeShortStr(OK, bool ? "true" : "false"));
+            out.write(writeShortStr(OK, resultSet.absolute(src.readInt())));
         } else if ("relative".equals(mName)) {
-            boolean bool = resultSet.relative(src.readInt());
-            out.write(writeShortStr(OK, bool ? "true" : "false"));
+            out.write(writeShortStr(OK, resultSet.relative(src.readInt())));
         } else if ("setFetchSize".equals(mName)) {
             resultSet.setFetchSize(src.readInt());
             out.write(writeByte(OK));

@@ -51,7 +51,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                         ConnectHandler.handler(connects.get(address), src, out);
                         break;
                     case 4:
-                        ConnectMetaHandler.handler(connects.get(address).getMetaData(), src, out);
+                        ConnectMetaHandler.handler(connects.get(address), src, out);
                         break;
                     case 5:
                         String stmtId = readShortLen(src);

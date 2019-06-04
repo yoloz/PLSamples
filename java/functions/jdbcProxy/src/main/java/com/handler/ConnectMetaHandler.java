@@ -1,712 +1,330 @@
 package com.handler;
 
+import com.jdbc.bean.WrapConnect;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.sql.*;
 
 import static com.handler.IOHandler.*;
 
-public class ConnectMetaHandler{
-
-    public static void handler(DatabaseMetaData metaData, ByteBuf src, ChannelHandlerContext out) throws SQLException {
-        throw new SQLException("connectionDataMeta is developing");
-//        out.write(writeByte(OK));
-    }
-
-    public boolean allProceduresAreCallable() throws SQLException {
-        return false;
-    }
-
-    public boolean allTablesAreSelectable() throws SQLException {
-        return false;
-    }
-
-    public String getURL() throws SQLException {
-        return null;
-    }
-
-    public String getUserName() throws SQLException {
-        return null;
-    }
-
-    public boolean isReadOnly() throws SQLException {
-        return false;
-    }
-
-    public boolean nullsAreSortedHigh() throws SQLException {
-        return false;
-    }
-
-    public boolean nullsAreSortedLow() throws SQLException {
-        return false;
-    }
-
-    public boolean nullsAreSortedAtStart() throws SQLException {
-        return false;
-    }
-
-    public boolean nullsAreSortedAtEnd() throws SQLException {
-        return false;
-    }
-
-    public String getDatabaseProductName() throws SQLException {
-        return null;
-    }
-
-    public String getDatabaseProductVersion() throws SQLException {
-        return null;
-    }
-
-    public String getDriverName() throws SQLException {
-        return null;
-    }
-
-    public String getDriverVersion() throws SQLException {
-        return null;
-    }
-
-    public int getDriverMajorVersion() {
-        return 0;
-    }
-
-    public int getDriverMinorVersion() {
-        return 0;
-    }
-
-    public boolean usesLocalFiles() throws SQLException {
-        return false;
-    }
-
-    public boolean usesLocalFilePerTable() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsMixedCaseIdentifiers() throws SQLException {
-        return false;
-    }
-
-    public boolean storesUpperCaseIdentifiers() throws SQLException {
-        return false;
-    }
-
-    public boolean storesLowerCaseIdentifiers() throws SQLException {
-        return false;
-    }
-
-    public boolean storesMixedCaseIdentifiers() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsMixedCaseQuotedIdentifiers() throws SQLException {
-        return false;
-    }
-
-    public boolean storesUpperCaseQuotedIdentifiers() throws SQLException {
-        return false;
-    }
-
-    public boolean storesLowerCaseQuotedIdentifiers() throws SQLException {
-        return false;
-    }
-
-    public boolean storesMixedCaseQuotedIdentifiers() throws SQLException {
-        return false;
-    }
-
-    public String getIdentifierQuoteString() throws SQLException {
-        return null;
-    }
-
-    public String getSQLKeywords() throws SQLException {
-        return null;
-    }
-
-    public String getNumericFunctions() throws SQLException {
-        return null;
-    }
-
-    public String getStringFunctions() throws SQLException {
-        return null;
-    }
-
-    public String getSystemFunctions() throws SQLException {
-        return null;
-    }
-
-    public String getTimeDateFunctions() throws SQLException {
-        return null;
-    }
-
-    public String getSearchStringEscape() throws SQLException {
-        return null;
-    }
-
-    public String getExtraNameCharacters() throws SQLException {
-        return null;
-    }
-
-    public boolean supportsAlterTableWithAddColumn() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsAlterTableWithDropColumn() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsColumnAliasing() throws SQLException {
-        return false;
-    }
-
-    public boolean nullPlusNonNullIsNull() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsConvert() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsConvert(int fromType, int toType) throws SQLException {
-        return false;
-    }
-
-    public boolean supportsTableCorrelationNames() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsDifferentTableCorrelationNames() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsExpressionsInOrderBy() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsOrderByUnrelated() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsGroupBy() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsGroupByUnrelated() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsGroupByBeyondSelect() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsLikeEscapeClause() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsMultipleResultSets() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsMultipleTransactions() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsNonNullableColumns() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsMinimumSQLGrammar() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsCoreSQLGrammar() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsExtendedSQLGrammar() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsANSI92EntryLevelSQL() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsANSI92IntermediateSQL() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsANSI92FullSQL() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsIntegrityEnhancementFacility() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsOuterJoins() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsFullOuterJoins() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsLimitedOuterJoins() throws SQLException {
-        return false;
-    }
-
-    public String getSchemaTerm() throws SQLException {
-        return null;
-    }
-
-    public String getProcedureTerm() throws SQLException {
-        return null;
-    }
-
-    public String getCatalogTerm() throws SQLException {
-        return null;
-    }
-
-    public boolean isCatalogAtStart() throws SQLException {
-        return false;
-    }
-
-    public String getCatalogSeparator() throws SQLException {
-        return null;
-    }
-
-    public boolean supportsSchemasInDataManipulation() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsSchemasInProcedureCalls() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsSchemasInTableDefinitions() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsSchemasInIndexDefinitions() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsSchemasInPrivilegeDefinitions() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsCatalogsInDataManipulation() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsCatalogsInProcedureCalls() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsCatalogsInTableDefinitions() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsCatalogsInIndexDefinitions() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsCatalogsInPrivilegeDefinitions() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsPositionedDelete() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsPositionedUpdate() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsSelectForUpdate() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsStoredProcedures() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsSubqueriesInComparisons() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsSubqueriesInExists() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsSubqueriesInIns() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsSubqueriesInQuantifieds() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsCorrelatedSubqueries() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsUnion() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsUnionAll() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsOpenCursorsAcrossCommit() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsOpenCursorsAcrossRollback() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsOpenStatementsAcrossCommit() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsOpenStatementsAcrossRollback() throws SQLException {
-        return false;
-    }
-
-    public int getMaxBinaryLiteralLength() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxCharLiteralLength() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxColumnNameLength() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxColumnsInGroupBy() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxColumnsInIndex() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxColumnsInOrderBy() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxColumnsInSelect() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxColumnsInTable() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxConnections() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxCursorNameLength() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxIndexLength() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxSchemaNameLength() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxProcedureNameLength() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxCatalogNameLength() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxRowSize() throws SQLException {
-        return 0;
-    }
-
-    public boolean doesMaxRowSizeIncludeBlobs() throws SQLException {
-        return false;
-    }
-
-    public int getMaxStatementLength() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxStatements() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxTableNameLength() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxTablesInSelect() throws SQLException {
-        return 0;
-    }
-
-    public int getMaxUserNameLength() throws SQLException {
-        return 0;
-    }
-
-    public int getDefaultTransactionIsolation() throws SQLException {
-        return 0;
-    }
-
-    public boolean supportsTransactions() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsTransactionIsolationLevel(int level) throws SQLException {
-        return false;
-    }
-
-    public boolean supportsDataDefinitionAndDataManipulationTransactions() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsDataManipulationTransactionsOnly() throws SQLException {
-        return false;
-    }
-
-    public boolean dataDefinitionCausesTransactionCommit() throws SQLException {
-        return false;
-    }
-
-    public boolean dataDefinitionIgnoredInTransactions() throws SQLException {
-        return false;
-    }
-
-    public ResultSet getProcedures(String catalog, String schemaPattern, String procedureNamePattern) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getProcedureColumns(String catalog, String schemaPattern, String procedureNamePattern, String columnNamePattern) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getTables(String catalog, String schemaPattern, String tableNamePattern, String[] types) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getSchemas() throws SQLException {
-        return null;
-    }
-
-    public ResultSet getCatalogs() throws SQLException {
-        return null;
-    }
-
-    public ResultSet getTableTypes() throws SQLException {
-        return null;
-    }
-
-    public ResultSet getColumns(String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getColumnPrivileges(String catalog, String schema, String table, String columnNamePattern) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getTablePrivileges(String catalog, String schemaPattern, String tableNamePattern) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getBestRowIdentifier(String catalog, String schema, String table, int scope, boolean nullable) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getVersionColumns(String catalog, String schema, String table) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getPrimaryKeys(String catalog, String schema, String table) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getImportedKeys(String catalog, String schema, String table) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getExportedKeys(String catalog, String schema, String table) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getCrossReference(String parentCatalog, String parentSchema, String parentTable, String foreignCatalog, String foreignSchema, String foreignTable) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getTypeInfo() throws SQLException {
-        return null;
-    }
-
-    public ResultSet getIndexInfo(String catalog, String schema, String table, boolean unique, boolean approximate) throws SQLException {
-        return null;
-    }
-
-    public boolean supportsResultSetType(int type) throws SQLException {
-        return false;
-    }
-
-    public boolean supportsResultSetConcurrency(int type, int concurrency) throws SQLException {
-        return false;
-    }
-
-    public boolean ownUpdatesAreVisible(int type) throws SQLException {
-        return false;
-    }
-
-    public boolean ownDeletesAreVisible(int type) throws SQLException {
-        return false;
-    }
-
-    public boolean ownInsertsAreVisible(int type) throws SQLException {
-        return false;
-    }
-
-    public boolean othersUpdatesAreVisible(int type) throws SQLException {
-        return false;
-    }
-
-    public boolean othersDeletesAreVisible(int type) throws SQLException {
-        return false;
-    }
-
-    public boolean othersInsertsAreVisible(int type) throws SQLException {
-        return false;
-    }
-
-    public boolean updatesAreDetected(int type) throws SQLException {
-        return false;
-    }
-
-    public boolean deletesAreDetected(int type) throws SQLException {
-        return false;
-    }
-
-    public boolean insertsAreDetected(int type) throws SQLException {
-        return false;
-    }
-
-    public boolean supportsBatchUpdates() throws SQLException {
-        return false;
-    }
-
-    public ResultSet getUDTs(String catalog, String schemaPattern, String typeNamePattern, int[] types) throws SQLException {
-        return null;
-    }
-
-    public Connection getConnection() throws SQLException {
-        return null;
-    }
-
-    public boolean supportsSavepoints() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsNamedParameters() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsMultipleOpenResults() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsGetGeneratedKeys() throws SQLException {
-        return false;
-    }
-
-    public ResultSet getSuperTypes(String catalog, String schemaPattern, String typeNamePattern) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getSuperTables(String catalog, String schemaPattern, String tableNamePattern) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getAttributes(String catalog, String schemaPattern, String typeNamePattern, String attributeNamePattern) throws SQLException {
-        return null;
-    }
-
-    public boolean supportsResultSetHoldability(int holdability) throws SQLException {
-        return false;
-    }
-
-    public int getResultSetHoldability() throws SQLException {
-        return 0;
-    }
-
-    public int getDatabaseMajorVersion() throws SQLException {
-        return 0;
-    }
-
-    public int getDatabaseMinorVersion() throws SQLException {
-        return 0;
-    }
-
-    public int getJDBCMajorVersion() throws SQLException {
-        return 0;
-    }
-
-    public int getJDBCMinorVersion() throws SQLException {
-        return 0;
-    }
-
-    public int getSQLStateType() throws SQLException {
-        return 0;
-    }
-
-    public boolean locatorsUpdateCopy() throws SQLException {
-        return false;
-    }
-
-    public boolean supportsStatementPooling() throws SQLException {
-        return false;
-    }
-
-    public RowIdLifetime getRowIdLifetime() throws SQLException {
-        return null;
-    }
-
-    public ResultSet getSchemas(String catalog, String schemaPattern) throws SQLException {
-        return null;
-    }
-
-    public boolean supportsStoredFunctionsUsingCallSyntax() throws SQLException {
-        return false;
-    }
-
-    public boolean autoCommitFailureClosesAllResultSets() throws SQLException {
-        return false;
-    }
-
-    public ResultSet getClientInfoProperties() throws SQLException {
-        return null;
-    }
-
-    public ResultSet getFunctions(String catalog, String schemaPattern, String functionNamePattern) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getFunctionColumns(String catalog, String schemaPattern, String functionNamePattern, String columnNamePattern) throws SQLException {
-        return null;
-    }
-
-    public ResultSet getPseudoColumns(String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern) throws SQLException {
-        return null;
-    }
-
-    public boolean generatedKeyAlwaysReturned() throws SQLException {
-        return false;
+public class ConnectMetaHandler {
+
+    public static void handler(WrapConnect connect, ByteBuf src, ChannelHandlerContext out) throws SQLException {
+        DatabaseMetaData metaData = connect.getMetaData();
+        String mName = readByteLen(src);
+        ResultSet rs = null;
+        try {
+            switch (mName) {
+                case "allProceduresAreCallable":
+                case "allTablesAreSelectable":
+                case "isReadOnly":
+                case "nullsAreSortedHigh":
+                case "nullsAreSortedLow":
+                case "nullsAreSortedAtStart":
+                case "nullsAreSortedAtEnd":
+                case "usesLocalFiles":
+                case "usesLocalFilePerTable":
+                case "supportsMixedCaseIdentifiers":
+                case "storesUpperCaseIdentifiers":
+                case "storesLowerCaseIdentifiers":
+                case "storesMixedCaseIdentifiers":
+                case "supportsMixedCaseQuotedIdentifiers":
+                case "storesUpperCaseQuotedIdentifiers":
+                case "storesLowerCaseQuotedIdentifiers":
+                case "storesMixedCaseQuotedIdentifiers":
+                case "supportsAlterTableWithAddColumn":
+                case "supportsAlterTableWithDropColumn":
+                case "supportsColumnAliasing":
+                case "nullPlusNonNullIsNull":
+                case "supportsTableCorrelationNames":
+                case "supportsDifferentTableCorrelationNames":
+                case "supportsExpressionsInOrderBy":
+                case "supportsOrderByUnrelated":
+                case "supportsGroupBy":
+                case "supportsGroupByUnrelated":
+                case "supportsGroupByBeyondSelect":
+                case "supportsLikeEscapeClause":
+                case "supportsMultipleResultSets":
+                case "supportsMultipleTransactions":
+                case "supportsNonNullableColumns":
+                case "supportsMinimumSQLGrammar":
+                case "supportsCoreSQLGrammar":
+                case "supportsExtendedSQLGrammar":
+                case "supportsANSI92EntryLevelSQL":
+                case "supportsANSI92IntermediateSQL":
+                case "supportsANSI92FullSQL":
+                case "supportsIntegrityEnhancementFacility":
+                case "supportsOuterJoins":
+                case "supportsFullOuterJoins":
+                case "supportsLimitedOuterJoins":
+                case "isCatalogAtStart":
+                case "supportsSchemasInDataManipulation":
+                case "supportsSchemasInProcedureCalls":
+                case "supportsSchemasInTableDefinitions":
+                case "supportsSchemasInIndexDefinitions":
+                case "supportsSchemasInPrivilegeDefinitions":
+                case "supportsCatalogsInDataManipulation":
+                case "supportsCatalogsInProcedureCalls":
+                case "supportsCatalogsInTableDefinitions":
+                case "supportsCatalogsInIndexDefinitions":
+                case "supportsCatalogsInPrivilegeDefinitions":
+                case "supportsPositionedDelete":
+                case "supportsPositionedUpdate":
+                case "supportsSelectForUpdate":
+                case "supportsStoredProcedures":
+                case "supportsSubqueriesInComparisons":
+                case "supportsSubqueriesInExists":
+                case "supportsSubqueriesInIns":
+                case "supportsSubqueriesInQuantifieds":
+                case "supportsCorrelatedSubqueries":
+                case "supportsUnion":
+                case "supportsUnionAll":
+                case "supportsOpenCursorsAcrossCommit":
+                case "supportsOpenCursorsAcrossRollback":
+                case "supportsOpenStatementsAcrossCommit":
+                case "supportsOpenStatementsAcrossRollback":
+                case "doesMaxRowSizeIncludeBlobs":
+                case "supportsTransactions":
+                case "supportsDataDefinitionAndDataManipulationTransactions":
+                case "supportsDataManipulationTransactionsOnly":
+                case "dataDefinitionCausesTransactionCommit":
+                case "dataDefinitionIgnoredInTransactions":
+                case "supportsBatchUpdates":
+                case "supportsSavepoints":
+                case "supportsNamedParameters":
+                case "supportsMultipleOpenResults":
+                case "supportsGetGeneratedKeys":
+                case "locatorsUpdateCopy":
+                case "supportsStatementPooling":
+                case "supportsStoredFunctionsUsingCallSyntax":
+                case "autoCommitFailureClosesAllResultSets":
+                case "generatedKeyAlwaysReturned":
+                    Method method = metaData.getClass().getDeclaredMethod(mName);
+                    boolean bool = (boolean) method.invoke(metaData);
+                    out.write(writeShortStr(OK, bool));
+                    break;
+                case "getURL":
+                case "getDatabaseProductName":
+                case "getDatabaseProductVersion":
+                case "getDriverName":
+                case "getDriverVersion":
+                case "getIdentifierQuoteString":
+                case "getSQLKeywords":
+                case "getNumericFunctions":
+                case "getStringFunctions":
+                case "getSystemFunctions":
+                case "getTimeDateFunctions":
+                case "getSearchStringEscape":
+                case "getExtraNameCharacters":
+                case "getSchemaTerm":
+                case "getProcedureTerm":
+                case "getCatalogTerm":
+                case "getCatalogSeparator":
+                    method = metaData.getClass().getDeclaredMethod(mName);
+                    String str = (String) method.invoke(metaData);
+                    out.write(writeShortStr(OK, str));
+                    break;
+                case "getUserName":
+                    out.write(writeShortStr(OK, connect.getUser()));
+                    break;
+                case "getDriverMajorVersion":
+                case "getDriverMinorVersion":
+                case "getMaxBinaryLiteralLength":
+                case "getMaxCharLiteralLength":
+                case "getMaxColumnNameLength":
+                case "getMaxColumnsInGroupBy":
+                case "getMaxColumnsInIndex":
+                case "getMaxColumnsInOrderBy":
+                case "getMaxColumnsInSelect":
+                case "getMaxColumnsInTable":
+                case "getMaxConnections":
+                case "getMaxCursorNameLength":
+                case "getMaxIndexLength":
+                case "getMaxSchemaNameLength":
+                case "getMaxProcedureNameLength":
+                case "getMaxCatalogNameLength":
+                case "getMaxRowSize":
+                case "getMaxStatementLength":
+                case "getMaxStatements":
+                case "getMaxTableNameLength":
+                case "getMaxTablesInSelect":
+                case "getMaxUserNameLength":
+                case "getDefaultTransactionIsolation":
+                case "getResultSetHoldability":
+                case "getDatabaseMajorVersion":
+                case "getDatabaseMinorVersion":
+                case "getJDBCMajorVersion":
+                case "getJDBCMinorVersion":
+                case "getSQLStateType":
+                    method = metaData.getClass().getDeclaredMethod(mName);
+                    int i = (int) method.invoke(metaData);
+                    out.write(writeInt(OK, i));
+                    break;
+                case "supportsConvert":
+                    short mc = src.readByte();
+                    if (0 == mc) out.write(writeShortStr(OK, metaData.supportsConvert()));
+                    else if (2 == mc)
+                        out.write(writeShortStr(OK, metaData.supportsConvert(src.readInt(), src.readInt())));
+                    else throw new SQLException("supportsConvert param num[" + mc + "] is not exist");
+                    break;
+                case "supportsTransactionIsolationLevel":
+                case "supportsResultSetType":
+                case "ownUpdatesAreVisible":
+                case "ownDeletesAreVisible":
+                case "ownInsertsAreVisible":
+                case "othersUpdatesAreVisible":
+                case "othersDeletesAreVisible":
+                case "othersInsertsAreVisible":
+                case "updatesAreDetected":
+                case "deletesAreDetected":
+                case "insertsAreDetected":
+                case "supportsResultSetHoldability":
+                    method = metaData.getClass().getDeclaredMethod(mName, Integer.class);
+                    bool = (boolean) method.invoke(metaData, src.readInt());
+                    out.write(writeShortStr(OK, bool));
+                    break;
+                case "getProcedures":
+                case "getTablePrivileges":
+                case "getVersionColumns":
+                case "getPrimaryKeys":
+                case "getImportedKeys":
+                case "getExportedKeys":
+                case "getSuperTypes":
+                case "getSuperTables":
+                case "getFunctions":
+                    method = metaData.getClass().getDeclaredMethod(mName, String.class, String.class, String.class);
+                    rs = (ResultSet) method.invoke(metaData, readShortLen(src), readShortLen(src),
+                            readShortLen(src));
+                    writeResultSet(rs, out);
+                    break;
+                case "getProcedureColumns":
+                case "getColumns":
+                case "getColumnPrivileges":
+                case "getAttributes":
+                case "getFunctionColumns":
+                case "getPseudoColumns":
+                    method = metaData.getClass().getDeclaredMethod(mName, String.class, String.class, String.class,
+                            String.class);
+                    rs = (ResultSet) method.invoke(metaData, readShortLen(src), readShortLen(src), readShortLen(src),
+                            readShortLen(src));
+                    writeResultSet(rs, out);
+                    break;
+                case "getTables":
+                    rs = metaData.getTables(readShortLen(src), readShortLen(src), readShortLen(src),
+                            readShortLen(src.readShort(), src));
+                    writeResultSet(rs, out);
+                    break;
+                case "getCatalogs":
+                case "getTableTypes":
+                case "getTypeInfo":
+                case "getClientInfoProperties":
+                    method = metaData.getClass().getDeclaredMethod(mName);
+                    rs = (ResultSet) method.invoke(metaData);
+                    writeResultSet(rs, out);
+                    break;
+                case "getBestRowIdentifier":
+                    rs = metaData.getBestRowIdentifier(readShortLen(src), readShortLen(src), readShortLen(src),
+                            src.readInt(), "true".equals(readByteLen(src)));
+                    writeResultSet(rs, out);
+                    break;
+                case "getCrossReference":
+                    rs = metaData.getCrossReference(readShortLen(src), readShortLen(src), readShortLen(src),
+                            readShortLen(src), readShortLen(src), readShortLen(src));
+                    writeResultSet(rs, out);
+                    break;
+                case "getIndexInfo":
+                    rs = metaData.getIndexInfo(readShortLen(src), readShortLen(src), readShortLen(src),
+                            "true".equals(readShortLen(src)), "true".equals(readShortLen(src)));
+                    writeResultSet(rs, out);
+                    break;
+                case "supportsResultSetConcurrency":
+                    out.write(writeShortStr(OK, metaData.supportsResultSetConcurrency(src.readInt(), src.readInt())));
+                    break;
+                case "getUDTs":
+                    rs = metaData.getUDTs(readShortLen(src), readShortLen(src), readShortLen(src),
+                            readInt(src.readShort(), src));
+                    writeResultSet(rs, out);
+                    break;
+                case "getRowIdLifetime":
+                    RowIdLifetime rowIdLifetime = metaData.getRowIdLifetime();
+                    switch (rowIdLifetime) {
+                        case ROWID_UNSUPPORTED:
+                            out.write(writeInt(OK, 1));
+                            break;
+                        case ROWID_VALID_OTHER:
+                            out.write(writeInt(OK, 2));
+                            break;
+                        case ROWID_VALID_SESSION:
+                            out.write(writeInt(OK, 3));
+                            break;
+                        case ROWID_VALID_TRANSACTION:
+                            out.write(writeInt(OK, 4));
+                            break;
+                        case ROWID_VALID_FOREVER:
+                            out.write(writeInt(OK, 5));
+                            break;
+                        default:
+                            throw new SQLException("getRowIdLifetime[" + rowIdLifetime + "] is not defined");
+                    }
+                    break;
+                case "getSchemas":
+                    mc = src.readByte();
+                    if (0 == mc) rs = metaData.getSchemas();
+                    else if (2 == mc) rs = metaData.getSchemas(readShortLen(src), readShortLen(src));
+                    else throw new SQLException("getSchemas param num[" + mc + "] is not exist");
+                    writeResultSet(rs, out);
+                    break;
+                default:
+                    throw new SQLException("DatabaseMetaData method[" + mName + "] is not support");
+            }
+        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+            throw new SQLException(e);
+        }
+        try {
+            if (rs != null) rs.close();
+        } catch (SQLException ignored) {
+        }
+    }
+
+    private static void writeResultSet(ResultSet rs, ChannelHandlerContext out) throws SQLException {
+        out.write(writeByte(OK));
+        if (rs != null) {
+            out.write(writeShort(0x00));
+            ResultSetMetaData rsMeta = rs.getMetaData();
+            int colCount = rsMeta.getColumnCount();
+            out.write(writeShort(colCount));
+            for (int i = 1; i <= colCount; i++) {
+                ByteBuf buf = Unpooled.buffer();
+                writeShortString(rsMeta.getCatalogName(i), buf);
+                writeShortString(rsMeta.getSchemaName(i), buf);
+                writeShortString(rsMeta.getTableName(i), buf);
+                writeShortString(rsMeta.getColumnLabel(i), buf);
+                writeShortString(rsMeta.getColumnName(i), buf);
+                writeShortString(rsMeta.getColumnTypeName(i), buf);
+                buf.writeInt(rsMeta.getColumnDisplaySize(i));
+                buf.writeInt(rsMeta.getPrecision(i));
+                buf.writeInt(rsMeta.getScale(i));
+                buf.writeInt(rsMeta.getColumnType(i));
+                out.write(buf);
+            }
+            while (rs.next()) {
+                ByteBuf buf = Unpooled.buffer();
+                buf.writeByte(0x7e);
+                for (int j = 1; j <= colCount; j++) {
+                    byte[] bytes = rs.getBytes(j);
+                    if (bytes == null) buf.writeInt(~0);
+                    else {
+                        buf.writeInt(bytes.length);
+                        buf.writeBytes(bytes);
+                    }
+                }
+                out.write(buf);
+            }
+            out.write(writeByte((byte) 0x7f));
+        } else out.write(writeShort(-1));
     }
 }

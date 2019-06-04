@@ -19,7 +19,7 @@ public class IOHandler {
     }
 
     public static String readShortLen(ByteBuf buf) {
-        int length = buf.readUnsignedShort();
+        int length = buf.readShort();
         String str = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), length), StandardCharsets.UTF_8);
         buf.readerIndex(buf.readerIndex() + length);
         return str;
@@ -74,6 +74,10 @@ public class IOHandler {
         ByteBuf buf = Unpooled.buffer(2);
         buf.writeShort(num);
         return buf;
+    }
+
+    public static ByteBuf writeShortStr(byte cmd, boolean bool) {
+        return writeShortStr(cmd, bool ? "true" : "false");
     }
 
     public static ByteBuf writeShortStr(byte cmd, String str) {

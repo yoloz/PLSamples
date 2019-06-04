@@ -60,7 +60,7 @@ public class PrepareStatementHandler {
             statement.clearParameters();
             out.write(writeByte(OK));
         } else if ("execute".equals(mName)) {
-            out.write(writeShortStr(OK, statement.execute() ? "true" : "false"));
+            out.write(writeShortStr(OK, statement.execute()));
         } else if ("addBatch".equals(mName)) {
             statement.addBatch();
             out.write(writeByte(OK));
