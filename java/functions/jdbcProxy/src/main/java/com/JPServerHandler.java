@@ -1,7 +1,7 @@
 package com;
 
 import com.handler.*;
-import com.jdbc.bean.WrapConnect;
+import com.jdbc.bean.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -20,12 +20,13 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
 
     private final Logger logger = Logger.getLogger(JPServerHandler.class);
     //<address,connect>
-    private final ConcurrentMap<String, WrapConnect> connects = new ConcurrentHashMap<>();
+    final ConcurrentMap<String, WrapConnect> connects = new ConcurrentHashMap<>();
 
 
     @Override
     public void channelRead(ChannelHandlerContext out, Object obj) {
         String address = out.channel().remoteAddress().toString();
+        String connectId = md5(address);
         ByteBuf src = (ByteBuf) obj;
         boolean finish = false;
         while (!finish && src.isReadable()) {
@@ -37,36 +38,40 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                         break;
                     case 2:
                         String dbKey = readShortLen(src);
-                        String userName = readShortLen(src);
-                        String pwd = readShortLen(src);
-                        String database = readShortLen(src);
                         String properties = readIntLen(src);
-                        WrapConnect conn = new WrapConnect(address, dbKey, userName, pwd,
-                                database, properties);
-                        if (connects.containsKey(address)) closeConn(address);
-                        connects.put(address, conn);
+                        WrapConnect conn = new WrapConnect(connectId, dbKey, properties);
+                        if (connects.containsKey(connectId)) closeConn(address);
+                        connects.put(connectId, conn);
                         out.write(writeByte(OK));
                         break;
                     case 3:
-                        ConnectHandler.handler(connects.get(address), src, out);
+                        WrapConnect wrapConnect = connects.get(connectId);
+                        wrapConnect.updateTime(System.currentTimeMillis());
+                        ConnectHandler.handler(wrapConnect, src, out);
                         break;
                     case 4:
-                        ConnectMetaHandler.handler(connects.get(address), src, out);
+                        wrapConnect = connects.get(connectId);
+                        wrapConnect.updateTime(System.currentTimeMillis());
+                        ConnectMetaHandler.handler(wrapConnect, src, out);
                         break;
                     case 5:
                         String stmtId = readShortLen(src);
-                        StatementHandler.handler(connects.get(address).getStatement(stmtId), src, out);
+                        WrapStatement wrapStatement = connects.get(connectId).getStatement(stmtId);
+                        wrapStatement.updateTime();
+                        StatementHandler.handler(wrapStatement, src, out);
                         break;
                     case 6:
                         stmtId = readShortLen(src);
+                        wrapStatement = connects.get(connectId).getStatement(stmtId);
+                        wrapStatement.updateTime();
                         String rsId = readShortLen(src);
-                        ResultSetHandler.handler(connects.get(address).getStatement(stmtId).getResultSet(rsId),
-                                src, out);
+                        ResultSetHandler.handler(wrapStatement.getResultSet(rsId), src, out);
                         break;
                     case 7:
                         stmtId = readShortLen(src);
-                        PrepareStatementHandler.handler(connects.get(address).getPrepareStatement(stmtId),
-                                src, out);
+                        WrapPrepareStatement wrapPrepareStatement = connects.get(connectId).getPrepareStatement(stmtId);
+                        wrapPrepareStatement.updateTime();
+                        PrepareStatementHandler.handler(wrapPrepareStatement, src, out);
                     default:
                         logger.error("cmd[" + cmd + "] is not defined");
                 }

@@ -1,16 +1,10 @@
 package com.handler;
 
-import com.jdbc.bean.DbAuth;
-import com.jdbc.bean.SqlInfo;
-import com.jdbc.bean.WrapConnect;
 import com.jdbc.bean.WrapStatement;
-import com.jdbc.sql.parser.SQLParserUtils;
-import com.jdbc.sql.parser.SQLStatementParser;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.sql.SQLException;
-import java.util.List;
 
 import static com.handler.IOHandler.*;
 
@@ -21,12 +15,12 @@ public class StatementHandler {
         String mName = IOHandler.readByteLen(src);
         if ("executeQuery".equals(mName)) {
             String sql = readIntLen(src);
-            executeAuth(statement.getWrapConnect(), sql);
+            UserHandler.authSql(statement.getWrapConnect(), statement.getUser(), sql);
             statement.executeQuery(sql, out);
         } else if ("executeUpdate".equals(mName)) {
             short pc = src.readByte();
             String sql = readIntLen(src);
-            executeAuth(statement.getWrapConnect(), sql);
+            UserHandler.authSql(statement.getWrapConnect(), statement.getUser(), sql);
             int count;
             if (1 == pc) count = statement.executeUpdate(sql);
             else {
@@ -50,7 +44,7 @@ public class StatementHandler {
         } else if ("execute".equals(mName)) {
             short pc = src.readByte();
             String sql = readIntLen(src);
-            executeAuth(statement.getWrapConnect(), sql);
+            UserHandler.authSql(statement.getWrapConnect(), statement.getUser(), sql);
             boolean bool;
             if (1 == pc) bool = statement.execute(sql);
             else {
@@ -76,7 +70,9 @@ public class StatementHandler {
             int arrSize = src.readShort();
             short type = src.readByte();
             if (1 != type) throw new SQLException("executeBatch param type[" + type + "] error");
-            int[] code = statement.executeBatch(readIntLen(arrSize, src));
+            String[] sqls = readIntLen(arrSize, src);
+            for (String sql : sqls) UserHandler.authSql(statement.getWrapConnect(), statement.getUser(), sql);
+            int[] code = statement.executeBatch(sqls);
             out.write(writeInt(OK, code));
         } else if ("setFetchDirection".equals(mName)) {
             statement.setFetchDirection(src.readInt());
@@ -90,17 +86,5 @@ public class StatementHandler {
             statement.close();
             out.write(writeByte(OK));
         } else throw new SQLException("statementMethod[" + mName + "] is not support");
-    }
-
-    private static void executeAuth(WrapConnect wrapConnect, String sql) throws SQLException {
-        String uk = wrapConnect.getDbKey() + wrapConnect.getUser();
-        String dbName = wrapConnect.getDbName();
-        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, wrapConnect.getDbTypeLower());
-        parser.setDefaultDbName(dbName);
-        parser.setConn(wrapConnect.getDbConnect());
-        List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();
-        for (SqlInfo sqlInfo : sqlInfoList) {
-            DbAuth.authSql(uk, dbName, sqlInfo);
-        }
     }
 }

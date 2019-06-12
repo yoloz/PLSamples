@@ -19,12 +19,38 @@ public class WrapStatement implements AutoCloseable {
     private final WrapConnect wrapConnect;
     private final Statement statement;
 
+    String user;
+    String pwd;
+
+    long timestamp;
+
     ConcurrentMap<String, WrapResultSet> rsMap = new ConcurrentHashMap<>(1);
 
     WrapStatement(WrapConnect wrapConnect, String id, Statement statement) {
         this.wrapConnect = wrapConnect;
         this.id = id;
         this.statement = statement;
+        this.timestamp = System.currentTimeMillis();
+        this.user = wrapConnect.getUser();
+        this.pwd = wrapConnect.getPwd();
+    }
+
+    public void updateTime() {
+        timestamp = System.currentTimeMillis();
+        wrapConnect.updateTime(timestamp);
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user,String pwd) {
+        this.user = user;
+        this.pwd = pwd;
+    }
+
+    public String getPwd() {
+        return pwd;
     }
 
     public WrapConnect getWrapConnect() {

@@ -1,6 +1,10 @@
 package com.jdbc.bean;
 
 
+import com.handler.UserHandler;
+import com.util.Constants;
+import com.util.InnerDb;
+
 import java.io.Closeable;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -11,10 +15,11 @@ import java.sql.Driver;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.handler.IOHandler.md5;
 
 public class WrapConnect implements Closeable {
 
@@ -25,38 +30,62 @@ public class WrapConnect implements Closeable {
     private final String id;
     private final Connection dbConnect;
     private final String dbKey;
-    private final String dbUser;
-    private String user; //初始化连接的时候传递的是dbUser,可能会被重置为应用用户
+    private final Info info;
+
+    private String user;
+    private String pwd;
+
+    private long timestamp;
+
 
     ConcurrentMap<String, WrapStatement> stmtMap = new ConcurrentHashMap<>(1);
 
-    public WrapConnect(String id, String dbKey, String dbUser, String dbPwd, String dbName,
-                       String properties) throws SQLException {
+    public WrapConnect(String id, String dbKey, String properties) throws SQLException {
         this.id = id;
         this.dbKey = dbKey;
-        this.dbUser = dbUser;
-        this.dbConnect = initConnection(dbUser, dbPwd, dbName, properties);
+        if (properties == null || properties.isEmpty()) throw new SQLException("properties is null or empty");
+        Properties property = new Properties();
+        String[] props = properties.split("&");
+        for (String prop : props) {
+            String[] kv = prop.split("=");
+            if (kv.length != 2) throw new SQLException("properties format[" + prop + "] error");
+            if (kv[0].equals("user")) this.user = kv[1];
+            else if (kv[0].equals("password")) this.pwd = kv[1];
+            else property.put(kv[0], kv[1]);
+        }
+        UserHandler.login(user, pwd);
+        this.info = new Info(dbKey, property);
+        this.dbConnect = initConnection();
+        this.timestamp = System.currentTimeMillis();
     }
 
-    private Connection initConnection(String dbUser, String dbPwd, String dbName, String properties)
+    private Connection initConnection()
             throws SQLException {
-        DbSource dbSource = DbSource.cache.get(dbKey);
-        if (dbSource == null) throw new SQLException("dbSource[" + dbKey + "] is not exist");
-        else {
-            dbSource.setDatabase(dbName);
-            dbSource.setProperties(properties);
-            try {
-                URL u = new URL("jar:file:" + dbSource.getDriverPath() + "!/");
-                URLClassLoader ucl = new URLClassLoader(new URL[]{u});
-                Driver driver = (Driver) Class.forName(dbSource.getDriverClass(), true, ucl).newInstance();
-                Properties pro = new Properties();
-                pro.setProperty("user", dbUser);
-                pro.setProperty("password", dbPwd);
-                return driver.connect(dbSource.toUrl(), pro);
-            } catch (ClassNotFoundException | IllegalAccessException | InstantiationException | MalformedURLException e) {
-                throw new SQLException(e);
-            }
+        try {
+            URL u = new URL("jar:file:" + info.getDriverPath() + "!/");
+            URLClassLoader ucl = new URLClassLoader(new URL[]{u});
+            Driver driver = (Driver) Class.forName(info.getDriverClass(), true, ucl).newInstance();
+            return driver.connect(info.toUrl(), info.properties);
+        } catch (ClassNotFoundException | IllegalAccessException | InstantiationException
+                | MalformedURLException e) {
+            throw new SQLException(e);
         }
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    public String getPwd() {
+        return pwd;
+    }
+
+    private String generateStmt() {
+        return md5(id + COUNTER.incrementAndGet());
+    }
+
+    public void updateTime(long ts) {
+        timestamp = ts;
     }
 
     public String getDbKey() {
@@ -64,27 +93,23 @@ public class WrapConnect implements Closeable {
     }
 
     public String getDbName() {
-        return DbSource.cache.get(dbKey).getDatabase();
+        return info.dbName;
     }
 
     public String getDbTypeLower() {
-        return DbSource.cache.get(dbKey).getDbType().toLowerCase();
+        return info.getLowerType();
     }
 
     public Connection getDbConnect() {
         return dbConnect;
     }
 
-    public String getDbUser() {
-        return dbUser;
+    public void setCatalog(String catalog) throws SQLException {
+        this.dbConnect.setCatalog(catalog);
     }
 
-    public void setUser(String user) {
-        this.user = user;
-    }
-
-    public String getUser() {
-        return user == null ? getDbUser() : user;
+    public void setSchema(String schema) throws SQLException {
+        this.dbConnect.setSchema(schema);
     }
 
     public void setAutoCommit(boolean autoCommit) throws SQLException {
@@ -113,7 +138,7 @@ public class WrapConnect implements Closeable {
 
     public String createStatement() throws SQLException {
         Statement stmt = this.dbConnect.createStatement();
-        String stmtId = this.id + COUNTER.incrementAndGet();
+        String stmtId = generateStmt();
         WrapStatement wrs = new WrapStatement(this, stmtId, stmt);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
@@ -122,7 +147,7 @@ public class WrapConnect implements Closeable {
 
     public String createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
         Statement stmt = this.dbConnect.createStatement(resultSetType, resultSetConcurrency);
-        String stmtId = this.id + COUNTER.incrementAndGet();
+        String stmtId = generateStmt();
         WrapStatement wrs = new WrapStatement(this, stmtId, stmt);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
@@ -133,7 +158,7 @@ public class WrapConnect implements Closeable {
             throws SQLException {
         Statement stmt = this.dbConnect.createStatement(resultSetType, resultSetConcurrency,
                 resultSetHoldability);
-        String stmtId = this.id + COUNTER.incrementAndGet();
+        String stmtId = generateStmt();
         WrapStatement wrs = new WrapStatement(this, stmtId, stmt);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
@@ -141,8 +166,9 @@ public class WrapConnect implements Closeable {
     }
 
     public String prepareStatement(String sql) throws SQLException {
+
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql);
-        String stmtId = this.id + COUNTER.incrementAndGet();
+        String stmtId = generateStmt();
         WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, stmt);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
@@ -151,7 +177,7 @@ public class WrapConnect implements Closeable {
 
     public String prepareStatement(String sql, int[] columnIndexes) throws SQLException {
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, columnIndexes);
-        String stmtId = this.id + COUNTER.incrementAndGet();
+        String stmtId = generateStmt();
         WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, stmt);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
@@ -160,7 +186,7 @@ public class WrapConnect implements Closeable {
 
     public String prepareStatement(String sql, String[] columnNames) throws SQLException {
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, columnNames);
-        String stmtId = this.id + COUNTER.incrementAndGet();
+        String stmtId = generateStmt();
         WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, stmt);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
@@ -169,7 +195,7 @@ public class WrapConnect implements Closeable {
 
     public String prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, autoGeneratedKeys);
-        String stmtId = this.id + COUNTER.incrementAndGet();
+        String stmtId = generateStmt();
         WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, stmt);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
@@ -179,7 +205,7 @@ public class WrapConnect implements Closeable {
     public String prepareStatement(String sql, int resultSetType, int resultSetConcurrency)
             throws SQLException {
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, resultSetType, resultSetConcurrency);
-        String stmtId = this.id + COUNTER.incrementAndGet();
+        String stmtId = generateStmt();
         WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, stmt);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
@@ -187,10 +213,10 @@ public class WrapConnect implements Closeable {
     }
 
     public String prepareStatement(String sql, int resultSetType, int resultSetConcurrency,
-                                          int resultSetHoldability) throws SQLException {
+                                   int resultSetHoldability) throws SQLException {
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, resultSetType, resultSetConcurrency,
                 resultSetHoldability);
-        String stmtId = this.id + COUNTER.incrementAndGet();
+        String stmtId = generateStmt();
         WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, stmt);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
@@ -205,5 +231,73 @@ public class WrapConnect implements Closeable {
             if (dbConnect != null) dbConnect.close();
         } catch (SQLException ignored) {
         }
+    }
+
+    public boolean isTimeout() {
+        long current = System.currentTimeMillis();
+        long timeout = Constants.proxyTimeout * 1000;
+        if (current - timestamp >= timeout) {
+            close();
+            return true;
+        } else {
+            stmtMap.forEach((k, v) -> {
+                if (current - v.timestamp > timeout) {
+                    v.close();
+                    stmtMap.remove(k);
+                }
+            });
+            return false;
+        }
+    }
+
+    private class Info {
+
+        private final String type;
+        private final String host;
+        private final String dbName;
+        private final String driverClass;
+        private final String driverPath;
+
+        private final Properties properties;
+
+
+        private Info(String dbKey, Properties properties) throws SQLException {
+            String sql = "select * from proxydb where key=?";
+            Map<String, Object> map = InnerDb.get(sql, dbKey);
+            if (map == null || map.isEmpty()) throw new SQLException("db[" + dbKey + "] is not exit");
+            Object type = Objects.requireNonNull(map.get("type"), "dbtype is null");
+            this.type = String.valueOf(type);
+            Object host = Objects.requireNonNull(map.get("host"), "dbhost is null");
+            Object port = Objects.requireNonNull(map.get("port"), "dbport is null");
+            this.host = host + ":" + port;
+            Object dbName = map.get("dbname");
+            this.dbName = dbName == null ? null : String.valueOf(dbName);
+            Object dbUser = Objects.requireNonNull(map.get("dbuser"), "dbuser is null");
+            Object userPwd = Objects.requireNonNull(map.get("userpwd"), "userpwd is null");
+            Object driverClass = Objects.requireNonNull(map.get("driverclass"), "driverclass is null");
+            this.driverClass = String.valueOf(driverClass);
+            Object driverPath = Objects.requireNonNull(map.get("driverpath"), "driverpath is null");
+            this.driverPath = String.valueOf(driverPath);
+            this.properties = properties;
+            properties.put("user", String.valueOf(dbUser));
+            properties.put("password", String.valueOf(userPwd));
+        }
+
+        private String getLowerType() {
+            return type.toLowerCase();
+        }
+
+        private String getDriverClass() {
+            return driverClass;
+        }
+
+        private String getDriverPath() {
+            return driverPath;
+        }
+
+        private String toUrl() {
+            return "jdbc" + ":" + type + "://" + host + "/" + dbName;
+        }
+
     }
 }

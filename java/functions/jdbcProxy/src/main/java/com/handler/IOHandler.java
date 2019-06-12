@@ -4,7 +4,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 public class IOHandler {
 
@@ -99,6 +102,7 @@ public class IOHandler {
     public static ByteBuf writeInt(byte cmd, int[] code) {
         ByteBuf buf = Unpooled.buffer();
         buf.writeByte(cmd);
+        buf.writeShort(code.length);
         for (int value : code) {
             buf.writeInt(value);
         }
@@ -114,6 +118,16 @@ public class IOHandler {
             byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
             buf.writeShort(bytes.length);
             buf.writeBytes(bytes);
+        }
+    }
+
+    public static String md5(String str) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            md.update(str.getBytes());
+            return new BigInteger(1, md.digest()).toString(16);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
         }
     }
 

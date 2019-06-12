@@ -1,15 +1,14 @@
 package com.jdbc.bean;
 
+import com.handler.UserHandler;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 
-import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import static com.handler.IOHandler.*;
 
@@ -35,20 +34,44 @@ public class WrapResultSet implements AutoCloseable {
         return this.resultSet.getCursorName();
     }
 
+    private boolean canRead(List<String> userAuth, List<String> dbAuth, List<String> tbAuth, List<String> colAuth) {
+        String operator = "select";
+        if (!userAuth.contains(operator)) {
+            if (!dbAuth.contains(operator)) {
+                if (!tbAuth.contains(operator)) {
+                    return colAuth.contains(operator);
+                }
+            }
+        }
+        return true;
+    }
+
     void getMetaData(ChannelHandlerContext out) throws SQLException {
-        WrapConnect wrapConnect = this.wrapStatement.getWrapConnect();
-        String uk = wrapConnect.getDbKey() + wrapConnect.getUser();
-        String dk = uk + wrapConnect.getDbName();
+        WrapConnect connect = wrapStatement.getWrapConnect();
+        List<String> userAuth = UserHandler.splitComma(UserHandler.userAuth(wrapStatement.getUser()));
+        List<String> dbAuth = UserHandler.dbAuth(connect.getDbKey(), wrapStatement.getUser());
+        Map<String, List<String>> tbAuth = new HashMap<>();
+        Map<String, Map<String, List<String>>> colAuth = new HashMap<>();
+        Map<String, Map<String, String>> filterRows = new HashMap<>();
+
         ResultSetMetaData rsMeta = this.resultSet.getMetaData();
         int colCount = rsMeta.getColumnCount();
         out.write(writeShort(colCount));
         for (int i = 1; i <= colCount; i++) {
             String colName = rsMeta.getColumnName(i);
             String tbName = rsMeta.getTableName(i);
-            if (!DbAuth.selectCol(uk, dk, tbName, colName))
-                cols.put(i, new Pair(0, "no permission"));
-            String fv = FilterRow.filter(dk + tbName + colName);
-            if (fv != null) filters.put(i, fv);
+            if (!tbAuth.containsKey(tbName)) tbAuth.put(tbName, UserHandler.tbAuth(connect.getDbKey(),
+                    wrapStatement.getUser(), tbName).get("colpriv"));
+            if (!colAuth.containsKey(tbName)) colAuth.put(tbName, UserHandler.colAuth(connect.getDbKey(),
+                    wrapStatement.getUser(), tbName));
+            if (!filterRows.containsKey(tbName)) filterRows.put(tbName, UserHandler.filterRow(connect.getDbKey(),
+                    wrapStatement.getUser(), tbName));
+
+            if (!canRead(userAuth, dbAuth, tbAuth.get(tbName), colAuth.get(tbName).get(colName)))
+                cols.put(i, new Pair(0));
+            if (filterRows.containsKey(tbName) && filterRows.get(tbName).containsKey(colName)) {
+                filters.put(i, filterRows.get(tbName).get(colName));
+            }
 
             ByteBuf buf = Unpooled.buffer();
             writeShortString(rsMeta.getCatalogName(i), buf);
@@ -128,7 +151,7 @@ public class WrapResultSet implements AutoCloseable {
                 byte[] bytes = this.resultSet.getBytes(j);
                 if (cols.containsKey(j)) {
                     Pair pair = cols.get(j);
-                    if (0 == pair.code) bytes = pair.policy.getBytes(StandardCharsets.UTF_8);
+                    if (0 == pair.code) bytes = null;
                     else throw new SQLException("column control code[" + pair.code + "] is not defined");
                 }
                 if (bytes == null) buf.writeInt(~0);
@@ -156,6 +179,10 @@ public class WrapResultSet implements AutoCloseable {
 
         private final Integer code; //0:select permission denied,1:mask|encode
         private final String policy;
+
+        private Pair(Integer code) {
+            this(code, null);
+        }
 
         private Pair(Integer code, String policy) {
             this.code = code;

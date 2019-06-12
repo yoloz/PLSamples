@@ -62,12 +62,20 @@ public class PrepareStatementHandler {
         } else if ("execute".equals(mName)) {
             out.write(writeShortStr(OK, statement.execute()));
         } else if ("addBatch".equals(mName)) {
-            statement.addBatch();
+            short pc = src.readByte();
+            if (0 == pc) statement.addBatch();
+            else if (1 == pc) statement.addBatch(readIntLen(src));
+            else throw new SQLException("addBatch param count[" + pc + "] is not exit");
             out.write(writeByte(OK));
         } else if ("setNString".equals(mName)) {
             statement.setNString(src.readInt(), readIntLen(src));
             out.write(writeByte(OK));
-        } else throw new SQLException("statementMethod[" + mName + "] is not support");
+        } else if ("executeBatch".equals(mName)) {
+            out.write(writeInt(OK, statement.executeBatch()));
+        } else if ("setUser".equals(mName)) {
+            statement.setUser(readShortLen(src), readShortLen(src));
+            out.write(writeByte(OK));
+        } else throw new SQLException("prepareStatementMethod[" + mName + "] is not support");
     }
 
 }

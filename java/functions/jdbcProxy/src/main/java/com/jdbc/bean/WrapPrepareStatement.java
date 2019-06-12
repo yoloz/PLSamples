@@ -98,6 +98,13 @@ public class WrapPrepareStatement extends WrapStatement {
         this.statement.addBatch();
     }
 
+    public void addBatch(String sql) throws SQLException {
+        this.statement.addBatch(sql);
+    }
+
+    public int[] executeBatch() throws SQLException {
+        return this.statement.executeBatch();
+    }
 
     public void setNString(int parameterIndex, String value) throws SQLException {
         this.statement.setNString(parameterIndex, value);

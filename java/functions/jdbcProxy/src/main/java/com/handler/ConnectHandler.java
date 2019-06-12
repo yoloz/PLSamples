@@ -1,6 +1,7 @@
 package com.handler;
 
 import com.jdbc.bean.WrapConnect;
+import com.util.Constants;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -16,10 +17,6 @@ public class ConnectHandler {
             String bool = readByteLen(src);
             connect.setAutoCommit("true".equals(bool));
             out.write(writeByte(OK));
-        } else if ("setUser".equals(mName)) {
-            String name = readByteLen(src);
-            connect.setUser(name);
-            out.write(writeByte(OK));
         } else if ("commit".equals(mName)) {
             connect.commit();
             out.write(writeByte(OK));
@@ -27,6 +24,16 @@ public class ConnectHandler {
             connect.rollback();
             out.write(writeByte(OK));
         } else if ("createStatement".equals(mName)) {
+            String user = null, pwd = null;
+            short hasUser = src.readByte();
+            if (1 == hasUser) {
+                user = readShortLen(src);
+                pwd = readShortLen(src);
+            }
+            if (Constants.verifyOperation) {
+                if (user == null) throw new SQLException("proxy need verify operation");
+                UserHandler.login(user, pwd);
+            }
             short pc = src.readByte();
             String stmtId;
             if (0 == pc) {
@@ -41,11 +48,23 @@ public class ConnectHandler {
                 int resultSetHoldability = src.readInt();
                 stmtId = connect.createStatement(resultSetType, resultSetConcurrency, resultSetHoldability);
             } else throw new SQLException("createStatement param num[" + pc + "] is not exist");
+            if (user != null) connect.getStatement(stmtId).setUser(user, pwd);
             out.write(writeShortStr(OK, stmtId));
         } else if ("prepareStatement".equals(mName)) {
+            String user = null, pwd = null;
+            short hasUser = src.readByte();
+            if (1 == hasUser) {
+                user = readShortLen(src);
+                pwd = readShortLen(src);
+            }
+            if (Constants.verifyOperation) {
+                if (user == null) throw new SQLException("proxy need verify operation");
+                UserHandler.login(user, pwd);
+            }
             short pc = src.readByte();
             String stmtId;
             String sql = readIntLen(src);
+            UserHandler.authSql(connect, user == null ? connect.getUser() : user, sql);
             if (1 == pc) stmtId = connect.prepareStatement(sql);
             else if (2 == pc) {
                 int arrSize = src.readShort();
@@ -73,7 +92,14 @@ public class ConnectHandler {
                 int resultSetHoldability = src.readInt();
                 stmtId = connect.prepareStatement(sql, resultSetType, resultSetConcurrency, resultSetHoldability);
             } else throw new SQLException("createPreparedStatement methodLength[" + pc + "] is not exit");
+            if (user != null) connect.getStatement(stmtId).setUser(user, pwd);
             out.write(writeShortStr(OK, stmtId));
+        } else if ("setCatalog".equals(mName)) {
+            connect.setCatalog(readByteLen(src));
+            out.write(writeByte(OK));
+        } else if ("setSchema".equals(mName)) {
+            connect.setSchema(readByteLen(src));
+            out.write(writeByte(OK));
         } else throw new SQLException("connectMethod[" + mName + "] is not support");
     }
 }

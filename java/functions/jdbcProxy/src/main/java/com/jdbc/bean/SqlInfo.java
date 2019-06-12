@@ -99,7 +99,7 @@ public class SqlInfo {
         return getDbName() + "." + getName();
     }
 
-    class PairName {
+    public class PairName {
 
         private final String name;
         private final String alias;
@@ -111,11 +111,11 @@ public class SqlInfo {
         }
 
 
-        String getName() {
+        public String getName() {
             return name;
         }
 
-        String getAlias() {
+        public String getAlias() {
             return alias;
         }
 
