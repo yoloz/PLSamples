@@ -72,6 +72,9 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                         WrapPrepareStatement wrapPrepareStatement = connects.get(connectId).getPrepareStatement(stmtId);
                         wrapPrepareStatement.updateTime();
                         PrepareStatementHandler.handler(wrapPrepareStatement, src, out);
+                    case 8:
+                        connects.get(connectId).updateTime(System.currentTimeMillis());
+                        out.write(IOHandler.writeByte(OK));
                     default:
                         logger.error("cmd[" + cmd + "] is not defined");
                 }
