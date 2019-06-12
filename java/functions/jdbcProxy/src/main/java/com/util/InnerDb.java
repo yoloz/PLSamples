@@ -26,7 +26,7 @@ public class InnerDb {
             properties.load(in);
             String host = Objects.requireNonNull(properties.getProperty("host"), "inner db host is null");
             String port = Objects.requireNonNull(properties.getProperty("port"), "inner db port is null");
-            String dbName = Objects.requireNonNull(properties.getProperty("dbName"), "inner db dbName is null");
+            String dbName = Objects.requireNonNull(properties.getProperty("dbname"), "inner db dbName is null");
             String driver = Objects.requireNonNull(properties.getProperty("driver"), "inner db driver is null");
             String user = Objects.requireNonNull(properties.getProperty("user"), "inner db user is null");
             String pwd = Objects.requireNonNull(properties.getProperty("pwd"), "inner db pwd is null");
