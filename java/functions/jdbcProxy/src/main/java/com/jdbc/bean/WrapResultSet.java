@@ -39,6 +39,7 @@ public class WrapResultSet implements AutoCloseable {
         if (!userAuth.contains(operator)) {
             if (!dbAuth.contains(operator)) {
                 if (!tbAuth.contains(operator)) {
+                    if (colAuth == null) return false;
                     return colAuth.contains(operator);
                 }
             }
