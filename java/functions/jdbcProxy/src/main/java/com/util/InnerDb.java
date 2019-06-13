@@ -63,7 +63,9 @@ public class InnerDb {
     public static Map<String, Object> get(String sql, Object... params) throws SQLException {
         QueryRunner runner = new QueryRunner(dataSource);
         ResultSetHandler<Map<String, Object>> h = new MapHandler();
-        return runner.query(sql, h, params);
+        Map<String, Object> map = runner.query(sql, h, params);
+        if (map == null) return Collections.emptyMap();
+        else return map;
     }
 
     public static List<Map<String, Object>> query(String sql, Object... params) throws SQLException {
