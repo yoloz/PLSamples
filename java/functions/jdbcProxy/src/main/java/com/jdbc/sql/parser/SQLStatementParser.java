@@ -564,7 +564,8 @@ public class SQLStatementParser extends SQLStatementParsers {
             }
         } else if (expr instanceof SQLPropertyExpr) {
             parseColumn(expr, null, tables, "select");
-        } else if (expr instanceof SQLNumberExpr || expr instanceof SQLIntegerExpr || expr instanceof SQLCharExpr) {
+        } else if (expr instanceof SQLNumberExpr || expr instanceof SQLIntegerExpr
+                || expr instanceof SQLCharExpr || expr instanceof SQLVariantRefExpr) {
             //ignore value
         } else throw new ParserException("where SQLExpr[" + expr.getClass() + "] todo...");
     }
