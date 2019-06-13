@@ -13,7 +13,7 @@ public class UserHandler {
 
     public static Object login(String user, String pwd) throws SQLException {
         String sql = "select pwd,priv from proxyuser where name=?";
-        Map<String, Object> map = InnerDb.get(sql, user, pwd);
+        Map<String, Object> map = InnerDb.get(sql, user);
         if (map.isEmpty()) throw new SQLException("用户[" + user + "] 不存在");
         String _pwd = String.valueOf(map.get("pwd"));
         if (!_pwd.equals(pwd)) throw new SQLException("用户[" + user + "] 密码不正确");
