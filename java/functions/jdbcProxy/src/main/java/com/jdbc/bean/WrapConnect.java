@@ -262,7 +262,7 @@ public class WrapConnect implements Closeable {
 
 
         private Info(String dbKey, Properties properties) throws SQLException {
-            String sql = "select * from proxydb where key=?";
+            String sql = "select * from proxydb where id=?";
             Map<String, Object> map = InnerDb.get(sql, dbKey);
             if (map == null || map.isEmpty()) throw new SQLException("db[" + dbKey + "] is not exit");
             Object type = Objects.requireNonNull(map.get("type"), "dbtype is null");

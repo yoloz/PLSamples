@@ -40,7 +40,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                         String dbKey = readShortLen(src);
                         String properties = readIntLen(src);
                         WrapConnect conn = new WrapConnect(connectId, dbKey, properties);
-                        if (connects.containsKey(connectId)) closeConn(address);
+                        if (connects.containsKey(connectId)) closeConn(connectId);
                         connects.put(connectId, conn);
                         out.write(writeByte(OK));
                         break;
