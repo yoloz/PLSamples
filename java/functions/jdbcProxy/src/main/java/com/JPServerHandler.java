@@ -39,7 +39,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                     case 2:
                         String dbKey = readShortLen(src);
                         String properties = readIntLen(src);
-                        WrapConnect conn = new WrapConnect(connectId, dbKey, properties);
+                        WrapConnect conn = new WrapConnect(address, dbKey, properties);
                         if (connects.containsKey(connectId)) closeConn(connectId);
                         connects.put(connectId, conn);
                         out.write(writeByte(OK));
@@ -72,9 +72,11 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                         WrapPrepareStatement wrapPrepareStatement = connects.get(connectId).getPrepareStatement(stmtId);
                         wrapPrepareStatement.updateTime();
                         PrepareStatementHandler.handler(wrapPrepareStatement, src, out);
+                        break;
                     case 8:
                         connects.get(connectId).updateTime(System.currentTimeMillis());
                         out.write(IOHandler.writeByte(OK));
+                        break;
                     default:
                         logger.error("cmd[" + cmd + "] is not defined");
                 }

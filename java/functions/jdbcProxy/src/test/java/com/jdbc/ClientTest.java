@@ -66,10 +66,7 @@ public class ClientTest {
     @Test
     public void testConnect() throws IOException {
         byte[] keyword = "mysql2".getBytes(StandardCharsets.UTF_8);
-        byte[] user = "lsjcj".getBytes(StandardCharsets.UTF_8);
-        byte[] pwd = "ciilsjcj".getBytes(StandardCharsets.UTF_8);
-        byte[] db = "fea_flow".getBytes(StandardCharsets.UTF_8);
-        byte[] pro = "useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&zeroDateTimeBehavior=CONVERT_TO_NULL"
+        byte[] pro = "user=test&password=test&useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&zeroDateTimeBehavior=CONVERT_TO_NULL"
                 .getBytes(StandardCharsets.UTF_8);
         DataInputStream in = new DataInputStream(socket.getInputStream());
         DataOutputStream out = new DataOutputStream(socket.getOutputStream());
@@ -77,12 +74,6 @@ public class ClientTest {
         buffer.put((byte) 0x02);
         buffer.putShort((short) keyword.length);
         buffer.put(keyword);
-        buffer.putShort((short) user.length);
-        buffer.put(user);
-        buffer.putShort((short) pwd.length);
-        buffer.put(pwd);
-        buffer.putShort((short) db.length);
-        buffer.put(db);
         buffer.putInt(pro.length);
         buffer.put(pro);
         byte[] bytes = filling(buffer);
@@ -96,6 +87,165 @@ public class ClientTest {
 
 
     @Test
+    public void testPrepareStatement() throws IOException {
+        testConnect();
+        DataInputStream in = new DataInputStream(socket.getInputStream());
+        DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+
+        byte[] sql = "select * from lgservice where service_id=? and service_name=?"
+                .getBytes(StandardCharsets.UTF_8);
+        ByteBuffer tempBuffer = ByteBuffer.allocate(1024);
+        byte[] methodName, outBytes;
+        short result;
+
+        methodName = "prepareStatement".getBytes(StandardCharsets.UTF_8);
+        tempBuffer.put((byte) 0x03);
+        tempBuffer.put((byte) methodName.length);
+        tempBuffer.put(methodName);
+        tempBuffer.put((byte) 0);
+        tempBuffer.put((byte) 1);
+        tempBuffer.putInt(sql.length);
+        tempBuffer.put(sql);
+        outBytes = filling(tempBuffer);
+        out.write(outBytes);
+        out.flush();
+        tempBuffer.clear();
+        result = in.readByte();
+        String stmtId = null;
+        if (result == 0) {
+            stmtId = readShortString(in);
+            System.out.println("prepareStatement success,stmt[" + stmtId + "]");
+        } else System.out.println("create statement failure: " + readShortString(in));
+
+        if (stmtId != null) {
+            byte[] stmt = stmtId.getBytes(StandardCharsets.UTF_8);
+
+            methodName = "setInt".getBytes(StandardCharsets.UTF_8);
+            tempBuffer.put((byte) 0x07);
+            tempBuffer.putShort((short) stmt.length);
+            tempBuffer.put(stmt);
+            tempBuffer.put((byte) methodName.length);
+            tempBuffer.put(methodName);
+            tempBuffer.putInt(1);
+            tempBuffer.putInt(100);
+            outBytes = filling(tempBuffer);
+            out.write(outBytes);
+            out.flush();
+            tempBuffer.clear();
+            result = in.readByte();
+            if (result == 0) System.out.println("setInt success");
+            else System.out.println("setInt failure");
+
+            methodName = "setString".getBytes(StandardCharsets.UTF_8);
+            byte[] value= "scb".getBytes(StandardCharsets.UTF_8);
+            tempBuffer.put((byte) 0x07);
+            tempBuffer.putShort((short) stmt.length);
+            tempBuffer.put(stmt);
+            tempBuffer.put((byte) methodName.length);
+            tempBuffer.put(methodName);
+            tempBuffer.putInt(2);
+            tempBuffer.putInt(value.length);
+            tempBuffer.put(value);
+            outBytes = filling(tempBuffer);
+            out.write(outBytes);
+            out.flush();
+            tempBuffer.clear();
+            result = in.readByte();
+            if (result == 0) System.out.println("setString success");
+            else System.out.println("setString failure");
+
+            methodName = "executeQuery".getBytes(StandardCharsets.UTF_8);
+            tempBuffer.put((byte) 0x07);
+            tempBuffer.putShort((short) stmt.length);
+            tempBuffer.put(stmt);
+            tempBuffer.put((byte) methodName.length);
+            tempBuffer.put(methodName);
+            outBytes = filling(tempBuffer);
+            out.write(outBytes);
+            out.flush();
+            tempBuffer.clear();
+            result = in.readByte();
+            if (result == 0) {
+                System.out.println("executeQuery success");
+                String rsId = readShortString(in);
+                assert rsId != null;
+                System.out.println("resultSet: " + rsId);
+                System.out.println("**********RSMeta**********");
+                short colCount = in.readShort();
+                for (int i = 0; i < colCount; i++) {
+                    System.out.print("catalogName:[" + readShortString(in));
+                    System.out.print("],schemaName:[" + readShortString(in));
+                    System.out.print("],tableName:[" + readShortString(in));
+                    System.out.print("],columnLabel:[" + readShortString(in));
+                    System.out.print("],columnName:[" + readShortString(in));
+                    System.out.print("],columnTypeName:[" + readShortString(in));
+                    System.out.print("],columnDisplaySize:[" + in.readInt());
+                    System.out.print("],precision:[" + in.readInt());
+                    System.out.print("],scale:[" + in.readInt());
+                    System.out.print("],columnType:[" + in.readInt());
+                    System.out.print("]\n");
+                }
+                System.out.println("**********RSMeta**********");
+                System.out.println("**********RSRow**********");
+                while (true) {
+                    byte cmd = in.readByte();
+                    if (cmd == (byte) 0x7e) {
+                        for (int i = 0; i < colCount; i++) {
+                            System.out.print("val:[" + readIntString(in));
+                            if (i != colCount - 1) System.out.print("],");
+                            else System.out.print("]");
+                        }
+                        System.out.println();
+                    } else if (cmd == (byte) 0x7f) break;
+                    else throw new IOException("cmd is not defined[" + cmd + "]");
+                }
+                System.out.println("**********RSRow**********");
+
+                while (true) {
+                    methodName = "next".getBytes(StandardCharsets.UTF_8);
+                    tempBuffer.put((byte) 0x06);
+                    tempBuffer.putShort((short) stmt.length);
+                    tempBuffer.put(stmt);
+                    byte[] rs = rsId.getBytes(StandardCharsets.UTF_8);
+                    tempBuffer.putShort((short) rs.length);
+                    tempBuffer.put(rs);
+                    tempBuffer.put((byte) methodName.length);
+                    tempBuffer.put(methodName);
+                    outBytes = filling(tempBuffer);
+                    out.write(outBytes);
+                    out.flush();
+                    tempBuffer.clear();
+                    result = in.readByte();
+                    if (0 == result) {
+                        boolean first = true;
+                        byte fb = in.readByte();
+                        if (fb == (byte) 0x7f) break;
+                        System.out.println("**********RSRow**********");
+                        while (true) {
+                            byte cmd;
+                            if (first) cmd = fb;
+                            else cmd = in.readByte();
+                            if (cmd == (byte) 0x7e) {
+                                for (int i = 0; i < colCount; i++) {
+                                    System.out.print("val:[" + readIntString(in));
+                                    if (i != colCount - 1) System.out.print("],");
+                                    else System.out.print("]");
+                                }
+                                System.out.println();
+                            } else if (cmd == (byte) 0x7f) break;
+                            else throw new IOException("cmd is not defined[" + cmd + "]");
+                            first = false;
+                        }
+                        System.out.println("**********RSRow**********");
+                    } else System.out.println("[" + rsId + "] next failure: " + readShortString(in));
+                }
+
+            } else System.out.println("executeQuery failure: " + readShortString(in));
+        }
+
+    }
+
+    @Test
     public void testQuery() throws IOException {
 
         testConnect();
@@ -106,25 +256,11 @@ public class ClientTest {
         byte[] methodName, outBytes;
         short result;
 
-//        methodName = "setUser".getBytes(StandardCharsets.UTF_8);
-//        tempBuffer.put((byte) 0x03);
-//        tempBuffer.put((byte) methodName.length);
-//        tempBuffer.put(methodName);
-//        byte[] user = "test".getBytes(StandardCharsets.UTF_8);
-//        tempBuffer.put((byte) user.length);
-//        tempBuffer.put(user);
-//        outBytes = filling(tempBuffer);
-//        out.write(outBytes);
-//        out.flush();
-//        tempBuffer.clear();
-//        result = in.readByte();
-//        if (0 == result) System.out.println("setUser[test] success");
-//        else System.out.println("setUser[test] failure: " + readShortString(in));
-
         methodName = "createStatement".getBytes(StandardCharsets.UTF_8);
         tempBuffer.put((byte) 0x03);
         tempBuffer.put((byte) methodName.length);
         tempBuffer.put(methodName);
+        tempBuffer.put((byte) 0);
         tempBuffer.put((byte) 0);
         outBytes = filling(tempBuffer);
         out.write(outBytes);
