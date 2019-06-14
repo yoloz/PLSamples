@@ -1,5 +1,7 @@
 package com.handler;
 
+import com.audit.AuditEvent;
+import com.audit.AuditManager;
 import com.jdbc.bean.WrapConnect;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -8,6 +10,7 @@ import io.netty.channel.ChannelHandlerContext;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.*;
+import java.util.Arrays;
 
 import static com.handler.IOHandler.*;
 
@@ -103,6 +106,8 @@ public class ConnectMetaHandler {
                 case "supportsStoredFunctionsUsingCallSyntax":
                 case "autoCommitFailureClosesAllResultSets":
                 case "generatedKeyAlwaysReturned":
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName));
                     Method method = metaData.getClass().getDeclaredMethod(mName);
                     boolean bool = (boolean) method.invoke(metaData);
                     out.write(writeShortStr(OK, bool));
@@ -124,11 +129,15 @@ public class ConnectMetaHandler {
                 case "getProcedureTerm":
                 case "getCatalogTerm":
                 case "getCatalogSeparator":
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName));
                     method = metaData.getClass().getDeclaredMethod(mName);
                     String str = (String) method.invoke(metaData);
                     out.write(writeShortStr(OK, str));
                     break;
                 case "getUserName":
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName));
                     out.write(writeShortStr(OK, connect.getUser()));
                     break;
                 case "getDriverMajorVersion":
@@ -160,16 +169,25 @@ public class ConnectMetaHandler {
                 case "getJDBCMajorVersion":
                 case "getJDBCMinorVersion":
                 case "getSQLStateType":
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName));
                     method = metaData.getClass().getDeclaredMethod(mName);
                     int i = (int) method.invoke(metaData);
                     out.write(writeInt(OK, i));
                     break;
                 case "supportsConvert":
                     short mc = src.readByte();
-                    if (0 == mc) out.write(writeShortStr(OK, metaData.supportsConvert()));
-                    else if (2 == mc)
-                        out.write(writeShortStr(OK, metaData.supportsConvert(src.readInt(), src.readInt())));
-                    else throw new SQLException("supportsConvert param num[" + mc + "] is not exist");
+                    if (0 == mc) {
+                        AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                                connect.getUser(), mName));
+                        out.write(writeShortStr(OK, metaData.supportsConvert()));
+                    } else if (2 == mc) {
+                        int fromType = src.readInt();
+                        int toType = src.readInt();
+                        AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                                connect.getUser(), mName, fromType, toType));
+                        out.write(writeShortStr(OK, metaData.supportsConvert(fromType, toType)));
+                    } else throw new SQLException("supportsConvert param num[" + mc + "] is not exist");
                     break;
                 case "supportsTransactionIsolationLevel":
                 case "supportsResultSetType":
@@ -183,8 +201,11 @@ public class ConnectMetaHandler {
                 case "deletesAreDetected":
                 case "insertsAreDetected":
                 case "supportsResultSetHoldability":
+                    i = src.readInt();
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName, i));
                     method = metaData.getClass().getDeclaredMethod(mName, Integer.class);
-                    bool = (boolean) method.invoke(metaData, src.readInt());
+                    bool = (boolean) method.invoke(metaData, i);
                     out.write(writeShortStr(OK, bool));
                     break;
                 case "getProcedures":
@@ -196,9 +217,13 @@ public class ConnectMetaHandler {
                 case "getSuperTypes":
                 case "getSuperTables":
                 case "getFunctions":
+                    str = readShortLen(src);
+                    String str1 = readShortLen(src);
+                    String str2 = readShortLen(src);
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName, str, str1, str2));
                     method = metaData.getClass().getDeclaredMethod(mName, String.class, String.class, String.class);
-                    rs = (ResultSet) method.invoke(metaData, readShortLen(src), readShortLen(src),
-                            readShortLen(src));
+                    rs = (ResultSet) method.invoke(metaData, str, str1, str2);
                     writeResultSet(rs, out);
                     break;
                 case "getProcedureColumns":
@@ -207,49 +232,91 @@ public class ConnectMetaHandler {
                 case "getAttributes":
                 case "getFunctionColumns":
                 case "getPseudoColumns":
+                    str = readShortLen(src);
+                    str1 = readShortLen(src);
+                    str2 = readShortLen(src);
+                    String str3 = readShortLen(src);
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName, str, str1, str2, str3));
                     method = metaData.getClass().getDeclaredMethod(mName, String.class, String.class, String.class,
                             String.class);
-                    rs = (ResultSet) method.invoke(metaData, readShortLen(src), readShortLen(src), readShortLen(src),
-                            readShortLen(src));
+                    rs = (ResultSet) method.invoke(metaData, str, str1, str2, str3);
                     writeResultSet(rs, out);
                     break;
                 case "getTables":
-                    rs = metaData.getTables(readShortLen(src), readShortLen(src), readShortLen(src),
-                            readShortLen(src.readShort(), src));
+                    str = readShortLen(src);
+                    str1 = readShortLen(src);
+                    str2 = readShortLen(src);
+                    String[] str4 = readShortLen(src.readShort(), src);
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName, str, str1, str2, Arrays.toString(str4)));
+                    rs = metaData.getTables(str, str1, str2, str4);
                     writeResultSet(rs, out);
                     break;
                 case "getCatalogs":
                 case "getTableTypes":
                 case "getTypeInfo":
                 case "getClientInfoProperties":
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName));
                     method = metaData.getClass().getDeclaredMethod(mName);
                     rs = (ResultSet) method.invoke(metaData);
                     writeResultSet(rs, out);
                     break;
                 case "getBestRowIdentifier":
-                    rs = metaData.getBestRowIdentifier(readShortLen(src), readShortLen(src), readShortLen(src),
-                            src.readInt(), "true".equals(readByteLen(src)));
+                    str = readShortLen(src);
+                    str1 = readShortLen(src);
+                    str2 = readShortLen(src);
+                    i = src.readInt();
+                    str3 = readByteLen(src);
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName, str, str1, str2, i, str3));
+                    rs = metaData.getBestRowIdentifier(str, str1, str2, i, "true".equals(str3));
                     writeResultSet(rs, out);
                     break;
                 case "getCrossReference":
-                    rs = metaData.getCrossReference(readShortLen(src), readShortLen(src), readShortLen(src),
-                            readShortLen(src), readShortLen(src), readShortLen(src));
+                    str = readShortLen(src);
+                    str1 = readShortLen(src);
+                    str2 = readShortLen(src);
+                    str3 = readShortLen(src);
+                    String str5 = readShortLen(src);
+                    String str6 = readShortLen(src);
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName, str, str1, str2, str3, str5, str6));
+                    rs = metaData.getCrossReference(str, str1, str2, str3, str5, str6);
                     writeResultSet(rs, out);
                     break;
                 case "getIndexInfo":
-                    rs = metaData.getIndexInfo(readShortLen(src), readShortLen(src), readShortLen(src),
-                            "true".equals(readShortLen(src)), "true".equals(readShortLen(src)));
+                    str = readShortLen(src);
+                    str1 = readShortLen(src);
+                    str2 = readShortLen(src);
+                    str3 = readByteLen(src);
+                    str5 = readByteLen(src);
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName, str, str1, str2, str3, str5));
+                    rs = metaData.getIndexInfo(str, str1, str2, "true".equals(str3), "true".equals(str5));
                     writeResultSet(rs, out);
                     break;
                 case "supportsResultSetConcurrency":
-                    out.write(writeShortStr(OK, metaData.supportsResultSetConcurrency(src.readInt(), src.readInt())));
+                    i = src.readInt();
+                    int i1 = src.readInt();
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName, i, i1));
+                    out.write(writeShortStr(OK, metaData.supportsResultSetConcurrency(i, i1)));
                     break;
                 case "getUDTs":
-                    rs = metaData.getUDTs(readShortLen(src), readShortLen(src), readShortLen(src),
-                            readInt(src.readShort(), src));
+                    str = readShortLen(src);
+                    str1 = readShortLen(src);
+                    str2 = readShortLen(src);
+                    int[] i2 = readInt(src.readShort(), src);
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName, str, str1, str2, Arrays.toString(i2)));
+                    rs = metaData.getUDTs(str, str1, str2, i2);
                     writeResultSet(rs, out);
                     break;
                 case "getRowIdLifetime":
+                    AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                            connect.getUser(), mName));
                     RowIdLifetime rowIdLifetime = metaData.getRowIdLifetime();
                     switch (rowIdLifetime) {
                         case ROWID_UNSUPPORTED:
@@ -273,9 +340,17 @@ public class ConnectMetaHandler {
                     break;
                 case "getSchemas":
                     mc = src.readByte();
-                    if (0 == mc) rs = metaData.getSchemas();
-                    else if (2 == mc) rs = metaData.getSchemas(readShortLen(src), readShortLen(src));
-                    else throw new SQLException("getSchemas param num[" + mc + "] is not exist");
+                    if (0 == mc) {
+                        AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                                connect.getUser(), mName));
+                        rs = metaData.getSchemas();
+                    } else if (2 == mc) {
+                        str = readShortLen(src);
+                        str1 = readShortLen(src);
+                        AuditManager.getInstance().audit(new AuditEvent(connect.getRemoteAddr(),
+                                connect.getUser(), mName, str, str1));
+                        rs = metaData.getSchemas(str, str1);
+                    } else throw new SQLException("getSchemas param num[" + mc + "] is not exist");
                     writeResultSet(rs, out);
                     break;
                 default:

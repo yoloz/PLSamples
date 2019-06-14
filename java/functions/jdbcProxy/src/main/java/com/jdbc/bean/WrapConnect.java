@@ -1,6 +1,9 @@
 package com.jdbc.bean;
 
 
+import com.audit.AuditEvent;
+import com.audit.AuditManager;
+import com.handler.IOHandler;
 import com.handler.UserHandler;
 import com.util.Constants;
 import com.util.InnerDb;
@@ -28,9 +31,11 @@ public class WrapConnect implements Closeable {
     private final int defaultFetchSize = 1000;
 
     private final String id;
+    private final String remoteAddr;
     private final Connection dbConnect;
     private final String dbKey;
     private final Info info;
+
 
     private String user;
     private String pwd;
@@ -40,8 +45,9 @@ public class WrapConnect implements Closeable {
 
     ConcurrentMap<String, WrapStatement> stmtMap = new ConcurrentHashMap<>(1);
 
-    public WrapConnect(String id, String dbKey, String properties) throws SQLException {
-        this.id = id;
+    public WrapConnect(String remoteAddr, String dbKey, String properties) throws SQLException {
+        this.id = IOHandler.md5(remoteAddr);
+        this.remoteAddr = remoteAddr;
         this.dbKey = dbKey;
         if (properties == null || properties.isEmpty()) throw new SQLException("properties is null or empty");
         Properties property = new Properties();
@@ -54,9 +60,12 @@ public class WrapConnect implements Closeable {
             else property.put(kv[0], kv[1]);
         }
         UserHandler.login(user, pwd);
+        AuditManager.getInstance().audit(new AuditEvent(remoteAddr, user, "login"));
         this.info = new Info(dbKey, property);
         this.dbConnect = initConnection();
         this.timestamp = System.currentTimeMillis();
+        AuditManager.getInstance().audit(new AuditEvent(remoteAddr, user, "createConnect",
+                dbKey, property.toString()));
     }
 
     private Connection initConnection()
@@ -78,6 +87,10 @@ public class WrapConnect implements Closeable {
 
     public String getPwd() {
         return pwd;
+    }
+
+    public String getRemoteAddr() {
+        return remoteAddr;
     }
 
     private String generateStmt() {
@@ -278,9 +291,9 @@ public class WrapConnect implements Closeable {
             this.driverClass = String.valueOf(driverClass);
             Object driverPath = Objects.requireNonNull(map.get("driverpath"), "driverpath is null");
             this.driverPath = String.valueOf(driverPath);
-            this.properties = properties;
-            properties.put("user", String.valueOf(dbUser));
-            properties.put("password", String.valueOf(userPwd));
+            this.properties = new Properties(properties);
+            this.properties.put("user", String.valueOf(dbUser));
+            this.properties.put("password", String.valueOf(userPwd));
         }
 
         private String getLowerType() {

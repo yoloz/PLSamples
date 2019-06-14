@@ -30,6 +30,10 @@ public class WrapResultSet implements AutoCloseable {
 
     }
 
+    public WrapStatement getWrapStatement() {
+        return wrapStatement;
+    }
+
     public String getCursorName() throws SQLException {
         return this.resultSet.getCursorName();
     }

@@ -1,5 +1,6 @@
 package com;
 
+import com.audit.AuditManager;
 import com.util.Constants;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -49,10 +50,13 @@ public class JPServer {
                             })),
                     Constants.proxyTimeout, Constants.proxyTimeout, TimeUnit.SECONDS);
 
+            AuditManager.getInstance().start();
+
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 serverHandler.connects.forEach((k, v) -> v.close());
                 serverHandler.connects.clear();
                 jpServer.timeout.shutdown();
+                AuditManager.getInstance().stop();
                 jpServer.mainG.shutdownGracefully();
                 jpServer.workerG.shutdownGracefully();
             }));
