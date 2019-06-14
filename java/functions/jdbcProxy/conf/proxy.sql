@@ -49,7 +49,7 @@ DROP TABLE IF EXISTS `proxydb`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `proxydb` (
-  `key` varchar(32) NOT NULL COMMENT '提供给sdk的实例名',
+  `id` varchar(32) NOT NULL COMMENT '提供给sdk的实例名',
   `type` varchar(10) NOT NULL COMMENT '数据库类型',
   `host` varchar(15) NOT NULL COMMENT '数据库地址',
   `port` int(11) NOT NULL COMMENT '数据库端口',
