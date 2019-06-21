@@ -25,8 +25,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext out, Object obj) {
-        String address = out.channel().remoteAddress().toString();
-        String connectId = md5(address);
+        String rAddress = out.channel().remoteAddress().toString();
         ByteBuf src = (ByteBuf) obj;
         boolean finish = false;
         while (!finish && src.isReadable()) {
@@ -37,52 +36,54 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                         finish = true;
                         break;
                     case 2:
-                        String dbKey = readShortLen(src);
-                        String properties = readIntLen(src);
-                        WrapConnect conn = new WrapConnect(address, dbKey, properties);
-                        if (connects.containsKey(connectId)) closeConn(connectId);
-                        connects.put(connectId, conn);
+                        String ak = readShortLen(src);
+//                        String mac = readShortLen(src);
+//                        String process = readIntLen(src);
+                        WrapConnect conn = new WrapConnect(rAddress, ak);
+                        if (connects.containsKey(rAddress)) closeConn(rAddress);
+                        connects.put(rAddress, conn);
                         out.write(writeByte(OK));
                         break;
                     case 3:
-                        WrapConnect wrapConnect = connects.get(connectId);
+                        WrapConnect wrapConnect = connects.get(rAddress);
                         wrapConnect.updateTime(System.currentTimeMillis());
                         ConnectHandler.handler(wrapConnect, src, out);
                         break;
                     case 4:
-                        wrapConnect = connects.get(connectId);
+                        wrapConnect = connects.get(rAddress);
                         wrapConnect.updateTime(System.currentTimeMillis());
                         ConnectMetaHandler.handler(wrapConnect, src, out);
                         break;
                     case 5:
                         String stmtId = readShortLen(src);
-                        WrapStatement wrapStatement = connects.get(connectId).getStatement(stmtId);
+                        WrapStatement wrapStatement = connects.get(rAddress).getStatement(stmtId);
                         wrapStatement.updateTime();
                         StatementHandler.handler(wrapStatement, src, out);
                         break;
                     case 6:
                         stmtId = readShortLen(src);
-                        wrapStatement = connects.get(connectId).getStatement(stmtId);
+                        wrapStatement = connects.get(rAddress).getStatement(stmtId);
                         wrapStatement.updateTime();
                         String rsId = readShortLen(src);
                         ResultSetHandler.handler(wrapStatement.getResultSet(rsId), src, out);
                         break;
                     case 7:
                         stmtId = readShortLen(src);
-                        WrapPrepareStatement wrapPrepareStatement = connects.get(connectId).getPrepareStatement(stmtId);
+                        WrapPrepareStatement wrapPrepareStatement = connects.get(rAddress).getPrepareStatement(stmtId);
                         wrapPrepareStatement.updateTime();
                         PrepareStatementHandler.handler(wrapPrepareStatement, src, out);
                         break;
                     case 8:
-                        connects.get(connectId).updateTime(System.currentTimeMillis());
+                        connects.get(rAddress).updateTime(System.currentTimeMillis());
                         out.write(IOHandler.writeByte(OK));
                         break;
                     default:
                         logger.error("cmd[" + cmd + "] is not defined");
                 }
-            } catch (SQLException e) {
-                logger.error(address, e);
-                out.write(writeShortStr(ERROR, e.getMessage()));
+            } catch (SQLException | PermissionException e) {
+                logger.error(rAddress, e);
+                if (e instanceof PermissionException) out.write(writeShortStr(ERROR, "no permission"));
+                else out.write(writeShortStr(ERROR, e.getMessage()));
             }
         }
         src.release();

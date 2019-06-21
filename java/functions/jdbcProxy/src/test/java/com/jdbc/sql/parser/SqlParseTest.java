@@ -1,9 +1,6 @@
-package com.parse;
+package com.jdbc.sql.parser;
 
 import com.jdbc.bean.SqlInfo;
-import com.jdbc.sql.parser.Lexer;
-import com.jdbc.sql.parser.SQLParserUtils;
-import com.jdbc.sql.parser.SQLStatementParser;
 import com.jdbc.util.JdbcConstants;
 import org.junit.After;
 import org.junit.Before;

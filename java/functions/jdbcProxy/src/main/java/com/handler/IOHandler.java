@@ -14,6 +14,8 @@ public class IOHandler {
     public final static byte OK = (byte) 0x0;
     public final static byte ERROR = (byte) 0x1;
 
+    private final static String HEX = "0123456789ABCDEF";
+
     public static String readByteLen(ByteBuf buf) {
         short length = buf.readByte();
         String str = new String(ByteBufUtil.getBytes(buf, buf.readerIndex(), length), StandardCharsets.UTF_8);
@@ -131,5 +133,24 @@ public class IOHandler {
         }
     }
 
+    public static String byteToHex(byte[] bytes) {
+        StringBuilder result = new StringBuilder();
+        for (byte aByte : bytes)
+            result.append(HEX.charAt((aByte & 0xF0) >> 4))
+                    .append(HEX.charAt(aByte & 0x0F));
+        return result.toString();
+    }
 
+    public static byte[] hexToByte(String hexString) {
+        int len = hexString.length() / 2;
+        byte[] bytes = new byte[len];
+        byte high;
+        byte low;
+        for (int i = 0; i < len; i++) {
+            high = (byte) ((HEX.indexOf(hexString.charAt(2 * i))) << 4);
+            low = (byte) HEX.indexOf(hexString.charAt(2 * i + 1));
+            bytes[i] = (byte) (high | low);
+        }
+        return bytes;
+    }
 }

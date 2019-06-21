@@ -58,7 +58,7 @@ CREATE TABLE `proxydb` (
   `dbname` varchar(45) DEFAULT NULL COMMENT '数据库实例',
   `dbuser` varchar(45) NOT NULL COMMENT '连接用户',
   `userpwd` varchar(45) NOT NULL COMMENT '连接用户密码',
-  PRIMARY KEY (`key`)
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

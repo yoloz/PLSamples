@@ -80,7 +80,7 @@ public class InnerDb {
         return runner.insert(sql, h, params);
     }
 
-    public static List<Object[]> updateBatch(String sql, Object[][] params) throws SQLException {
+    public static List<Object[]> insertBatch(String sql, Object[][] params) throws SQLException {
         QueryRunner runner = new QueryRunner(dataSource);
         ResultSetHandler<List<Object[]>> h = new ArrayListHandler();
         return runner.insertBatch(sql, h, params);
@@ -92,7 +92,7 @@ public class InnerDb {
         return runner.insert(conn, sql, h, params);
     }
 
-    public static List<Object[]> updateBatch(Connection conn, String sql, Object[][] params) throws SQLException {
+    public static List<Object[]> insertBatch(Connection conn, String sql, Object[][] params) throws SQLException {
         QueryRunner runner = new QueryRunner();
         ResultSetHandler<List<Object[]>> h = new ArrayListHandler();
         return runner.insertBatch(conn, sql, h, params);

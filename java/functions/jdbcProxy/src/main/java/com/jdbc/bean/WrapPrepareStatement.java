@@ -1,9 +1,12 @@
 package com.jdbc.bean;
 
+import com.mask.MaskLogic;
 import io.netty.channel.ChannelHandlerContext;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.time.Instant;
+import java.util.Map;
 
 import static com.handler.IOHandler.OK;
 import static com.handler.IOHandler.writeShortStr;
@@ -11,10 +14,18 @@ import static com.handler.IOHandler.writeShortStr;
 public class WrapPrepareStatement extends WrapStatement {
 
     private final PreparedStatement statement;
+    private Map<Integer, Map<String, Object>> encryptIndexes;
 
-    WrapPrepareStatement(WrapConnect wrapConnect, String id, PreparedStatement statement) {
-        super(wrapConnect, id, statement);
+    private WrapPrepareStatement(WrapConnect wrapConnect, String id, String user,
+                                 PreparedStatement statement) {
+        super(wrapConnect, id, user);
         this.statement = statement;
+    }
+
+    WrapPrepareStatement(WrapConnect wrapConnect, String id, String user, PreparedStatement statement,
+                         Map<Integer, Map<String, Object>> indexes) {
+        this(wrapConnect, id, user, statement);
+        this.encryptIndexes = indexes;
     }
 
     public void executeQuery(ChannelHandlerContext out) throws SQLException {
@@ -65,6 +76,9 @@ public class WrapPrepareStatement extends WrapStatement {
 
 
     public void setString(int parameterIndex, String x) throws SQLException {
+        if (x != null && encryptIndexes.containsKey(parameterIndex)) x = new String(MaskLogic.encrypt(
+                x.getBytes(StandardCharsets.UTF_8), encryptIndexes.get(parameterIndex)),
+                StandardCharsets.UTF_8);
         this.statement.setString(parameterIndex, x);
     }
 
@@ -107,6 +121,9 @@ public class WrapPrepareStatement extends WrapStatement {
     }
 
     public void setNString(int parameterIndex, String value) throws SQLException {
+        if (value != null && encryptIndexes.containsKey(parameterIndex)) value = new String(MaskLogic.encrypt(
+                value.getBytes(StandardCharsets.UTF_8), encryptIndexes.get(parameterIndex)),
+                StandardCharsets.UTF_8);
         this.statement.setNString(parameterIndex, value);
     }
 

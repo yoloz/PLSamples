@@ -1,10 +1,10 @@
 package com.jdbc.bean;
 
 
-import com.audit.AuditEvent;
-import com.audit.AuditManager;
-import com.handler.IOHandler;
+import com.handler.PermissionException;
 import com.handler.UserHandler;
+import com.jdbc.sql.parser.SQLParserUtils;
+import com.jdbc.sql.parser.SQLStatementParser;
 import com.util.Constants;
 import com.util.InnerDb;
 
@@ -30,42 +30,35 @@ public class WrapConnect implements Closeable {
 
     private final int defaultFetchSize = 1000;
 
-    private final String id;
-    private final String remoteAddr;
+    private final String rAddress;
     private final Connection dbConnect;
-    private final String dbKey;
+    private final String ak;
     private final Info info;
-
-
-    private String user;
-    private String pwd;
 
     private long timestamp;
 
 
     ConcurrentMap<String, WrapStatement> stmtMap = new ConcurrentHashMap<>(1);
 
-    public WrapConnect(String remoteAddr, String dbKey, String properties) throws SQLException {
-        this.id = IOHandler.md5(remoteAddr);
-        this.remoteAddr = remoteAddr;
-        this.dbKey = dbKey;
-        if (properties == null || properties.isEmpty()) throw new SQLException("properties is null or empty");
+    public WrapConnect(String rAddress, String ak) throws SQLException {
+        this.rAddress = rAddress;
+        this.ak = ak;
         Properties property = new Properties();
-        String[] props = properties.split("&");
-        for (String prop : props) {
-            String[] kv = prop.split("=");
-            if (kv.length != 2) throw new SQLException("properties format[" + prop + "] error");
-            if (kv[0].equals("user")) this.user = kv[1];
-            else if (kv[0].equals("password")) this.pwd = kv[1];
-            else property.put(kv[0], kv[1]);
-        }
-        UserHandler.login(user, pwd);
-        AuditManager.getInstance().audit(new AuditEvent(remoteAddr, user, "login"));
-        this.info = new Info(dbKey, property);
+//        if (properties != null && !properties.isEmpty()) {
+//            String[] props = properties.split("&");
+//            for (String prop : props) {
+//                String[] kv = prop.split("=");
+//                if (kv.length != 2) throw new SQLException("properties format[" + prop + "] error");
+//                if (kv[0].equals("user")) this.user = kv[1];
+//                else if (kv[0].equals("password")) this.pwd = kv[1];
+//                else property.put(kv[0], kv[1]);
+//            }
+//        }
+        this.info = new Info(ak, property);
         this.dbConnect = initConnection();
         this.timestamp = System.currentTimeMillis();
-        AuditManager.getInstance().audit(new AuditEvent(remoteAddr, user, "createConnect",
-                dbKey, property.toString()));
+//        AuditManager.getInstance().audit(new AuditEvent(rAddress, user, "createConnect",
+//                dbKey, property.toString()));
     }
 
     private Connection initConnection()
@@ -81,31 +74,23 @@ public class WrapConnect implements Closeable {
         }
     }
 
-    public String getUser() {
-        return user;
-    }
-
-    public String getPwd() {
-        return pwd;
-    }
-
-    public String getRemoteAddr() {
-        return remoteAddr;
+    public String getAddress() {
+        return rAddress;
     }
 
     private String generateStmt() {
-        return md5(id + COUNTER.incrementAndGet());
+        return md5(rAddress + COUNTER.incrementAndGet());
     }
 
     public void updateTime(long ts) {
         timestamp = ts;
     }
 
-    public String getDbKey() {
-        return dbKey;
+    public String getAK() {
+        return ak;
     }
 
-    public String getDbName() {
+    public String getDefaultDb() {
         return info.dbName;
     }
 
@@ -149,88 +134,111 @@ public class WrapConnect implements Closeable {
         return this.dbConnect.getMetaData();
     }
 
-    public String createStatement() throws SQLException {
+    public String createStatement(String user) throws SQLException {
         Statement stmt = this.dbConnect.createStatement();
         String stmtId = generateStmt();
-        WrapStatement wrs = new WrapStatement(this, stmtId, stmt);
+        WrapStatement wrs = new WrapStatement(this, stmtId, user, stmt);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
     }
 
-    public String createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
+    public String createStatement(String user, int resultSetType, int resultSetConcurrency) throws SQLException {
         Statement stmt = this.dbConnect.createStatement(resultSetType, resultSetConcurrency);
         String stmtId = generateStmt();
-        WrapStatement wrs = new WrapStatement(this, stmtId, stmt);
+        WrapStatement wrs = new WrapStatement(this, stmtId, user, stmt);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
     }
 
-    public String createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability)
+    public String createStatement(String user, int resultSetType, int resultSetConcurrency, int resultSetHoldability)
             throws SQLException {
         Statement stmt = this.dbConnect.createStatement(resultSetType, resultSetConcurrency,
                 resultSetHoldability);
         String stmtId = generateStmt();
-        WrapStatement wrs = new WrapStatement(this, stmtId, stmt);
+        WrapStatement wrs = new WrapStatement(this, stmtId, user, stmt);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
     }
 
-    public String prepareStatement(String sql) throws SQLException {
+    private Map<Integer, Map<String, Object>> getEncryptIndexes(String user, String sql) throws SQLException, PermissionException {
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, info.getLowerType());
+        parser.setDefaultDbName(info.dbName);
+        parser.setConn(this);
+        List<SqlInfo> list = parser.parseToSQLInfo();
+        UserHandler.authSql(user.isEmpty() ? ak : user, ak, list);
+        return parser.encryptPStmtSql(user);
+    }
 
+    public String prepareStatement(String user, String sql) throws SQLException, PermissionException {
+        Map<Integer, Map<String, Object>> indexes = getEncryptIndexes(user, sql);
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql);
         String stmtId = generateStmt();
-        WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, stmt);
+        WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, user, stmt,
+                indexes);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
     }
 
-    public String prepareStatement(String sql, int[] columnIndexes) throws SQLException {
+    public String prepareStatement(String user, String sql, int[] columnIndexes)
+            throws SQLException, PermissionException {
+        Map<Integer, Map<String, Object>> indexes = getEncryptIndexes(user, sql);
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, columnIndexes);
         String stmtId = generateStmt();
-        WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, stmt);
+        WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, user, stmt,
+                indexes);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
     }
 
-    public String prepareStatement(String sql, String[] columnNames) throws SQLException {
+    public String prepareStatement(String user, String sql, String[] columnNames)
+            throws SQLException, PermissionException {
+        Map<Integer, Map<String, Object>> indexes = getEncryptIndexes(user, sql);
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, columnNames);
         String stmtId = generateStmt();
-        WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, stmt);
+        WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, user, stmt,
+                indexes);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
     }
 
-    public String prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
+    public String prepareStatement(String user, String sql, int autoGeneratedKeys)
+            throws SQLException, PermissionException {
+        Map<Integer, Map<String, Object>> indexes = getEncryptIndexes(user, sql);
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, autoGeneratedKeys);
         String stmtId = generateStmt();
-        WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, stmt);
+        WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, user, stmt,
+                indexes);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
     }
 
-    public String prepareStatement(String sql, int resultSetType, int resultSetConcurrency)
-            throws SQLException {
+    public String prepareStatement(String user, String sql, int resultSetType, int resultSetConcurrency)
+            throws SQLException, PermissionException {
+        Map<Integer, Map<String, Object>> indexes = getEncryptIndexes(user, sql);
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, resultSetType, resultSetConcurrency);
         String stmtId = generateStmt();
-        WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, stmt);
+        WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, user, stmt,
+                indexes);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
     }
 
-    public String prepareStatement(String sql, int resultSetType, int resultSetConcurrency,
-                                   int resultSetHoldability) throws SQLException {
+    public String prepareStatement(String user, String sql, int resultSetType, int resultSetConcurrency,
+                                   int resultSetHoldability) throws SQLException, PermissionException {
+        Map<Integer, Map<String, Object>> indexes = getEncryptIndexes(user, sql);
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, resultSetType, resultSetConcurrency,
                 resultSetHoldability);
         String stmtId = generateStmt();
-        WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, stmt);
+        WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, user, stmt,
+                indexes);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;

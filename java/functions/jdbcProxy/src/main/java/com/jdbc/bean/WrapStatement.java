@@ -15,24 +15,25 @@ public class WrapStatement implements AutoCloseable {
 
     final AtomicInteger COUNTER = new AtomicInteger(1);
 
+    final WrapConnect wrapConnect;
     final String id;
-    private final WrapConnect wrapConnect;
-    private final Statement statement;
-
-    String user;
-    String pwd;
-
+    final String user;
     long timestamp;
+
+    private Statement statement;
 
     ConcurrentMap<String, WrapResultSet> rsMap = new ConcurrentHashMap<>(1);
 
-    WrapStatement(WrapConnect wrapConnect, String id, Statement statement) {
+     WrapStatement(WrapConnect wrapConnect, String id, String user) {
         this.wrapConnect = wrapConnect;
         this.id = id;
-        this.statement = statement;
+        this.user = user;
         this.timestamp = System.currentTimeMillis();
-        this.user = wrapConnect.getUser();
-        this.pwd = wrapConnect.getPwd();
+    }
+
+    public WrapStatement(WrapConnect wrapConnect, String id, String user, Statement statement) {
+        this(wrapConnect, id, user);
+        this.statement = statement;
     }
 
     public void updateTime() {
@@ -42,15 +43,6 @@ public class WrapStatement implements AutoCloseable {
 
     public String getUser() {
         return user;
-    }
-
-    public void setUser(String user,String pwd) {
-        this.user = user;
-        this.pwd = pwd;
-    }
-
-    public String getPwd() {
-        return pwd;
     }
 
     public WrapConnect getWrapConnect() {

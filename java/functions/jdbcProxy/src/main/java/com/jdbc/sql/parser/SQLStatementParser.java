@@ -15,16 +15,15 @@
  */
 package com.jdbc.sql.parser;
 
-import java.sql.Connection;
+import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 import com.jdbc.bean.SqlInfo;
+import com.jdbc.bean.WrapConnect;
 import com.jdbc.sql.ast.SQLExpr;
 import com.jdbc.sql.ast.SQLOrderBy;
 import com.jdbc.sql.ast.SQLStatement;
@@ -44,6 +43,7 @@ import com.jdbc.sql.ast.expr.SQLVariantRefExpr;
 import com.jdbc.sql.ast.statement.*;
 import com.jdbc.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
 import com.jdbc.util.FnvHash;
+import com.mask.MaskLogic;
 import org.apache.log4j.Logger;
 
 public class SQLStatementParser extends SQLStatementParsers {
@@ -51,7 +51,7 @@ public class SQLStatementParser extends SQLStatementParsers {
     private final Logger logger = Logger.getLogger(SQLStatementParser.class);
 
     private String defaultDbName = "";
-    private Connection conn;
+    private WrapConnect conn;
     private List<SqlInfo> sqlInfoList;
 
     public SQLStatementParser(String sql) {
@@ -70,12 +70,203 @@ public class SQLStatementParser extends SQLStatementParsers {
         super(lexer, dbType);
     }
 
-    public void setConn(Connection conn) {
+    public void setConn(WrapConnect conn) {
         this.conn = conn;
     }
 
     public void setDefaultDbName(String defaultDbName) {
         this.defaultDbName = defaultDbName;
+    }
+
+    private void reset() {
+        lexer.reset(0);
+        lexer.nextToken();
+    }
+
+    /**
+     * 提取出创建PrepareStatement的insert,update的需要加密列的index
+     */
+    public Map<Integer, Map<String, Object>> encryptPStmtSql(String user) throws SQLException {
+        reset();
+        Map<Integer, Map<String, Object>> rm = new HashMap<>();
+        if (user.isEmpty()) return rm;
+        switch (lexer.token) {
+            case UPDATE: {
+                SQLUpdateStatement stmt = parseUpdateStatement();
+                SQLTableSource tableSource = stmt.getTableSource();
+                if (tableSource instanceof SQLExprTableSource) {
+                    SQLExprTableSource table = (SQLExprTableSource) tableSource;
+                    String dbName = table.getSchema() == null ? conn.getDefaultDb() : table.getSchema();
+                    String tbName = null;
+                    SQLExpr expr = ((SQLExprTableSource) tableSource).getExpr();
+                    if (expr instanceof SQLIdentifierExpr) {
+                        tbName = ((SQLIdentifierExpr) expr).getName();
+                    } else if (expr instanceof SQLPropertyExpr) {
+                        SQLPropertyExpr propertyExpr = (SQLPropertyExpr) expr;
+                        dbName = propertyExpr.getOwnernName();
+                        tbName = propertyExpr.getName();
+                    }
+                    if (tbName != null) {
+                        List<SQLUpdateSetItem> updateSetItems = stmt.getItems();
+                        for (int i = 1; i <= updateSetItems.size(); i++) {
+                            SQLUpdateSetItem setItem = updateSetItems.get(i - 1);
+                            SQLExpr cexpr = setItem.getColumn();
+                            if (cexpr instanceof SQLIdentifierExpr) {
+                                String cn = ((SQLIdentifierExpr) cexpr).getName();
+                                Map<String, Object> map = MaskLogic.getMaskPolicy(conn.getAK(), user,
+                                        dbName, tbName, cn);
+                                if (!map.isEmpty() && 2 == (int) map.get("type")) {
+                                    SQLExpr vexpr = setItem.getValue();
+                                    if (vexpr instanceof SQLVariantRefExpr) {
+                                        rm.put(i, map);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return rm;
+            }
+            case INSERT: {
+                SQLInsertStatement stmt = (SQLInsertStatement) parseInsert();
+                SQLExprTableSource table = stmt.getTableSource();
+                String dbName = table.getSchema() == null ? conn.getDefaultDb() : table.getSchema();
+                String tbName = null;
+                SQLExpr expr = table.getExpr();
+                if (expr instanceof SQLIdentifierExpr) {
+                    tbName = ((SQLIdentifierExpr) expr).getName();
+                } else if (expr instanceof SQLPropertyExpr) {
+                    SQLPropertyExpr propertyExpr = (SQLPropertyExpr) expr;
+                    dbName = propertyExpr.getOwnernName();
+                    tbName = propertyExpr.getName();
+                }
+                if (tbName != null) {
+                    List<SQLExpr> cols = stmt.getColumns();
+                    SQLInsertStatement.ValuesClause valuesClause = stmt.getValues();
+                    if (cols.isEmpty()) {
+                        List<String> _cols = getAllCol(dbName + "." + tbName);
+                        cols = new ArrayList<>(_cols.size());
+                        for (String col : _cols) cols.add(new SQLIdentifierExpr(col));
+                    }
+                    for (int i = 1; i <= cols.size(); i++) {
+                        SQLExpr cexpr = cols.get(i - 1);
+                        if (cexpr instanceof SQLIdentifierExpr) {
+                            String cn = ((SQLIdentifierExpr) cexpr).getName();
+                            Map<String, Object> map = MaskLogic.getMaskPolicy(conn.getAK(), user,
+                                    dbName, tbName, cn);
+                            if (!map.isEmpty() && 2 == (int) map.get("type")) {
+                                SQLExpr vexpr = valuesClause.getValues().get(i);
+                                if (vexpr instanceof SQLVariantRefExpr) {
+                                    rm.put(i, map);
+                                }
+                            }
+                        }
+                    }
+                }
+                return rm;
+            }
+            default:
+                return rm;
+        }
+    }
+
+    /**
+     * 对Statement.executeUpdate的insert,update的某些列值加密
+     */
+    public String encryptStmtSql(String user) throws SQLException {
+        reset();
+        String sql = lexer.text;
+        switch (lexer.token) {
+            case UPDATE: {
+                SQLUpdateStatement stmt = parseUpdateStatement();
+                SQLTableSource tableSource = stmt.getTableSource();
+                if (tableSource instanceof SQLExprTableSource) {
+                    SQLExprTableSource table = (SQLExprTableSource) tableSource;
+                    String dbName = table.getSchema() == null ? conn.getDefaultDb() : table.getSchema();
+                    String tbName = null;
+                    SQLExpr expr = ((SQLExprTableSource) tableSource).getExpr();
+                    if (expr instanceof SQLIdentifierExpr) {
+                        tbName = ((SQLIdentifierExpr) expr).getName();
+                    } else if (expr instanceof SQLPropertyExpr) {
+                        SQLPropertyExpr propertyExpr = (SQLPropertyExpr) expr;
+                        dbName = propertyExpr.getOwnernName();
+                        tbName = propertyExpr.getName();
+                    }
+                    if (tbName != null) {
+                        List<SQLUpdateSetItem> updateSetItems = stmt.getItems();
+                        for (SQLUpdateSetItem setItem : updateSetItems) {
+                            SQLExpr cexpr = setItem.getColumn();
+                            if (cexpr instanceof SQLIdentifierExpr) {
+                                String cn = ((SQLIdentifierExpr) cexpr).getName();
+                                Map<String, Object> map = MaskLogic.getMaskPolicy(conn.getAK(), user,
+                                        dbName, tbName, cn);
+                                if (!map.isEmpty() && 2 == (int) map.get("type")) {
+                                    SQLExpr vexpr = setItem.getValue();
+                                    if (vexpr instanceof SQLCharExpr) {
+                                        String value = ((SQLCharExpr) vexpr).getText();
+                                        int start = sql.indexOf(cn) + cn.length();
+                                        while (true) {
+                                            if (value.equals(sql.substring(start, start + value.length()))) break;
+                                            else start += 1;
+                                        }
+                                        byte[] nv = MaskLogic.encrypt(value.getBytes(StandardCharsets.UTF_8),
+                                                map);
+                                        sql = sql.substring(0, start) + new String(nv, StandardCharsets.UTF_8)
+                                                + sql.substring(start + value.length());
+                                    }
+                                }
+                            }
+                        }
+                        return sql;
+                    }
+                }
+                return sql;
+            }
+            case INSERT: {
+                SQLInsertStatement stmt = (SQLInsertStatement) parseInsert();
+                SQLExprTableSource table = stmt.getTableSource();
+                String dbName = table.getSchema() == null ? conn.getDefaultDb() : table.getSchema();
+                String tbName = null;
+                SQLExpr expr = table.getExpr();
+                if (expr instanceof SQLIdentifierExpr) {
+                    tbName = ((SQLIdentifierExpr) expr).getName();
+                } else if (expr instanceof SQLPropertyExpr) {
+                    SQLPropertyExpr propertyExpr = (SQLPropertyExpr) expr;
+                    dbName = propertyExpr.getOwnernName();
+                    tbName = propertyExpr.getName();
+                }
+                if (tbName != null) {
+                    List<SQLExpr> cols = stmt.getColumns();
+                    SQLInsertStatement.ValuesClause valuesClause = stmt.getValues();
+                    if (cols.isEmpty()) {
+                        List<String> _cols = getAllCol(dbName + "." + tbName);
+                        cols = new ArrayList<>(_cols.size());
+                        for (String col : _cols) cols.add(new SQLIdentifierExpr(col));
+                    }
+                    for (int i = 0; i < cols.size(); i++) {
+                        SQLExpr cexpr = cols.get(i);
+                        if (cexpr instanceof SQLIdentifierExpr) {
+                            String cn = ((SQLIdentifierExpr) cexpr).getName();
+                            Map<String, Object> map = MaskLogic.getMaskPolicy(conn.getAK(), user,
+                                    dbName, tbName, cn);
+                            if (!map.isEmpty() && 2 == (int) map.get("type")) {
+                                SQLExpr vexpr = valuesClause.getValues().get(i);
+                                if (vexpr instanceof SQLCharExpr) {
+                                    byte[] v = ((SQLCharExpr) vexpr).getText().getBytes(StandardCharsets.UTF_8);
+                                    String nv = new String(MaskLogic.encrypt(v, map),
+                                            StandardCharsets.UTF_8);
+                                    valuesClause.getValues().set(i, new SQLCharExpr(nv));
+                                }
+                            }
+                        }
+                    }
+                    return stmt.toString();
+                }
+                return sql;
+            }
+            default:
+                return sql;
+        }
     }
 
     public List<SqlInfo> parseToSQLInfo() {
@@ -145,8 +336,15 @@ public class SQLStatementParser extends SQLStatementParsers {
                     List<SQLExpr> columns = stmt.getColumns();
                     List<SqlInfo> list = new ArrayList<>(1);
                     parseTable(stmt.getTableSource(), "insert", list);
-                    if (!list.isEmpty() && columns != null) for (SQLExpr column : columns) {
-                        parseColumn(column, null, list, "insert");
+                    if (!list.isEmpty()) {
+                        if (columns == null) {
+                            List<String> cols = getAllCol(list.get(0));
+                            for (String col : cols) {
+                                list.get(0).addCol(col, "insert");
+                            }
+                        } else for (SQLExpr column : columns) {
+                            parseColumn(column, null, list, "insert");
+                        }
                     }
                     parseSelect(stmt.getQuery());
                     continue;
@@ -590,7 +788,12 @@ public class SQLStatementParser extends SQLStatementParsers {
     }
 
     private List<String> getAllCol(SqlInfo sqlInfo) {
-        try (PreparedStatement ps = conn.prepareStatement("select * from " + sqlInfo.toString() + " where 1=0")) {
+        return getAllCol(sqlInfo.toString());
+    }
+
+    private List<String> getAllCol(String table) {
+        try (PreparedStatement ps = conn.getDbConnect()
+                .prepareStatement("select * from " + table + " where 1=0")) {
             ResultSet rs = ps.executeQuery();
             ResultSetMetaData rsmd = rs.getMetaData();
             int cols = rsmd.getColumnCount();

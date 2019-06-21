@@ -13,7 +13,6 @@ public class Constants {
     public static final String JPPath = System.getProperty("JPPath");
     public static int proxyPort;
     public static int proxyTimeout;
-    public static boolean verifyOperation;
 
     static {
         try (InputStream is = Files.newInputStream(Paths.get(JPPath, "conf/conf.properties"))) {
@@ -23,7 +22,6 @@ public class Constants {
                     "proxyPort is null"));
             proxyTimeout = Integer.parseInt(Objects.requireNonNull(properties.getProperty("proxyTimeout"),
                     "proxyTimeout is null"));
-            verifyOperation = Boolean.valueOf(properties.getProperty("verifyOperation", "false"));
         } catch (IOException | NullPointerException e) {
             System.err.println("load conf error " + e);
             System.exit(1);
