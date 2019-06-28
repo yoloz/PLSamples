@@ -43,7 +43,6 @@ import com.jdbc.sql.ast.expr.SQLVariantRefExpr;
 import com.jdbc.sql.ast.statement.*;
 import com.jdbc.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
 import com.jdbc.util.FnvHash;
-import com.mask.MaskLogic;
 import org.apache.log4j.Logger;
 
 public class SQLStatementParser extends SQLStatementParsers {
@@ -53,6 +52,7 @@ public class SQLStatementParser extends SQLStatementParsers {
     private String defaultDbName = "";
     private WrapConnect conn;
     private List<SqlInfo> sqlInfoList;
+    private Map<String, List<String>> dtMeta = new HashMap<>(5);
 
     public SQLStatementParser(String sql) {
         super(sql);
@@ -89,7 +89,7 @@ public class SQLStatementParser extends SQLStatementParsers {
     public Map<Integer, Map<String, Object>> encryptPStmtSql(String user) throws SQLException {
         reset();
         Map<Integer, Map<String, Object>> rm = new HashMap<>();
-        if (user.isEmpty()) return rm;
+        if (user == null || user.isEmpty()) return rm;
         switch (lexer.token) {
             case UPDATE: {
                 SQLUpdateStatement stmt = parseUpdateStatement();
@@ -107,18 +107,19 @@ public class SQLStatementParser extends SQLStatementParsers {
                         tbName = propertyExpr.getName();
                     }
                     if (tbName != null) {
+                        Map<String, Map<String, Object>> mask_policy = MaskLogic.getMaskPolicy(conn.getAK(), user,
+                                dbName, tbName);
                         List<SQLUpdateSetItem> updateSetItems = stmt.getItems();
                         for (int i = 1; i <= updateSetItems.size(); i++) {
                             SQLUpdateSetItem setItem = updateSetItems.get(i - 1);
                             SQLExpr cexpr = setItem.getColumn();
                             if (cexpr instanceof SQLIdentifierExpr) {
                                 String cn = ((SQLIdentifierExpr) cexpr).getName();
-                                Map<String, Object> map = MaskLogic.getMaskPolicy(conn.getAK(), user,
-                                        dbName, tbName, cn);
-                                if (!map.isEmpty() && 2 == (int) map.get("type")) {
+                                if (!mask_policy.isEmpty() && mask_policy.containsKey(cn)
+                                        && 2 == (int) mask_policy.get(cn).get("type")) {
                                     SQLExpr vexpr = setItem.getValue();
                                     if (vexpr instanceof SQLVariantRefExpr) {
-                                        rm.put(i, map);
+                                        rm.put(i, mask_policy.get(cn));
                                     }
                                 }
                             }
@@ -148,16 +149,17 @@ public class SQLStatementParser extends SQLStatementParsers {
                         cols = new ArrayList<>(_cols.size());
                         for (String col : _cols) cols.add(new SQLIdentifierExpr(col));
                     }
+                    Map<String, Map<String, Object>> mask_policy = MaskLogic.getMaskPolicy(conn.getAK(), user,
+                            dbName, tbName);
                     for (int i = 1; i <= cols.size(); i++) {
                         SQLExpr cexpr = cols.get(i - 1);
                         if (cexpr instanceof SQLIdentifierExpr) {
                             String cn = ((SQLIdentifierExpr) cexpr).getName();
-                            Map<String, Object> map = MaskLogic.getMaskPolicy(conn.getAK(), user,
-                                    dbName, tbName, cn);
-                            if (!map.isEmpty() && 2 == (int) map.get("type")) {
-                                SQLExpr vexpr = valuesClause.getValues().get(i);
+                            if (!mask_policy.isEmpty() && mask_policy.containsKey(cn)
+                                    && 2 == (int) mask_policy.get(cn).get("type")) {
+                                SQLExpr vexpr = valuesClause.getValues().get(i - 1);
                                 if (vexpr instanceof SQLVariantRefExpr) {
-                                    rm.put(i, map);
+                                    rm.put(i, mask_policy.get(cn));
                                 }
                             }
                         }
@@ -193,14 +195,15 @@ public class SQLStatementParser extends SQLStatementParsers {
                         tbName = propertyExpr.getName();
                     }
                     if (tbName != null) {
+                        Map<String, Map<String, Object>> mask_policy = MaskLogic.getMaskPolicy(conn.getAK(), user,
+                                dbName, tbName);
                         List<SQLUpdateSetItem> updateSetItems = stmt.getItems();
                         for (SQLUpdateSetItem setItem : updateSetItems) {
                             SQLExpr cexpr = setItem.getColumn();
                             if (cexpr instanceof SQLIdentifierExpr) {
                                 String cn = ((SQLIdentifierExpr) cexpr).getName();
-                                Map<String, Object> map = MaskLogic.getMaskPolicy(conn.getAK(), user,
-                                        dbName, tbName, cn);
-                                if (!map.isEmpty() && 2 == (int) map.get("type")) {
+                                if (!mask_policy.isEmpty() && mask_policy.containsKey(cn)
+                                        && 2 == (int) mask_policy.get(cn).get("type")) {
                                     SQLExpr vexpr = setItem.getValue();
                                     if (vexpr instanceof SQLCharExpr) {
                                         String value = ((SQLCharExpr) vexpr).getText();
@@ -210,7 +213,7 @@ public class SQLStatementParser extends SQLStatementParsers {
                                             else start += 1;
                                         }
                                         byte[] nv = MaskLogic.encrypt(value.getBytes(StandardCharsets.UTF_8),
-                                                map);
+                                                mask_policy.get(cn));
                                         sql = sql.substring(0, start) + new String(nv, StandardCharsets.UTF_8)
                                                 + sql.substring(start + value.length());
                                     }
@@ -243,17 +246,18 @@ public class SQLStatementParser extends SQLStatementParsers {
                         cols = new ArrayList<>(_cols.size());
                         for (String col : _cols) cols.add(new SQLIdentifierExpr(col));
                     }
+                    Map<String, Map<String, Object>> mask_policy = MaskLogic.getMaskPolicy(conn.getAK(), user,
+                            dbName, tbName);
                     for (int i = 0; i < cols.size(); i++) {
                         SQLExpr cexpr = cols.get(i);
                         if (cexpr instanceof SQLIdentifierExpr) {
                             String cn = ((SQLIdentifierExpr) cexpr).getName();
-                            Map<String, Object> map = MaskLogic.getMaskPolicy(conn.getAK(), user,
-                                    dbName, tbName, cn);
-                            if (!map.isEmpty() && 2 == (int) map.get("type")) {
+                            if (!mask_policy.isEmpty() && mask_policy.containsKey(cn)
+                                    && 2 == (int) mask_policy.get(cn).get("type")) {
                                 SQLExpr vexpr = valuesClause.getValues().get(i);
                                 if (vexpr instanceof SQLCharExpr) {
                                     byte[] v = ((SQLCharExpr) vexpr).getText().getBytes(StandardCharsets.UTF_8);
-                                    String nv = new String(MaskLogic.encrypt(v, map),
+                                    String nv = new String(MaskLogic.encrypt(v, mask_policy.get(cn)),
                                             StandardCharsets.UTF_8);
                                     valuesClause.getValues().set(i, new SQLCharExpr(nv));
                                 }
@@ -648,9 +652,16 @@ public class SQLStatementParser extends SQLStatementParsers {
     private void parseColumn(SQLExpr expr, String alias, List<SqlInfo> tables, String operator) {
         if (expr == null) return;
         if (expr instanceof SQLIdentifierExpr) {
-            if (tables.size() > 1) throw new ParserException("column need table prefix");
             String cn = ((SQLIdentifierExpr) expr).getName();
-            tables.get(0).addCol(cn, alias, operator);
+            if (tables.size() > 1) {
+                dtMeta.forEach((k, v) -> {
+                    if (v.contains(cn)) {
+                        for (SqlInfo table : tables) {
+                            if (table.toString().equals(k)) table.addCol(cn, alias, operator);
+                        }
+                    }
+                });
+            } else tables.get(0).addCol(cn, alias, operator);
         } else if (expr instanceof SQLPropertyExpr) {
             SQLPropertyExpr propertyExpr = (SQLPropertyExpr) expr;
             String cn = propertyExpr.getName();
@@ -718,6 +729,7 @@ public class SQLStatementParser extends SQLStatementParsers {
                 tbName = propertyExpr.getName();
             } else throw new ParserException("SQLExprTableSource expr[" + expr.getClass() + "] todo...");
             SqlInfo sqlInfo = addTableInfo(Objects.toString(dbName, defaultDbName), tbName, alias);
+            dtMeta.put(sqlInfo.toString(), getAllCol(sqlInfo));
             sqlInfo.addOperator(operator);
             if (list != null) list.add(sqlInfo);
         } else if (tableSource instanceof SQLSubqueryTableSource) {

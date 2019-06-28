@@ -67,7 +67,7 @@ public class ResultSetHandler {
             resultSet.next(false, out);
         } else if ("close".equals(mName)) {
             AuditManager.getInstance().audit(new AuditEvent(resultSet.getWrapStatement().getWrapConnect()
-                    .getAddress(), resultSet.getWrapStatement().getUser(), mName));
+                    .getAddress(), resultSet.getWrapStatement().getUser(), "resultSet=>" + mName));
             resultSet.close();
             out.write(writeByte(OK));
         } else throw new SQLException("statementMethod[" + mName + "] is not support");

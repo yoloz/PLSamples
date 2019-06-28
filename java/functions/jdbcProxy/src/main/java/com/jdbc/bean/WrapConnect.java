@@ -1,17 +1,19 @@
 package com.jdbc.bean;
 
-
+import com.audit.AuditEvent;
+import com.audit.AuditManager;
 import com.handler.PermissionException;
-import com.handler.UserHandler;
 import com.jdbc.sql.parser.SQLParserUtils;
 import com.jdbc.sql.parser.SQLStatementParser;
+import com.strategy.DSGInfo;
 import com.util.Constants;
-import com.util.InnerDb;
+import com.util.ProxyClassLoader;
 
 import java.io.Closeable;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
+import java.io.IOException;
+import java.net.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Driver;
@@ -30,44 +32,77 @@ public class WrapConnect implements Closeable {
 
     private final int defaultFetchSize = 1000;
 
+    private ProxyClassLoader pcl;
+
     private final String rAddress;
-    private final Connection dbConnect;
     private final String ak;
-    private final Info info;
+    private final int platform_id;
+    private final int appid;
+
+
+    private final Connection dbConnect;
+    private final String dbType;
+    private String defaultDb;
 
     private long timestamp;
 
 
     ConcurrentMap<String, WrapStatement> stmtMap = new ConcurrentHashMap<>(1);
 
-    public WrapConnect(String rAddress, String ak) throws SQLException {
+    @SuppressWarnings("unchecked")
+    public WrapConnect(String rAddress, String ak) throws Exception {
         this.rAddress = rAddress;
         this.ak = ak;
+
+        Map<String, Object> dsgInfo = DSGInfo.getAppInfo(ak);
+        String rClient = String.valueOf(dsgInfo.get("client"));
+        String rMac = String.valueOf(dsgInfo.get("mac"));
+        String rProcess = String.valueOf(dsgInfo.get("process"));
+        if (!rAddress.contains(rClient))
+            throw new Exception("address[" + rAddress + "] has no permission to connect by " + ak);
+
+        this.appid = Integer.parseInt(String.valueOf(dsgInfo.get("id")));
+        this.platform_id = Integer.parseInt(String.valueOf(dsgInfo.get("dbms_id")).substring(0, 3));
+        this.dbType = String.valueOf(dsgInfo.get("server_type")).toLowerCase();
+        this.defaultDb = String.valueOf(dsgInfo.get("default_database"));
+
         Properties property = new Properties();
-//        if (properties != null && !properties.isEmpty()) {
-//            String[] props = properties.split("&");
-//            for (String prop : props) {
-//                String[] kv = prop.split("=");
-//                if (kv.length != 2) throw new SQLException("properties format[" + prop + "] error");
-//                if (kv[0].equals("user")) this.user = kv[1];
-//                else if (kv[0].equals("password")) this.pwd = kv[1];
-//                else property.put(kv[0], kv[1]);
-//            }
-//        }
-        this.info = new Info(ak, property);
-        this.dbConnect = initConnection();
+        String properties = String.valueOf(dsgInfo.get("properties"));
+        if (properties != null && !properties.isEmpty()) {
+            String[] props = properties.split("&");
+            for (String prop : props) {
+                String[] kv = prop.split("=");
+                if (kv.length != 2) throw new SQLException("properties format[" + prop + "] error");
+                if (!kv[0].equals("user") && !kv[0].equals("password")) property.put(kv[0], kv[1]);
+            }
+        }
+        property.put("user", String.valueOf(dsgInfo.get("username")));
+        property.put("password", String.valueOf(dsgInfo.get("password")));
+        String url;
+        if ("mysql".equals(dbType)) url = "jdbc" + ":" + dbType + "://" + dsgInfo.get("server_ip")
+                + ":" + dsgInfo.get("server_port") + "/" + defaultDb;
+        else if ("oracle".equals(dbType)) {
+            url = "jdbc" + ":" + dbType + ":thin:@//" + dsgInfo.get("server_ip")
+                    + ":" + dsgInfo.get("server_port") + "/" + defaultDb;
+            defaultDb = property.getProperty("user");
+        } else throw new SQLException("type[" + dbType + "] is not support");
+        this.dbConnect = create((List<String>) dsgInfo.get("driverPath"),
+                String.valueOf(dsgInfo.get("driverClass")), url, property);
         this.timestamp = System.currentTimeMillis();
-//        AuditManager.getInstance().audit(new AuditEvent(rAddress, user, "createConnect",
-//                dbKey, property.toString()));
+        AuditManager.getInstance().audit(new AuditEvent(rAddress, ak, "createConnect",
+                ak, property.toString()));
     }
 
-    private Connection initConnection()
-            throws SQLException {
+    private Connection create(List<String> driverPath, String driverClass, String url,
+                              Properties properties) throws SQLException {
         try {
-            URL u = new URL("jar:file:" + info.getDriverPath() + "!/");
-            URLClassLoader ucl = new URLClassLoader(new URL[]{u});
-            Driver driver = (Driver) Class.forName(info.getDriverClass(), true, ucl).newInstance();
-            return driver.connect(info.toUrl(), info.properties);
+            URL[] urls = new URL[driverPath.size()];
+            Path rp = Paths.get(Constants.JPPath, "ext");
+            for (int i = 0; i < driverPath.size(); i++)
+                urls[i] = new URL("jar:file:" + rp.resolve(driverPath.get(i)) + "!/");
+            pcl = new ProxyClassLoader(urls);
+            Driver driver = (Driver) pcl.loadClass(driverClass).newInstance();
+            return driver.connect(url, properties);
         } catch (ClassNotFoundException | IllegalAccessException | InstantiationException
                 | MalformedURLException e) {
             throw new SQLException(e);
@@ -90,12 +125,20 @@ public class WrapConnect implements Closeable {
         return ak;
     }
 
-    public String getDefaultDb() {
-        return info.dbName;
+    public int getPlatform_id() {
+        return platform_id;
     }
 
-    public String getDbTypeLower() {
-        return info.getLowerType();
+    public int getAppid() {
+        return appid;
+    }
+
+    public String getDefaultDb() {
+        return defaultDb;
+    }
+
+    public String getDbType() {
+        return dbType;
     }
 
     public Connection getDbConnect() {
@@ -163,21 +206,17 @@ public class WrapConnect implements Closeable {
         return stmtId;
     }
 
-    private Map<Integer, Map<String, Object>> getEncryptIndexes(String user, String sql) throws SQLException, PermissionException {
-        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, info.getLowerType());
-        parser.setDefaultDbName(info.dbName);
-        parser.setConn(this);
-        List<SqlInfo> list = parser.parseToSQLInfo();
-        UserHandler.authSql(user.isEmpty() ? ak : user, ak, list);
-        return parser.encryptPStmtSql(user);
-    }
 
     public String prepareStatement(String user, String sql) throws SQLException, PermissionException {
-        Map<Integer, Map<String, Object>> indexes = getEncryptIndexes(user, sql);
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, dbType);
+        parser.setDefaultDbName(defaultDb);
+        parser.setConn(this);
+        Set<String> noSelectCols = DSGInfo.checkPermission(appid, platform_id, user, parser.parseToSQLInfo());
+        Map<Integer, Map<String, Object>> indexes = parser.encryptPStmtSql(user);
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql);
         String stmtId = generateStmt();
         WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, user, stmt,
-                indexes);
+                indexes, noSelectCols);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
@@ -185,11 +224,15 @@ public class WrapConnect implements Closeable {
 
     public String prepareStatement(String user, String sql, int[] columnIndexes)
             throws SQLException, PermissionException {
-        Map<Integer, Map<String, Object>> indexes = getEncryptIndexes(user, sql);
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, dbType);
+        parser.setDefaultDbName(defaultDb);
+        parser.setConn(this);
+        Set<String> noSelectCols = DSGInfo.checkPermission(appid, platform_id, user, parser.parseToSQLInfo());
+        Map<Integer, Map<String, Object>> indexes = parser.encryptPStmtSql(user);
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, columnIndexes);
         String stmtId = generateStmt();
         WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, user, stmt,
-                indexes);
+                indexes, noSelectCols);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
@@ -197,11 +240,15 @@ public class WrapConnect implements Closeable {
 
     public String prepareStatement(String user, String sql, String[] columnNames)
             throws SQLException, PermissionException {
-        Map<Integer, Map<String, Object>> indexes = getEncryptIndexes(user, sql);
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, dbType);
+        parser.setDefaultDbName(defaultDb);
+        parser.setConn(this);
+        Set<String> noSelectCols = DSGInfo.checkPermission(appid, platform_id, user, parser.parseToSQLInfo());
+        Map<Integer, Map<String, Object>> indexes = parser.encryptPStmtSql(user);
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, columnNames);
         String stmtId = generateStmt();
         WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, user, stmt,
-                indexes);
+                indexes, noSelectCols);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
@@ -209,11 +256,15 @@ public class WrapConnect implements Closeable {
 
     public String prepareStatement(String user, String sql, int autoGeneratedKeys)
             throws SQLException, PermissionException {
-        Map<Integer, Map<String, Object>> indexes = getEncryptIndexes(user, sql);
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, dbType);
+        parser.setDefaultDbName(defaultDb);
+        parser.setConn(this);
+        Set<String> noSelectCols = DSGInfo.checkPermission(appid, platform_id, user, parser.parseToSQLInfo());
+        Map<Integer, Map<String, Object>> indexes = parser.encryptPStmtSql(user);
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, autoGeneratedKeys);
         String stmtId = generateStmt();
         WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, user, stmt,
-                indexes);
+                indexes, noSelectCols);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
@@ -221,11 +272,15 @@ public class WrapConnect implements Closeable {
 
     public String prepareStatement(String user, String sql, int resultSetType, int resultSetConcurrency)
             throws SQLException, PermissionException {
-        Map<Integer, Map<String, Object>> indexes = getEncryptIndexes(user, sql);
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, dbType);
+        parser.setDefaultDbName(defaultDb);
+        parser.setConn(this);
+        Set<String> noSelectCols = DSGInfo.checkPermission(appid, platform_id, user, parser.parseToSQLInfo());
+        Map<Integer, Map<String, Object>> indexes = parser.encryptPStmtSql(user);
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, resultSetType, resultSetConcurrency);
         String stmtId = generateStmt();
         WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, user, stmt,
-                indexes);
+                indexes, noSelectCols);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
@@ -233,12 +288,16 @@ public class WrapConnect implements Closeable {
 
     public String prepareStatement(String user, String sql, int resultSetType, int resultSetConcurrency,
                                    int resultSetHoldability) throws SQLException, PermissionException {
-        Map<Integer, Map<String, Object>> indexes = getEncryptIndexes(user, sql);
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, dbType);
+        parser.setDefaultDbName(defaultDb);
+        parser.setConn(this);
+        Set<String> noSelectCols = DSGInfo.checkPermission(appid, platform_id, user, parser.parseToSQLInfo());
+        Map<Integer, Map<String, Object>> indexes = parser.encryptPStmtSql(user);
         PreparedStatement stmt = this.dbConnect.prepareStatement(sql, resultSetType, resultSetConcurrency,
                 resultSetHoldability);
         String stmtId = generateStmt();
         WrapPrepareStatement wrs = new WrapPrepareStatement(this, stmtId, user, stmt,
-                indexes);
+                indexes, noSelectCols);
         wrs.setFetchSize(defaultFetchSize);
         stmtMap.put(stmtId, wrs);
         return stmtId;
@@ -250,7 +309,8 @@ public class WrapConnect implements Closeable {
         stmtMap.clear();
         try {
             if (dbConnect != null) dbConnect.close();
-        } catch (SQLException ignored) {
+            if (pcl != null) pcl.close();
+        } catch (SQLException | IOException ignored) {
         }
     }
 
@@ -269,56 +329,5 @@ public class WrapConnect implements Closeable {
             });
             return false;
         }
-    }
-
-    private class Info {
-
-        private final String type;
-        private final String host;
-        private final String dbName;
-        private final String driverClass;
-        private final String driverPath;
-
-        private final Properties properties;
-
-
-        private Info(String dbKey, Properties properties) throws SQLException {
-            String sql = "select * from proxydb where id=?";
-            Map<String, Object> map = InnerDb.get(sql, dbKey);
-            if (map == null || map.isEmpty()) throw new SQLException("db[" + dbKey + "] is not exit");
-            Object type = Objects.requireNonNull(map.get("type"), "dbtype is null");
-            this.type = String.valueOf(type);
-            Object host = Objects.requireNonNull(map.get("host"), "dbhost is null");
-            Object port = Objects.requireNonNull(map.get("port"), "dbport is null");
-            this.host = host + ":" + port;
-            Object dbName = map.get("dbname");
-            this.dbName = dbName == null ? null : String.valueOf(dbName);
-            Object dbUser = Objects.requireNonNull(map.get("dbuser"), "dbuser is null");
-            Object userPwd = Objects.requireNonNull(map.get("userpwd"), "userpwd is null");
-            Object driverClass = Objects.requireNonNull(map.get("driverclass"), "driverclass is null");
-            this.driverClass = String.valueOf(driverClass);
-            Object driverPath = Objects.requireNonNull(map.get("driverpath"), "driverpath is null");
-            this.driverPath = String.valueOf(driverPath);
-            this.properties = new Properties(properties);
-            this.properties.put("user", String.valueOf(dbUser));
-            this.properties.put("password", String.valueOf(userPwd));
-        }
-
-        private String getLowerType() {
-            return type.toLowerCase();
-        }
-
-        private String getDriverClass() {
-            return driverClass;
-        }
-
-        private String getDriverPath() {
-            return driverPath;
-        }
-
-        private String toUrl() {
-            return "jdbc" + ":" + type + "://" + host + "/" + dbName;
-        }
-
     }
 }

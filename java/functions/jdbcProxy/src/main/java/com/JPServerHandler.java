@@ -8,7 +8,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.log4j.Logger;
 
-import java.sql.SQLException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -37,7 +36,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                         break;
                     case 2:
                         String ak = readShortLen(src);
-//                        String mac = readShortLen(src);
+                        String mac = readShortLen(src);
 //                        String process = readIntLen(src);
                         WrapConnect conn = new WrapConnect(rAddress, ak);
                         if (connects.containsKey(rAddress)) closeConn(rAddress);
@@ -80,7 +79,7 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                     default:
                         logger.error("cmd[" + cmd + "] is not defined");
                 }
-            } catch (SQLException | PermissionException e) {
+            } catch (Exception e) {
                 logger.error(rAddress, e);
                 if (e instanceof PermissionException) out.write(writeShortStr(ERROR, "no permission"));
                 else out.write(writeShortStr(ERROR, e.getMessage()));
@@ -92,11 +91,6 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) {
         ctx.flush();
-    }
-
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        logger.info(ctx.channel().remoteAddress() + " connect");
     }
 
     @Override

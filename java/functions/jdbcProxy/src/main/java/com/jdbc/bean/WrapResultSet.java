@@ -1,11 +1,11 @@
 package com.jdbc.bean;
 
-import com.handler.UserHandler;
-import com.mask.MaskLogic;
+import com.strategy.DSGInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -19,10 +19,19 @@ public class WrapResultSet implements AutoCloseable {
     private final WrapStatement wrapStatement;
     private final ResultSet resultSet;
 
+    private Set<String> noSelectCols;
+
     //colIndex,pair
     private Map<Integer, Pair> colFilter = new HashMap<>(1);
     //colIndex,filterValue
     private Map<Integer, String> rowFilter = new HashMap<>(1);
+
+    WrapResultSet(WrapStatement wrapStatement, String id, ResultSet resultSet, Set<String> noSelectCols) {
+        this.wrapStatement = wrapStatement;
+        this.id = id;
+        this.resultSet = resultSet;
+        this.noSelectCols = noSelectCols;
+    }
 
     WrapResultSet(WrapStatement wrapStatement, String id, ResultSet resultSet) {
         this.wrapStatement = wrapStatement;
@@ -38,14 +47,17 @@ public class WrapResultSet implements AutoCloseable {
         return this.resultSet.getCursorName();
     }
 
-    private boolean canRead(List<String> userAuth, List<String> dbAuth, List<String> tbAuth, List<String> colAuth) {
-        String operator = "select";
-        if (!userAuth.contains(operator)) {
-            if (!dbAuth.contains(operator)) {
-                if (!tbAuth.contains(operator)) {
-                    if (colAuth == null) return false;
-                    return colAuth.contains(operator);
-                }
+    private boolean canSelect(Map<String, List<String>> map, String dbName, String tableName,
+                              String colName) {
+        if (map == null) return false;
+        String table = dbName + "." + tableName;
+        String cn = dbName + "." + tableName + "." + colName;
+        List<String> col = map.get("col");
+        List<String> db = map.get("db");
+        List<String> tb = map.get("tb");
+        if (db == null || !db.contains(dbName)) {
+            if (tb == null || !tb.contains(table)) {
+                return (col != null) && col.contains(cn);
             }
         }
         return true;
@@ -53,34 +65,63 @@ public class WrapResultSet implements AutoCloseable {
 
     void getMetaData(ChannelHandlerContext out) throws SQLException {
         WrapConnect connect = wrapStatement.getWrapConnect();
-        List<String> userAuth = UserHandler.splitComma(UserHandler.userAuth(wrapStatement.getUser()));
-        List<String> dbAuth = UserHandler.dbAuth(connect.getAK(), wrapStatement.getUser());
-        Map<String, List<String>> tbAuth = new HashMap<>();
-        Map<String, Map<String, List<String>>> colAuth = new HashMap<>();
+        Map<String, List<String>> selectPermission = null;
+        if (noSelectCols == null) selectPermission = DSGInfo.getSelectPermission(connect.getAppid(),
+                connect.getPlatform_id(), wrapStatement.getUser());
         Map<String, Map<String, String>> filterRows = new HashMap<>();
-
+        Map<String, Map<String, Map<String, Object>>> mask_policy = new HashMap<>();
         ResultSetMetaData rsMeta = this.resultSet.getMetaData();
         int colCount = rsMeta.getColumnCount();
         out.write(writeShort(colCount));
+        //todo 兼容不同数据库,如oracle的列名默认大写
         for (int i = 1; i <= colCount; i++) {
+            String dbName = rsMeta.getCatalogName(i);
+            if (dbName == null || dbName.isEmpty()) dbName = rsMeta.getSchemaName(i);
             String colName = rsMeta.getColumnName(i);
             String tbName = rsMeta.getTableName(i);
-            if (!tbAuth.containsKey(tbName)) tbAuth.put(tbName, UserHandler.tbAuth(connect.getAK(),
-                    wrapStatement.getUser(), tbName).get("colpriv"));
-            if (!colAuth.containsKey(tbName)) colAuth.put(tbName, UserHandler.colAuth(connect.getAK(),
+            String cn = dbName + "." + tbName + "." + colName;
+            if (!filterRows.containsKey(tbName)) filterRows.put(tbName, DSGInfo.filterRow(connect.getAK(),
                     wrapStatement.getUser(), tbName));
-            if (!filterRows.containsKey(tbName)) filterRows.put(tbName, UserHandler.filterRow(connect.getAK(),
-                    wrapStatement.getUser(), tbName));
-            Map<String, Object> mask_policy = MaskLogic.getMaskPolicy(connect.getAK(), connect.getDefaultDb(),
-                    tbName, colName, wrapStatement.getUser());
+            if (!mask_policy.containsKey(tbName)) mask_policy.put(tbName, MaskLogic.getMaskPolicy(connect.getAK(),
+                    wrapStatement.getUser(), connect.getDefaultDb(), tbName));
 
-            if (mask_policy != null) colFilter.put(i, new Pair((int) mask_policy.get("type"), mask_policy));
-            if (!canRead(userAuth, dbAuth, tbAuth.get(tbName), colAuth.get(tbName).get(colName)))
-                colFilter.put(i, new Pair(0));
-            if (filterRows.containsKey(tbName) && filterRows.get(tbName).containsKey(colName)) {
-                rowFilter.put(i, filterRows.get(tbName).get(colName));
+//            for (String s : mask_policy.keySet()) {
+//                System.out.println(s + "==>");
+//                mask_policy.get(s).forEach((k, v) -> System.out.println(k));
+//            }
+
+            if (!mask_policy.isEmpty() && mask_policy.get(tbName).containsKey(colName)) {
+                Map<String, Object> policy = mask_policy.get(tbName).get(colName);
+                colFilter.put(i, new Pair((int) policy.get("type"), policy));
+            }
+            if (noSelectCols != null) {
+                if (noSelectCols.contains(cn)) colFilter.put(i, new Pair(0));
+            } else {
+                if (!canSelect(selectPermission, dbName, tbName, colName)) colFilter.put(i, new Pair(0));
             }
 
+            if (filterRows.containsKey(tbName) && filterRows.get(tbName).containsKey(colName)) {
+                String val = filterRows.get(tbName).get(colName);
+                rowFilter.put(i, val);
+//                switch (rsMeta.getColumnType(i)) {
+//                    case -6:
+//                    case 5:
+//                    case 4:
+//                        rowFilter.put(i, Integer.parseInt(val));
+//                        break;
+//                    case -5:
+//                        rowFilter.put(i, Long.valueOf(val));
+//                        break;
+//                    case 6:
+//                        rowFilter.put(i, Float.parseFloat(val));
+//                        break;
+//                    case 8:
+//                        rowFilter.put(i, Double.parseDouble(val));
+//                        break;
+//                    default:
+//                        rowFilter.put(i, val);
+//                }
+            }
             ByteBuf buf = Unpooled.buffer();
             writeShortString(rsMeta.getCatalogName(i), buf);
             writeShortString(rsMeta.getSchemaName(i), buf);
@@ -144,20 +185,23 @@ public class WrapResultSet implements AutoCloseable {
     public void next(boolean first, ChannelHandlerContext out) throws SQLException {
         int fetchSize = getFetchSize();
         if (fetchSize == 0) fetchSize = this.wrapStatement.getFetchSize();
-        int colCount = this.resultSet.getMetaData().getColumnCount();
+        ResultSetMetaData rsmd = this.resultSet.getMetaData();
         if (!first) out.write(writeByte((byte) 0x00));
         while (fetchSize > 0 && this.resultSet.next()) {
             ByteBuf buf = Unpooled.buffer();
             buf.writeByte(0x7e);
-            for (int j = 1; j <= colCount; j++) {
+            for (int j = 1; j <= rsmd.getColumnCount(); j++) {
                 if (rowFilter.containsKey(j)) {
-                    String val = this.resultSet.getString(j);
+                    String val = String.valueOf(this.resultSet.getObject(j));
                     if (rowFilter.get(j).equals(val)) {
                         buf.clear();
                         break;
                     }
                 }
-                byte[] bytes = this.resultSet.getBytes(j);
+                byte[] bytes;
+                if (rsmd.getColumnType(j) == 2)
+                    bytes = this.resultSet.getBigDecimal(j).toPlainString().getBytes(StandardCharsets.UTF_8);
+                else bytes = this.resultSet.getBytes(j);
                 if (colFilter.containsKey(j)) {
                     Pair pair = colFilter.get(j);
                     if (0 == pair.code) bytes = null;

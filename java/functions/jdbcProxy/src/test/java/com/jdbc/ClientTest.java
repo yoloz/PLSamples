@@ -65,17 +65,13 @@ public class ClientTest {
      */
     @Test
     public void testConnect() throws IOException {
-        byte[] keyword = "mysql2".getBytes(StandardCharsets.UTF_8);
-        byte[] pro = "user=test&password=test&useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&zeroDateTimeBehavior=CONVERT_TO_NULL"
-                .getBytes(StandardCharsets.UTF_8);
+        byte[] ak = "3074559825718491745".getBytes(StandardCharsets.UTF_8);
         DataInputStream in = new DataInputStream(socket.getInputStream());
         DataOutputStream out = new DataOutputStream(socket.getOutputStream());
         ByteBuffer buffer = ByteBuffer.allocate(1024);
         buffer.put((byte) 0x02);
-        buffer.putShort((short) keyword.length);
-        buffer.put(keyword);
-        buffer.putInt(pro.length);
-        buffer.put(pro);
+        buffer.putShort((short) ak.length);
+        buffer.put(ak);
         byte[] bytes = filling(buffer);
         out.write(bytes);
         out.flush();
@@ -94,6 +90,8 @@ public class ClientTest {
 
         byte[] sql = "select * from lgservice where service_id=? and service_name=?"
                 .getBytes(StandardCharsets.UTF_8);
+
+        byte[] user = "test".getBytes(StandardCharsets.UTF_8);
         ByteBuffer tempBuffer = ByteBuffer.allocate(1024);
         byte[] methodName, outBytes;
         short result;
@@ -102,7 +100,9 @@ public class ClientTest {
         tempBuffer.put((byte) 0x03);
         tempBuffer.put((byte) methodName.length);
         tempBuffer.put(methodName);
-        tempBuffer.put((byte) 0);
+        tempBuffer.putShort((short)0);
+//        tempBuffer.putShort((short) user.length);
+//        tempBuffer.put(user);
         tempBuffer.put((byte) 1);
         tempBuffer.putInt(sql.length);
         tempBuffer.put(sql);
@@ -137,7 +137,7 @@ public class ClientTest {
             else System.out.println("setInt failure");
 
             methodName = "setString".getBytes(StandardCharsets.UTF_8);
-            byte[] value= "scb".getBytes(StandardCharsets.UTF_8);
+            byte[] value = "test".getBytes(StandardCharsets.UTF_8);
             tempBuffer.put((byte) 0x07);
             tempBuffer.putShort((short) stmt.length);
             tempBuffer.put(stmt);
@@ -260,7 +260,7 @@ public class ClientTest {
         tempBuffer.put((byte) 0x03);
         tempBuffer.put((byte) methodName.length);
         tempBuffer.put(methodName);
-        tempBuffer.put((byte) 0);
+        tempBuffer.putShort((short) 0);
         tempBuffer.put((byte) 0);
         outBytes = filling(tempBuffer);
         out.write(outBytes);

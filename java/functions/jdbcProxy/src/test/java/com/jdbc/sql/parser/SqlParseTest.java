@@ -147,6 +147,9 @@ public class SqlParseTest {
         sql = "SELECT t1.NAME,t2.CLASS FROM DB1.T1 as t1,DB2.T2 as t2 WHERE t1.ID=t2.ID";
         sql = "SELECT T1.NAME,t2.CLASS FROM DB1.T1 as t1,DB2.T2 as t2 WHERE t1.ID=DB2.T2.ID";
         sql = "select * from lgservice where service_id=? and service_name=?";
+//        sql="select lid, l.aid, h.hid, zjhm, xm, hname, roomId, r.rid, l.rent from leases l, applications," +
+//                " applicants, houses h, rooms r where l.hid = h.hid and l.rid = r.rid and " +
+//                "l.aid = applications.aid and applications.applicantZjhm = applicants.zjhm";
         SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, JdbcConstants.MYSQL);
 //        SQLStatement stmt = parser.parseSelect();
         List<SqlInfo> sqlInfoList = parser.parseToSQLInfo();

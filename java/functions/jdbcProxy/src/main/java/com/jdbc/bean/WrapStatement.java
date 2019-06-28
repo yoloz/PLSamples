@@ -1,9 +1,14 @@
 package com.jdbc.bean;
 
 
+import com.handler.PermissionException;
+import com.jdbc.sql.parser.SQLParserUtils;
+import com.jdbc.sql.parser.SQLStatementParser;
+import com.strategy.DSGInfo;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.sql.*;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -15,25 +20,21 @@ public class WrapStatement implements AutoCloseable {
 
     final AtomicInteger COUNTER = new AtomicInteger(1);
 
-    final WrapConnect wrapConnect;
+    private final WrapConnect wrapConnect;
     final String id;
-    final String user;
+    private final String user;
     long timestamp;
 
     private Statement statement;
 
     ConcurrentMap<String, WrapResultSet> rsMap = new ConcurrentHashMap<>(1);
 
-     WrapStatement(WrapConnect wrapConnect, String id, String user) {
+    WrapStatement(WrapConnect wrapConnect, String id, String user, Statement statement) {
         this.wrapConnect = wrapConnect;
         this.id = id;
         this.user = user;
-        this.timestamp = System.currentTimeMillis();
-    }
-
-    public WrapStatement(WrapConnect wrapConnect, String id, String user, Statement statement) {
-        this(wrapConnect, id, user);
         this.statement = statement;
+        this.timestamp = System.currentTimeMillis();
     }
 
     public void updateTime() {
@@ -63,10 +64,15 @@ public class WrapStatement implements AutoCloseable {
         return rsMap.get(resultSetId);
     }
 
-    public void executeQuery(String sql, ChannelHandlerContext out) throws SQLException {
+    public void executeQuery(String sql, ChannelHandlerContext out) throws SQLException, PermissionException {
+        SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, wrapConnect.getDbType());
+        parser.setDefaultDbName(wrapConnect.getDefaultDb());
+        parser.setConn(wrapConnect);
+        Set<String> noSelectCols = DSGInfo.checkPermission(wrapConnect.getAppid(), wrapConnect.getPlatform_id(), user,
+                parser.parseToSQLInfo());
         ResultSet rs = this.statement.executeQuery(sql);
         String rsId = this.id + COUNTER.incrementAndGet();
-        WrapResultSet wrs = new WrapResultSet(this, rsId, rs);
+        WrapResultSet wrs = new WrapResultSet(this, rsId, rs,noSelectCols);
         rsMap.put(rsId, wrs);
         out.write(writeShortStr(OK, rsId));
         wrs.getMetaData(out);

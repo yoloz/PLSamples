@@ -86,6 +86,7 @@ public class IOHandler {
     }
 
     public static ByteBuf writeShortStr(byte cmd, String str) {
+        if(str==null) str="java.lang.NullPointerException";
         byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
         ByteBuf buf = Unpooled.buffer(3 + bytes.length);
         buf.writeByte(cmd);

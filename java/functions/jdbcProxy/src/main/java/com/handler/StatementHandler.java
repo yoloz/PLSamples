@@ -5,12 +5,12 @@ import com.audit.AuditManager;
 import com.jdbc.bean.*;
 import com.jdbc.sql.parser.SQLParserUtils;
 import com.jdbc.sql.parser.SQLStatementParser;
+import com.strategy.DSGInfo;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.sql.SQLException;
 import java.util.Arrays;
-import java.util.List;
 
 import static com.handler.IOHandler.*;
 
@@ -18,22 +18,23 @@ public class StatementHandler {
 
     public static void handler(WrapStatement statement, ByteBuf src, ChannelHandlerContext out)
             throws SQLException, PermissionException {
+        String flag = statement.getUser() == null || statement.getUser().isEmpty() ?
+                statement.getWrapConnect().getAK() : statement.getUser();
         String mName = IOHandler.readByteLen(src);
         if ("executeQuery".equals(mName)) {
             String sql = readIntLen(src);
             AuditManager.getInstance().audit(new AuditEvent(statement.getWrapConnect().getAddress(),
-                    statement.getUser(), mName, sql));
-            UserHandler.authSql(statement.getWrapConnect(), statement.getUser(), sql);
+                    flag, mName, sql));
             statement.executeQuery(sql, out);
         } else if ("executeUpdate".equals(mName)) {
-            WrapConnect connect = statement.getWrapConnect();
             short pc = src.readByte();
             String sql = readIntLen(src);
-            SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, connect.getDbTypeLower());
+            WrapConnect connect = statement.getWrapConnect();
+            SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, connect.getDbType());
             parser.setDefaultDbName(connect.getDefaultDb());
             parser.setConn(connect);
-            List<SqlInfo> list = parser.parseToSQLInfo();
-            UserHandler.authSql(statement.getUser(), connect.getAK(), list);
+            DSGInfo.checkPermission(connect.getAppid(), connect.getPlatform_id(), statement.getUser(),
+                    parser.parseToSQLInfo());
             sql = parser.encryptStmtSql(statement.getUser());
             int count;
             if (1 == pc) {
@@ -68,7 +69,12 @@ public class StatementHandler {
         } else if ("execute".equals(mName)) {
             short pc = src.readByte();
             String sql = readIntLen(src);
-            UserHandler.authSql(statement.getWrapConnect(), statement.getUser(), sql);
+            WrapConnect connect = statement.getWrapConnect();
+            SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, connect.getDbType());
+            parser.setDefaultDbName(connect.getDefaultDb());
+            parser.setConn(connect);
+            DSGInfo.checkPermission(connect.getAppid(), connect.getPlatform_id(), statement.getUser(),
+                    parser.parseToSQLInfo());
             boolean bool;
             if (1 == pc) {
                 AuditManager.getInstance().audit(new AuditEvent(statement.getWrapConnect().getAddress(),
@@ -94,7 +100,7 @@ public class StatementHandler {
                         AuditManager.getInstance().audit(new AuditEvent(statement.getWrapConnect().getAddress(),
                                 statement.getUser(), mName, sql, Arrays.toString(columnNames)));
                         bool = statement.execute(sql, columnNames);
-                    } else throw new SQLException("executeUpdate[array] type[" + type + "] error");
+                    } else throw new SQLException("execute[array] type[" + type + "] error");
                 }
             }
             out.write(writeShortStr(OK, bool));
@@ -109,7 +115,14 @@ public class StatementHandler {
             String[] sqls = readIntLen(arrSize, src);
             AuditManager.getInstance().audit(new AuditEvent(statement.getWrapConnect().getAddress(),
                     statement.getUser(), mName, Arrays.toString(sqls)));
-            for (String sql : sqls) UserHandler.authSql(statement.getWrapConnect(), statement.getUser(), sql);
+            WrapConnect connect = statement.getWrapConnect();
+            for (String sql : sqls) {
+                SQLStatementParser parser = SQLParserUtils.createSQLStatementParser(sql, connect.getDbType());
+                parser.setDefaultDbName(connect.getDefaultDb());
+                parser.setConn(connect);
+                DSGInfo.checkPermission(connect.getAppid(), connect.getPlatform_id(), statement.getUser(),
+                        parser.parseToSQLInfo());
+            }
             int[] code = statement.executeBatch(sqls);
             out.write(writeInt(OK, code));
         } else if ("setFetchDirection".equals(mName)) {
@@ -130,7 +143,7 @@ public class StatementHandler {
             statement.getResultSet(out);
         } else if ("close".equals(mName)) {
             AuditManager.getInstance().audit(new AuditEvent(statement.getWrapConnect().getAddress(),
-                    statement.getUser(), mName));
+                    statement.getUser(), "statement=>" + mName));
             statement.close();
             out.write(writeByte(OK));
         } else throw new SQLException("statementMethod[" + mName + "] is not support");

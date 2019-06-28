@@ -1,4 +1,4 @@
-package com.mask;
+package com.strategy;
 
 import com.handler.IOHandler;
 import com.util.InnerDb;
@@ -9,20 +9,29 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.sql.SQLException;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 public class MaskLogic {
 
     private static final Logger logger = Logger.getLogger(MaskLogic.class);
 
-    public static Map<String, Object> getMaskPolicy(String dbkey, String username, String dbname, String tablename,
-                                                    String colname) throws SQLException {
-        String sql = "select r.name,r.type,r.srctype,m.param " +
-                "from proxymask m, maskrule r " +
-                "where dbkey=? and username=? and dbname=? and tablename=? and colname=?" +
-                "and m.ruleid = r.id";
-        return InnerDb.get(sql, dbkey, username, dbname, tablename, colname);
+    public static Map<String, Map<String, Object>> getMaskPolicy(String ak, String username, String dbname,
+                                                                 String tablename) throws SQLException {
+        String sql = "select m.colname,r.name,r.type,r.srctype,m.param " +
+                "from data_mask_temp m, data_maskrule_temp r " +
+                "where ak=? and username=? and dbname=? and tablename=? and m.ruleid = r.id";
+//        logger.info(sql + "==" + ak + "==" + username + "==" + dbname + "==" + tablename);
+        List<Map<String, Object>> list = InnerDb.query(sql, ak, username, dbname, tablename);
+        Map<String, Map<String, Object>> mmap = new HashMap<>(list.size());
+        for (Map<String, Object> map : list) {
+            String col = String.valueOf(map.remove("colname"));
+            mmap.put(col, map);
+        }
+//        for (String s : mmap.keySet()) {
+//            logger.info(s + "==>");
+//            mmap.get(s).forEach((k, v) -> logger.info(k + "===" + v));
+//        }
+        return mmap;
     }
 
     private static byte[] aes(byte[] content, String password, int mode) {
