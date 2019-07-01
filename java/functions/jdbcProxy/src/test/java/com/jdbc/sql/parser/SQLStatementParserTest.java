@@ -3,6 +3,7 @@ package com.jdbc.sql.parser;
 import com.handler.IOHandler;
 import com.jdbc.bean.WrapConnect;
 import com.jdbc.util.JdbcConstants;
+import com.strategy.MaskLogic;
 import com.util.InnerDb;
 import org.junit.*;
 
