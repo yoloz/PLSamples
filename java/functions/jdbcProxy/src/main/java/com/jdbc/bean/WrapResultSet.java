@@ -1,6 +1,7 @@
 package com.jdbc.bean;
 
 import com.strategy.DSGInfo;
+import com.strategy.MaskLogic;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;

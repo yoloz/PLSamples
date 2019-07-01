@@ -1,5 +1,6 @@
 package com.jdbc.bean;
 
+import com.strategy.MaskLogic;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.nio.charset.StandardCharsets;

@@ -43,6 +43,7 @@ import com.jdbc.sql.ast.expr.SQLVariantRefExpr;
 import com.jdbc.sql.ast.statement.*;
 import com.jdbc.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
 import com.jdbc.util.FnvHash;
+import com.strategy.MaskLogic;
 import org.apache.log4j.Logger;
 
 public class SQLStatementParser extends SQLStatementParsers {
