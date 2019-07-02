@@ -23,7 +23,6 @@ public class WrapStatement implements AutoCloseable {
     private final WrapConnect wrapConnect;
     final String id;
     private final String user;
-    long timestamp;
 
     private Statement statement;
 
@@ -34,12 +33,6 @@ public class WrapStatement implements AutoCloseable {
         this.id = id;
         this.user = user;
         this.statement = statement;
-        this.timestamp = System.currentTimeMillis();
-    }
-
-    public void updateTime() {
-        timestamp = System.currentTimeMillis();
-        wrapConnect.updateTime(timestamp);
     }
 
     public String getUser() {
@@ -148,7 +141,7 @@ public class WrapStatement implements AutoCloseable {
         rsMap.clear();
         try {
             if (statement != null) statement.close();
-            wrapConnect.stmtMap.remove(id);
+            wrapConnect.stmtMap.invalidate(id);
         } catch (SQLException ignored) {
         }
 

@@ -1,12 +1,12 @@
 package com;
 
 import com.audit.AuditManager;
+import com.jdbc.bean.WrapConnect;
 import com.util.Constants;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -14,54 +14,43 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 
-import java.util.concurrent.*;
-
 
 public class JPServer {
 
     private final EventLoopGroup mainG = new NioEventLoopGroup(1);
     private final EventLoopGroup workerG = new NioEventLoopGroup();
-    private final ScheduledExecutorService timeout = Executors.newSingleThreadScheduledExecutor();
 
     private JPServer() {
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws InterruptedException {
         // Configure the server.
         final JPServer jpServer = new JPServer();
         final JPServerHandler serverHandler = new JPServerHandler();
         try {
-            ServerBootstrap b = new ServerBootstrap();
-            b.group(jpServer.mainG, jpServer.workerG)
+            ServerBootstrap bootstrap = new ServerBootstrap();
+            bootstrap.group(jpServer.mainG, jpServer.workerG)
                     .channel(NioServerSocketChannel.class)
                     .option(ChannelOption.SO_BACKLOG, 128)
                     .handler(new LoggingHandler(LogLevel.INFO))
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
-                        public void initChannel(SocketChannel ch) throws Exception {
-                            ChannelPipeline p = ch.pipeline();
-                            p.addLast(serverHandler);
+                        public void initChannel(SocketChannel ch) {
+                            ch.pipeline().addLast(serverHandler);
                         }
                     });
-
-            jpServer.timeout.scheduleWithFixedDelay(new Thread(() ->
-                            serverHandler.connects.forEach((k, v) -> {
-                                if (v.isTimeout()) serverHandler.connects.remove(k);
-                            })),
-                    Constants.proxyTimeout, Constants.proxyTimeout, TimeUnit.SECONDS);
 
             AuditManager.getInstance().start();
 
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                serverHandler.connects.forEach((k, v) -> v.close());
-                serverHandler.connects.clear();
-                jpServer.timeout.shutdown();
+                serverHandler.connects.asMap().values().forEach(WrapConnect::close);
+                serverHandler.connects.invalidateAll();
                 AuditManager.getInstance().stop();
                 jpServer.mainG.shutdownGracefully();
                 jpServer.workerG.shutdownGracefully();
             }));
             // Start the server.
-            ChannelFuture f = b.bind(Constants.proxyPort).sync();
+            ChannelFuture f = bootstrap.bind(Constants.proxyPort).sync();
             // Wait until the server socket is closed.
             f.channel().closeFuture().sync();
         } finally {

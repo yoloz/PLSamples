@@ -66,12 +66,15 @@ public class ClientTest {
     @Test
     public void testConnect() throws IOException {
         byte[] ak = "3074559825718491745".getBytes(StandardCharsets.UTF_8);
+        byte[] mac = "14:fe:b5:e7:0b:a9".getBytes(StandardCharsets.UTF_8);
         DataInputStream in = new DataInputStream(socket.getInputStream());
         DataOutputStream out = new DataOutputStream(socket.getOutputStream());
         ByteBuffer buffer = ByteBuffer.allocate(1024);
         buffer.put((byte) 0x02);
         buffer.putShort((short) ak.length);
         buffer.put(ak);
+        buffer.putShort((short) mac.length);
+        buffer.put(mac);
         byte[] bytes = filling(buffer);
         out.write(bytes);
         out.flush();
@@ -100,7 +103,7 @@ public class ClientTest {
         tempBuffer.put((byte) 0x03);
         tempBuffer.put((byte) methodName.length);
         tempBuffer.put(methodName);
-        tempBuffer.putShort((short)0);
+        tempBuffer.putShort((short) 0);
 //        tempBuffer.putShort((short) user.length);
 //        tempBuffer.put(user);
         tempBuffer.put((byte) 1);
@@ -200,6 +203,12 @@ public class ClientTest {
                     else throw new IOException("cmd is not defined[" + cmd + "]");
                 }
                 System.out.println("**********RSRow**********");
+
+                try {
+                    Thread.sleep(60 * 1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
 
                 while (true) {
                     methodName = "next".getBytes(StandardCharsets.UTF_8);

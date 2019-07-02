@@ -1,15 +1,16 @@
 package com;
 
+import com.google.common.cache.*;
 import com.handler.*;
 import com.jdbc.bean.*;
+import com.util.Constants;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.log4j.Logger;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.*;
 
 import static com.handler.IOHandler.*;
 
@@ -19,7 +20,13 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
 
     private final Logger logger = Logger.getLogger(JPServerHandler.class);
     //<address,connect>
-    final ConcurrentMap<String, WrapConnect> connects = new ConcurrentHashMap<>();
+    final Cache<String, WrapConnect> connects = CacheBuilder.newBuilder()
+            .expireAfterAccess(Constants.proxyTimeout, TimeUnit.SECONDS)
+            .removalListener((RemovalListener<String, WrapConnect>) notify -> {
+                if (notify.getCause() == RemovalCause.EXPIRED) {
+                    notify.getValue().close();
+                }
+            }).build();
 
 
     @Override
@@ -39,41 +46,80 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
                         String mac = readShortLen(src);
 //                        String process = readIntLen(src);
                         WrapConnect conn = new WrapConnect(rAddress, ak);
-                        if (connects.containsKey(rAddress)) closeConn(rAddress);
+                        if (connects.getIfPresent(rAddress) != null) closeConn(rAddress);
                         connects.put(rAddress, conn);
                         out.write(writeByte(OK));
                         break;
                     case 3:
-                        WrapConnect wrapConnect = connects.get(rAddress);
-                        wrapConnect.updateTime(System.currentTimeMillis());
+                        WrapConnect wrapConnect = connects.getIfPresent(rAddress);
+                        if (wrapConnect == null) {
+                            finish = true;
+                            throw new NullPointerException("connection is closed...");
+                        }
                         ConnectHandler.handler(wrapConnect, src, out);
                         break;
                     case 4:
-                        wrapConnect = connects.get(rAddress);
-                        wrapConnect.updateTime(System.currentTimeMillis());
+                        wrapConnect = connects.getIfPresent(rAddress);
+                        if (wrapConnect == null) {
+                            finish = true;
+                            throw new NullPointerException("connection is closed...");
+                        }
                         ConnectMetaHandler.handler(wrapConnect, src, out);
                         break;
                     case 5:
+                        wrapConnect = connects.getIfPresent(rAddress);
+                        if (wrapConnect == null) {
+                            finish = true;
+                            throw new NullPointerException("connection is closed...");
+                        }
                         String stmtId = readShortLen(src);
-                        WrapStatement wrapStatement = connects.get(rAddress).getStatement(stmtId);
-                        wrapStatement.updateTime();
+                        WrapStatement wrapStatement = wrapConnect.getStatement(stmtId);
+                        if (wrapStatement == null) {
+                            finish = true;
+                            throw new NullPointerException("statement[" + stmtId + "] is closed...");
+                        }
                         StatementHandler.handler(wrapStatement, src, out);
                         break;
                     case 6:
+                        wrapConnect = connects.getIfPresent(rAddress);
+                        if (wrapConnect == null) {
+                            finish = true;
+                            throw new NullPointerException("connection is closed...");
+                        }
                         stmtId = readShortLen(src);
-                        wrapStatement = connects.get(rAddress).getStatement(stmtId);
-                        wrapStatement.updateTime();
+                        wrapStatement = wrapConnect.getStatement(stmtId);
+                        if (wrapStatement == null) {
+                            finish = true;
+                            throw new NullPointerException("statement[" + stmtId + "] is closed...");
+                        }
                         String rsId = readShortLen(src);
-                        ResultSetHandler.handler(wrapStatement.getResultSet(rsId), src, out);
+                        WrapResultSet wrapResultSet = wrapStatement.getResultSet(rsId);
+                        if (wrapResultSet == null) {
+                            finish = true;
+                            throw new NullPointerException("resultSet[" + rsId + "] is closed...");
+                        }
+                        ResultSetHandler.handler(wrapResultSet, src, out);
                         break;
                     case 7:
+                        wrapConnect = connects.getIfPresent(rAddress);
+                        if (wrapConnect == null) {
+                            finish = true;
+                            throw new NullPointerException("connection is closed...");
+                        }
                         stmtId = readShortLen(src);
-                        WrapPrepareStatement wrapPrepareStatement = connects.get(rAddress).getPrepareStatement(stmtId);
-                        wrapPrepareStatement.updateTime();
+                        WrapPrepareStatement wrapPrepareStatement = wrapConnect.getPrepareStatement(stmtId);
+                        if (wrapPrepareStatement == null) {
+                            finish = true;
+                            throw new NullPointerException("prepareStatement[" + stmtId + "] is closed...");
+                        }
                         PrepareStatementHandler.handler(wrapPrepareStatement, src, out);
                         break;
                     case 8:
-                        connects.get(rAddress).updateTime(System.currentTimeMillis());
+                        wrapConnect = connects.getIfPresent(rAddress);
+                        if (wrapConnect == null) {
+                            finish = true;
+                            throw new NullPointerException("connection is closed...");
+                        }
                         out.write(IOHandler.writeByte(OK));
                         break;
                     default:
@@ -109,8 +155,11 @@ public class JPServerHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void closeConn(String key) {
-        WrapConnect conn = connects.remove(key);
-        if (conn != null) conn.close();
+        WrapConnect conn = connects.getIfPresent(key);
+        if (conn != null) {
+            connects.invalidate(key);
+            conn.close();
+        }
     }
 
 }

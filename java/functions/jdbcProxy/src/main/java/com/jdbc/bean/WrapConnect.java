@@ -2,6 +2,7 @@ package com.jdbc.bean;
 
 import com.audit.AuditEvent;
 import com.audit.AuditManager;
+import com.google.common.cache.*;
 import com.handler.PermissionException;
 import com.jdbc.sql.parser.SQLParserUtils;
 import com.jdbc.sql.parser.SQLStatementParser;
@@ -44,10 +45,13 @@ public class WrapConnect implements Closeable {
     private final String dbType;
     private String defaultDb;
 
-    private long timestamp;
-
-
-    ConcurrentMap<String, WrapStatement> stmtMap = new ConcurrentHashMap<>(1);
+    final Cache<String, WrapStatement> stmtMap = CacheBuilder.newBuilder()
+            .expireAfterAccess(Constants.proxyTimeout, TimeUnit.SECONDS)
+            .removalListener((RemovalListener<String, WrapStatement>) notify -> {
+                if (notify.getCause() == RemovalCause.EXPIRED) {
+                    notify.getValue().close();
+                }
+            }).build();
 
     @SuppressWarnings("unchecked")
     public WrapConnect(String rAddress, String ak) throws Exception {
@@ -88,7 +92,6 @@ public class WrapConnect implements Closeable {
         } else throw new SQLException("type[" + dbType + "] is not support");
         this.dbConnect = create((List<String>) dsgInfo.get("driverPath"),
                 String.valueOf(dsgInfo.get("driverClass")), url, property);
-        this.timestamp = System.currentTimeMillis();
         AuditManager.getInstance().audit(new AuditEvent(rAddress, ak, "createConnect",
                 ak, property.toString()));
     }
@@ -115,10 +118,6 @@ public class WrapConnect implements Closeable {
 
     private String generateStmt() {
         return md5(rAddress + COUNTER.incrementAndGet());
-    }
-
-    public void updateTime(long ts) {
-        timestamp = ts;
     }
 
     public String getAK() {
@@ -166,11 +165,11 @@ public class WrapConnect implements Closeable {
     }
 
     public WrapStatement getStatement(String stmtId) {
-        return stmtMap.get(stmtId);
+        return stmtMap.getIfPresent(stmtId);
     }
 
     public WrapPrepareStatement getPrepareStatement(String stmtId) {
-        return (WrapPrepareStatement) stmtMap.get(stmtId);
+        return (WrapPrepareStatement) stmtMap.getIfPresent(stmtId);
     }
 
     public DatabaseMetaData getMetaData() throws SQLException {
@@ -305,29 +304,12 @@ public class WrapConnect implements Closeable {
 
     @Override
     public void close() {
-        if (!stmtMap.isEmpty()) stmtMap.values().forEach(WrapStatement::close);
-        stmtMap.clear();
+        stmtMap.asMap().values().forEach(WrapStatement::close);
+        stmtMap.invalidateAll();
         try {
             if (dbConnect != null) dbConnect.close();
             if (pcl != null) pcl.close();
         } catch (SQLException | IOException ignored) {
-        }
-    }
-
-    public boolean isTimeout() {
-        long current = System.currentTimeMillis();
-        long timeout = Constants.proxyTimeout * 1000;
-        if (current - timestamp >= timeout) {
-            close();
-            return true;
-        } else {
-            stmtMap.forEach((k, v) -> {
-                if (current - v.timestamp > timeout) {
-                    v.close();
-                    stmtMap.remove(k);
-                }
-            });
-            return false;
         }
     }
 }
