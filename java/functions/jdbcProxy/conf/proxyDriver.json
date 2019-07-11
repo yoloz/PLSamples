@@ -1,4 +1,0 @@
-{"mysql": [{"version":["5.5.3","5.7.2","5.5.5"],"driverClass": "com.mysql.jdbc.Driver", "driverPath": ["mysql-connector-java-5.1.46.jar"]},
-  {"version":["8.0.15"],"driverClass": "com.mysql.cj.jdbc.Driver", "driverPath": ["mysql-connector-java-8.0.15.jar","protobuf-java-3.6.1.jar"]}],
-  "oracle": [{"version": ["12c"],"driverClass": "oracle.jdbc.OracleDriver","driverPath": ["ojdbc6.jar"]}]
-}
